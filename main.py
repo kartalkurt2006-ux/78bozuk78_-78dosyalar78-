@@ -161,6 +161,38 @@ def check_wave_margins(df, lookback=3):
     return False
 
 
+# 1 Saat Süper Trend için Breakout Hazırlığı (Sıkışma/Erken Tetiklenme Kontrolü)
+def check_1h_super_breakout_prep(df, lookback=3):
+  try:
+    close = df["Close"].values
+    high = df["High"].values
+    low = df["Low"].values
+
+    if len(close) < 35:
+      return False
+
+    wave_sequence = [4, 8, 5, 8, 9]
+    total_cycle = sum(wave_sequence)
+
+    recent_high = np.max(high[-total_cycle:])
+    recent_low = np.min(low[-total_cycle:])
+    margin_range = recent_high - recent_low
+
+    if margin_range == 0:
+      return False
+
+    upper_margin_threshold = recent_low + (margin_range * 0.80)
+    margin_tolerance = upper_margin_threshold * 0.99  # Üst marjın %1 altında sıkışma hazırlığı
+
+    curr_p = close[-1]
+    if curr_p >= margin_tolerance:
+      return True
+
+    return False
+  except Exception:
+    return False
+
+
 def hafiza_yukle():
   if os.path.exists(MERKEZI_HAFIZA_DOSYASI):
     try:
@@ -366,7 +398,7 @@ def run_scanner():
         hma20_1h = calculate_hma(close_1h, 20)
         wave_breakout_1h = check_wave_margins(df_1h, lookback=3)
 
-        # 5. 1 Saatlik Dalga Marjı
+        # 5. 1 Saatlik Dalga Marjı (Orijinal)
         kural_tipi = "1h_dalga_gorsel"
         label = "1Saat Dalga Marji"
         if kural_tipi not in tum_hafiza: tum_hafiza[kural_tipi] = {}
@@ -377,7 +409,7 @@ def run_scanner():
             toplam_puan += 25.0
             tum_hafiza[kural_tipi][clean_ticker] = simdi_epoch
 
-        # 6. 1 saat süper
+        # 6. 1 saat süper (Esnetilmiş: Breakout Hazırlığı / Sıkışma Kuralı)
         kural_tipi = "1_saat_super"
         label = "1Saat Super Trend"
         if kural_tipi not in tum_hafiza: tum_hafiza[kural_tipi] = {}
@@ -393,7 +425,10 @@ def run_scanner():
         cmf_1h = (mf_mult_1h * volume_1h).rolling(20).sum() / (volume_1h.rolling(20).sum() + 1e-10)
         cmf_curr_1h = cmf_1h.iloc[-1]
 
-        if (close_curr_1h > hma20_1h.iloc[-1]) and (mfi_curr_1h > 30) and (plus_di_curr_1h > 20) and (cmf_curr_1h > -0.20) and wave_breakout_1h:
+        # Breakout hazırlığı fonksiyonu entegre edildi
+        sart_1h_super_prep = check_1h_super_breakout_prep(df_1h, lookback=3)
+
+        if (close_curr_1h > hma20_1h.iloc[-1]) and (mfi_curr_1h > 30) and (plus_di_curr_1h > 20) and (cmf_curr_1h > -0.20) and sart_1h_super_prep:
           if simdi_epoch - tum_hafiza[kural_tipi].get(clean_ticker, 0) > COOLDOWN_SECONDS:
             tetiklenen_str.append(f"• 🟠 {label} (MFi:{mfi_curr_1h:.1f}|CMF:{cmf_curr_1h:.2f})")
             toplam_puan += 30.0
