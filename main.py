@@ -194,11 +194,13 @@ def piyasa_zaman_kontrolu():
 
 def send_ntfy(message, baslik):
   try:
-    headers = {"Title": baslik, "Priority": "high"}
+    # Başlıklardaki olası karakter bozulmalarını önlemek için ASCII güvenli hale getiriyoruz
+    safe_baslik = baslik.encode("ascii", "ignore").decode("ascii")
+    headers = {"Title": safe_baslik, "Priority": "high"}
     res = requests.post(
         NTFY_URL, data=message.encode("utf-8"), headers=headers, timeout=10
     )
-    print(f"Ntfy Yanıtı ({baslik}): {res.status_code}")
+    print(f"Ntfy Yanıtı ({safe_baslik}): {res.status_code}")
   except Exception as e:
     print(f"Ntfy Mesaj Hatası: {e}")
 
@@ -291,36 +293,36 @@ def run_scanner():
 
         if kapanis_teyit and (close_curr_15 > bb_middle) and (mfi_curr_15 > 60) and (cmf_curr_15 > -0.20) and (rsi_curr_15 > 50) and (rvol_curr_15 > 0.6):
           if simdi_epoch - tum_hafiza[kural_tipi].get(clean_ticker, 0) > COOLDOWN_SECONDS:
-            tetiklenen_str.append(f"• 🔴 **Strateji:** {label}\n  └ *MFi:* **{mfi_curr_15:.1f}** | *RSI:* **{rsi_curr_15:.1f}**")
+            tetiklenen_str.append(f"• 🔴 {label} (MFi:{mfi_curr_15:.1f}|RSI:{rsi_curr_15:.1f})")
             toplam_puan += 35.0
             tum_hafiza[kural_tipi][clean_ticker] = simdi_epoch
 
         # 2. 15m Profesjonel Momentum
         kural_tipi = "15m_profesjonel"
-        label = "15m Profesjonel Momentum"
+        label = "15m Prof. Momentum"
         if kural_tipi not in tum_hafiza: tum_hafiza[kural_tipi] = {}
         
         sart_wave = check_wave_margins(df_15m, lookback=5)
         if sart_wave and (volume_15.iloc[-1] > volume_15.iloc[-2]) and (rvol_curr_15 > 1.0) and (close_curr_15 > hma20_15.iloc[-1]) and (close_curr_15 >= close_15.rolling(20).mean().iloc[-1]) and (mfi_curr_15 > 25) and (plus_di_curr_15 > 15) and (rsi_curr_15 > 45):
           if simdi_epoch - tum_hafiza[kural_tipi].get(clean_ticker, 0) > COOLDOWN_SECONDS:
-            tetiklenen_str.append(f"• 🟢 **Strateji:** {label}\n  └ *MFi:* **{mfi_curr_15:.1f}** | *RSI:* **{rsi_curr_15:.1f}**")
+            tetiklenen_str.append(f"• 🟢 {label} (MFi:{mfi_curr_15:.1f}|RSI:{rsi_curr_15:.1f})")
             toplam_puan += 30.0
             tum_hafiza[kural_tipi][clean_ticker] = simdi_epoch
 
         # 3. Acil 15 dk yetiş
         kural_tipi = "acil_15_dk"
-        label = "acil 15 dk yetiş"
+        label = "acil 15 dk"
         if kural_tipi not in tum_hafiza: tum_hafiza[kural_tipi] = {}
         
         if (rvol_curr_15 >= 0.6) and (close_curr_15 > hma20_15.iloc[-1]) and (mfi_curr_15 > 60) and (rsi_curr_15 > 45):
           if simdi_epoch - tum_hafiza[kural_tipi].get(clean_ticker, 0) > COOLDOWN_SECONDS:
-            tetiklenen_str.append(f"• 🟡 **Strateji:** {label}\n  └ *MFi:* **{mfi_curr_15:.1f}** | *RSI:* **{rsi_curr_15:.1f}**")
+            tetiklenen_str.append(f"• 🟡 {label} (MFi:{mfi_curr_15:.1f}|RSI:{rsi_curr_15:.1f})")
             toplam_puan += 20.0
             tum_hafiza[kural_tipi][clean_ticker] = simdi_epoch
 
         # 4. Süper Fisher 15
         kural_tipi = "super_fisher_15"
-        label = "Süper Fisher 15"
+        label = "Super Fisher 15"
         if kural_tipi not in tum_hafiza: tum_hafiza[kural_tipi] = {}
         
         strend_line = calculate_strend(df_15m, period=10, multiplier=3)
@@ -331,7 +333,7 @@ def run_scanner():
 
         if (rvol_curr_15 >= 0.6) and (close_curr_15 > strend_line.iloc[-1]) and (close_curr_15 > hma20_15.iloc[-1]) and sart_fisher and (mfi_curr_15 > 45) and (plus_di_curr_15 > minus_di_curr_15):
           if simdi_epoch - tum_hafiza[kural_tipi].get(clean_ticker, 0) > COOLDOWN_SECONDS:
-            tetiklenen_str.append(f"• 🔵 **Strateji:** {label}\n  └ *MFi:* **{mfi_curr_15:.1f}** | *RSI:* **{rsi_curr_15:.1f}**")
+            tetiklenen_str.append(f"• 🔵 {label} (MFi:{mfi_curr_15:.1f}|RSI:{rsi_curr_15:.1f})")
             toplam_puan += 25.0
             tum_hafiza[kural_tipi][clean_ticker] = simdi_epoch
 
@@ -367,18 +369,18 @@ def run_scanner():
 
         # 5. 1 Saatlik Dalga Marjı
         kural_tipi = "1h_dalga_gorsel"
-        label = "1 Saatlik Dalga Marjı"
+        label = "1Saat Dalga Marji"
         if kural_tipi not in tum_hafiza: tum_hafiza[kural_tipi] = {}
 
         if (close_curr_1h > hma20_1h.iloc[-1]) and (rsi_curr_1h > 50) and (plus_di_curr_1h > 25) and wave_breakout_1h:
           if simdi_epoch - tum_hafiza[kural_tipi].get(clean_ticker, 0) > COOLDOWN_SECONDS:
-            tetiklenen_str.append(f"• 🟣 **Strateji:** {label}\n  └ *RSI:* **{rsi_curr_1h:.1f}** | *+DI:* **{plus_di_curr_1h:.1f}**")
+            tetiklenen_str.append(f"• 🟣 {label} (RSI:{rsi_curr_1h:.1f}|+DI:{plus_di_curr_1h:.1f})")
             toplam_puan += 25.0
             tum_hafiza[kural_tipi][clean_ticker] = simdi_epoch
 
         # 6. 1 saat süper
         kural_tipi = "1_saat_super"
-        label = "1 saat süper"
+        label = "1Saat Super Trend"
         if kural_tipi not in tum_hafiza: tum_hafiza[kural_tipi] = {}
 
         tp_1h = (high_1h + low_1h + close_1h) / 3
@@ -394,14 +396,14 @@ def run_scanner():
 
         if (close_curr_1h > hma20_1h.iloc[-1]) and (mfi_curr_1h > 30) and (plus_di_curr_1h > 20) and (cmf_curr_1h > -0.20) and wave_breakout_1h:
           if simdi_epoch - tum_hafiza[kural_tipi].get(clean_ticker, 0) > COOLDOWN_SECONDS:
-            tetiklenen_str.append(f"• 🟠 **Strateji:** {label}\n  └ *MFi:* **{mfi_curr_1h:.1f}** | *CMF:* **{cmf_curr_1h:.2f}**")
+            tetiklenen_str.append(f"• 🟠 {label} (MFi:{mfi_curr_1h:.1f}|CMF:{cmf_curr_1h:.2f})")
             toplam_puan += 30.0
             tum_hafiza[kural_tipi][clean_ticker] = simdi_epoch
 
       # Eğer bu hisse için sinyal çıktıysa havuza ekle
       if tetiklenen_str:
         if toplam_puan == 0:
-          toplam_puan = 30.0  # Varsayılan taban puan
+          toplam_puan = 30.0
 
         toplanan_sinyaller.append({
             "temiz_isim": temiz_isim,
@@ -417,12 +419,11 @@ def run_scanner():
 
   # --- KATEGORİZASYON VE TOPLU MESAJ GÖNDERİMİ ---
   if toplanan_sinyaller:
-    # Puana göre büyükten küçüğe sırala
     toplanan_sinyaller.sort(key=lambda x: x["puan"], reverse=True)
 
-    grup_3_fuze = []  # 60 - 100 Puan (Top Sinyal + 👑)
-    grup_2_fuze = []  # 40 - 59 Puan (Güçlü)
-    grup_1_fuze = []  # 20 - 39 Puan (Standart / Gevşetilmiş)
+    grup_3_fuze = []
+    grup_2_fuze = []
+    grup_1_fuze = []
 
     for item in toplanan_sinyaller:
       p = item["puan"]
@@ -441,15 +442,15 @@ def run_scanner():
       for s in grup_3_fuze:
         str_metni = "\n".join(s["stratejiler"])
         kart = (
-            f"🚀🚀🚀 **[TOP SİNYAL] — 👑 {s['puan']:.1f} Puan**\n"
-            f"📌 **Hisse:** `🟦 {s['temiz_isim']} 🟦` | **Fiyat:** ₺{s['fiyat']:.2f}\n"
+            f"🚀🚀🚀 TOP SİNYAL - 👑 {s['puan']:.1f} Puan\n"
+            f"📌 Hisse: {s['temiz_isim']} | Fiyat: ₺{s['fiyat']:.2f}\n"
             f"{str_metni}\n"
-            "━━━━━━━━━━━━━━━━━━━━━━"
+            "----------------------------"
         )
         icerik_listesi.append(kart)
 
-      mesaj_3 = f"🚀🚀🚀 **[BIST TOP SİNYALLER - ZİRVE]** ({zaman_str})\n━━━━━━━━━━━━━━━━━━━━━━\n" + "\n".join(icerik_listesi)
-      send_ntfy(mesaj_3, "BIST Zirve Sinyaller (3 Füze)")
+      mesaj_3 = f"BIST Zirve Sinyaller (3 Fuze) [{zaman_str}]\n----------------------------\n" + "\n".join(icerik_listesi)
+      send_ntfy(mesaj_3, "BIST Zirve Sinyaller (3 Fuze)")
       time.sleep(1)
 
     # 2. Bildirim: 2 Füzeli Güçlü Sinyaller
@@ -458,15 +459,15 @@ def run_scanner():
       for s in grup_2_fuze:
         str_metni = "\n".join(s["stratejiler"])
         kart = (
-            f"🚀🚀 **[GÜÇLÜ SİNYAL] — {s['puan']:.1f} Puan**\n"
-            f"📌 **Hisse:** `🟦 {s['temiz_isim']} 🟦` | **Fiyat:** ₺{s['fiyat']:.2f}\n"
+            f"🚀🚀 GUCLU SINYAL - {s['puan']:.1f} Puan\n"
+            f"📌 Hisse: {s['temiz_isim']} | Fiyat: ₺{s['fiyat']:.2f}\n"
             f"{str_metni}\n"
-            "━━━━━━━━━━━━━━━━━━━━━━"
+            "----------------------------"
         )
         icerik_listesi.append(kart)
 
-      mesaj_2 = f"🚀🚀 **[BIST GÜÇLÜ SİNYALLER]** ({zaman_str})\n━━━━━━━━━━━━━━━━━━━━━━\n" + "\n".join(icerik_listesi)
-      send_ntfy(mesaj_2, "BIST Güçlü Sinyaller (2 Füze)")
+      mesaj_2 = f"BIST Guclu Sinyaller (2 Fuze) [{zaman_str}]\n----------------------------\n" + "\n".join(icerik_listesi)
+      send_ntfy(mesaj_2, "BIST Guclu Sinyaller (2 Fuze)")
       time.sleep(1)
 
     # 3. Bildirim: 1 Füzeli Standart / Gevşetilmiş Sinyaller
@@ -475,15 +476,15 @@ def run_scanner():
       for s in grup_1_fuze:
         str_metni = "\n".join(s["stratejiler"])
         kart = (
-            f"🚀 **[STANDART SİNYAL] — {s['puan']:.1f} Puan**\n"
-            f"📌 **Hisse:** `🟦 {s['temiz_isim']} 🟦` | **Fiyat:** ₺{s['fiyat']:.2f}\n"
+            f"🚀 STANDART SINYAL - {s['puan']:.1f} Puan\n"
+            f"📌 Hisse: {s['temiz_isim']} | Fiyat: ₺{s['fiyat']:.2f}\n"
             f"{str_metni}\n"
-            "━━━━━━━━━━━━━━━━━━━━━━"
+            "----------------------------"
         )
         icerik_listesi.append(kart)
 
-      mesaj_1 = f"🚀 **[BIST STANDART / GEVŞETİLMİŞ]** ({zaman_str})\n━━━━━━━━━━━━━━━━━━━━━━\n" + "\n".join(icerik_listesi)
-      send_ntfy(mesaj_1, "BIST Standart Sinyaller (1 Füze)")
+      mesaj_1 = f"BIST Standart Sinyaller (1 Fuze) [{zaman_str}]\n----------------------------\n" + "\n".join(icerik_listesi)
+      send_ntfy(mesaj_1, "BIST Standart Sinyaller (1 Fuze)")
 
   print("\nTüm Hisseler ve 6 Strateji Başarıyla Tarandı ve Kategorize Edilerek Gönderildi.")
 
