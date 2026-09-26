@@ -194,7 +194,6 @@ def piyasa_zaman_kontrolu():
 
 def send_ntfy(message, baslik):
   try:
-    # Başlıklardaki olası karakter bozulmalarını önlemek için ASCII güvenli hale getiriyoruz
     safe_baslik = baslik.encode("ascii", "ignore").decode("ascii")
     headers = {"Title": safe_baslik, "Priority": "high"}
     res = requests.post(
@@ -436,14 +435,14 @@ def run_scanner():
 
     zaman_str = datetime.now(TZ_TR).strftime('%H:%M')
 
-    # 1. Bildirim: 3 Füzeli Zirve Sinyaller (Kral Tacı ile)
+    # 1. 3 Füzeli Zirve Sinyaller (Tek Mesaj)
     if grup_3_fuze:
       icerik_listesi = []
       for s in grup_3_fuze:
         str_metni = "\n".join(s["stratejiler"])
         kart = (
             f"🚀🚀🚀 TOP SİNYAL - 👑 {s['puan']:.1f} Puan\n"
-            f"📌 Hisse: {s['temiz_isim']} | Fiyat: ₺{s['fiyat']:.2f}\n"
+            f"📌 Hisse: 🟦 {s['temiz_isim']} 🟦 | Fiyat: ₺{s['fiyat']:.2f}\n"
             f"{str_metni}\n"
             "----------------------------"
         )
@@ -453,40 +452,44 @@ def run_scanner():
       send_ntfy(mesaj_3, "BIST Zirve Sinyaller (3 Fuze)")
       time.sleep(1)
 
-    # 2. Bildirim: 2 Füzeli Güçlü Sinyaller
+    # 2. 2 Füzeli Güçlü Sinyaller (3'erli Gruplara / Partlara Bölünmüş)
     if grup_2_fuze:
-      icerik_listesi = []
-      for s in grup_2_fuze:
-        str_metni = "\n".join(s["stratejiler"])
-        kart = (
-            f"🚀🚀 GUCLU SINYAL - {s['puan']:.1f} Puan\n"
-            f"📌 Hisse: {s['temiz_isim']} | Fiyat: ₺{s['fiyat']:.2f}\n"
-            f"{str_metni}\n"
-            "----------------------------"
-        )
-        icerik_listesi.append(kart)
+      chunk_size = 3
+      chunks = [grup_2_fuze[i:i + chunk_size] for i in range(0, len(grup_2_fuze), chunk_size)]
+      total_parts = len(chunks)
+      
+      for part_idx, chunk in enumerate(chunks, 1):
+        icerik_listesi = []
+        for s in chunk:
+          str_metni = "\n".join(s["stratejiler"])
+          kart = (
+              f"🚀🚀 GUCLU SINYAL - {s['puan']:.1f} Puan\n"
+              f"📌 Hisse: 🟦 {s['temiz_isim']} 🟦 | Fiyat: ₺{s['fiyat']:.2f}\n"
+              f"{str_metni}\n"
+              "----------------------------"
+          )
+          icerik_listesi.append(kart)
 
-      mesaj_2 = f"BIST Guclu Sinyaller (2 Fuze) [{zaman_str}]\n----------------------------\n" + "\n".join(icerik_listesi)
-      send_ntfy(mesaj_2, "BIST Guclu Sinyaller (2 Fuze)")
-      time.sleep(1)
+        mesaj_2 = f"BIST Guclu Sinyaller (2 Fuze) [{part_idx}/{total_parts}] [{zaman_str}]\n----------------------------\n" + "\n".join(icerik_listesi)
+        send_ntfy(mesaj_2, f"BIST Guclu Sinyaller (2 Fuze) [{part_idx}/{total_parts}]")
+        time.sleep(1)
 
-    # 3. Bildirim: 1 Füzeli Standart / Gevşetilmiş Sinyaller
+    # 3. 1 Füzeli Standart Sinyaller (Tek Tek)
     if grup_1_fuze:
-      icerik_listesi = []
       for s in grup_1_fuze:
         str_metni = "\n".join(s["stratejiler"])
-        kart = (
+        mesaj_1 = (
+            f"BIST Standart Sinyal [{zaman_str}]\n"
+            "----------------------------\n"
             f"🚀 STANDART SINYAL - {s['puan']:.1f} Puan\n"
-            f"📌 Hisse: {s['temiz_isim']} | Fiyat: ₺{s['fiyat']:.2f}\n"
+            f"📌 Hisse: 🟦 {s['temiz_isim']} 🟦 | Fiyat: ₺{s['fiyat']:.2f}\n"
             f"{str_metni}\n"
             "----------------------------"
         )
-        icerik_listesi.append(kart)
+        send_ntfy(mesaj_1, f"BIST Standart Sinyal - {s['temiz_isim']}")
+        time.sleep(1)
 
-      mesaj_1 = f"BIST Standart Sinyaller (1 Fuze) [{zaman_str}]\n----------------------------\n" + "\n".join(icerik_listesi)
-      send_ntfy(mesaj_1, "BIST Standart Sinyaller (1 Fuze)")
-
-  print("\nTüm Hisseler ve 6 Strateji Başarıyla Tarandı ve Kategorize Edilerek Gönderildi.")
+  print("\nTüm Hisseler ve 6 Strateji Başarıyla Tarandı ve İstediğiniz Düzenle Gönderildi.")
 
 
 if __name__ == "__main__":
