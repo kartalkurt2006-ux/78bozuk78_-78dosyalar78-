@@ -210,11 +210,12 @@ def run_scanner():
 
   simdi_epoch = time.time()
   print(
-      f"[{datetime.now(TZ_TR).strftime('%Y-%m-%d %H:%M:%S')}] Hisse Bazlı"
-      " Tek İstekli 6 Stratejili Merkezi Tarama Başlatılıyor..."
+      f"[{datetime.now(TZ_TR).strftime('%Y-%m-%d %H:%M:%S')}] Kategorize Edilmiş"
+      " Kral Taclı 6 Stratejili Merkezi Tarama Başlatılıyor..."
   )
 
   tum_hafiza = hafiza_yukle()
+  toplanan_sinyaller = []
 
   for ticker in STOCKS:
     clean_ticker = ticker.strip()
@@ -222,13 +223,12 @@ def run_scanner():
 
     tetiklenen_str = []
     guncel_fiyat = 0.0
+    toplam_puan = 0.0
 
     try:
-      # 1. ADIM: 15 dakikalık veriyi TEK SEFERDE çek
       df_15m = yf.download(clean_ticker, period="1mo", interval="15m", progress=False)
       time.sleep(0.15)
 
-      # 2. ADIM: 1 saatlik veriyi TEK SEFERDE çek
       df_1h = yf.download(clean_ticker, period="1mo", interval="1h", progress=False)
       time.sleep(0.15)
 
@@ -277,7 +277,7 @@ def run_scanner():
         rvol_curr_15 = rvol_15.iloc[-1]
         hma20_15 = calculate_hma(close_15, 20)
 
-        # 1. Strateji: Bomba 15 (Kırmızı Top 🔴)
+        # 1. Bomba 15
         kural_tipi = "15m_klasik"
         label = "bomba 15"
         if kural_tipi not in tum_hafiza: tum_hafiza[kural_tipi] = {}
@@ -291,10 +291,11 @@ def run_scanner():
 
         if kapanis_teyit and (close_curr_15 > bb_middle) and (mfi_curr_15 > 60) and (cmf_curr_15 > -0.20) and (rsi_curr_15 > 50) and (rvol_curr_15 > 0.6):
           if simdi_epoch - tum_hafiza[kural_tipi].get(clean_ticker, 0) > COOLDOWN_SECONDS:
-            tetiklenen_str.append(f"• 🔴 Tarama: {label} (**MFi: {mfi_curr_15:.1f}** | RSI: {rsi_curr_15:.1f})")
+            tetiklenen_str.append(f"• 🔴 **Strateji:** {label}\n  └ *MFi:* **{mfi_curr_15:.1f}** | *RSI:* **{rsi_curr_15:.1f}**")
+            toplam_puan += 35.0
             tum_hafiza[kural_tipi][clean_ticker] = simdi_epoch
 
-        # 2. Strateji: 15m Profesjonel Momentum (Yeşil Top 🟢)
+        # 2. 15m Profesjonel Momentum
         kural_tipi = "15m_profesjonel"
         label = "15m Profesjonel Momentum"
         if kural_tipi not in tum_hafiza: tum_hafiza[kural_tipi] = {}
@@ -302,20 +303,22 @@ def run_scanner():
         sart_wave = check_wave_margins(df_15m, lookback=5)
         if sart_wave and (volume_15.iloc[-1] > volume_15.iloc[-2]) and (rvol_curr_15 > 1.0) and (close_curr_15 > hma20_15.iloc[-1]) and (close_curr_15 >= close_15.rolling(20).mean().iloc[-1]) and (mfi_curr_15 > 25) and (plus_di_curr_15 > 15) and (rsi_curr_15 > 45):
           if simdi_epoch - tum_hafiza[kural_tipi].get(clean_ticker, 0) > COOLDOWN_SECONDS:
-            tetiklenen_str.append(f"• 🟢 Tarama: {label} (**MFi: {mfi_curr_15:.1f}** | RSI: {rsi_curr_15:.1f})")
+            tetiklenen_str.append(f"• 🟢 **Strateji:** {label}\n  └ *MFi:* **{mfi_curr_15:.1f}** | *RSI:* **{rsi_curr_15:.1f}**")
+            toplam_puan += 30.0
             tum_hafiza[kural_tipi][clean_ticker] = simdi_epoch
 
-        # 3. Strateji: Acil 15 dk yetiş (Sarı Top 🟡)
+        # 3. Acil 15 dk yetiş
         kural_tipi = "acil_15_dk"
         label = "acil 15 dk yetiş"
         if kural_tipi not in tum_hafiza: tum_hafiza[kural_tipi] = {}
         
         if (rvol_curr_15 >= 0.6) and (close_curr_15 > hma20_15.iloc[-1]) and (mfi_curr_15 > 60) and (rsi_curr_15 > 45):
           if simdi_epoch - tum_hafiza[kural_tipi].get(clean_ticker, 0) > COOLDOWN_SECONDS:
-            tetiklenen_str.append(f"• 🟡 Tarama: {label} (**MFi: {mfi_curr_15:.1f}** | RSI: {rsi_curr_15:.1f})")
+            tetiklenen_str.append(f"• 🟡 **Strateji:** {label}\n  └ *MFi:* **{mfi_curr_15:.1f}** | *RSI:* **{rsi_curr_15:.1f}**")
+            toplam_puan += 20.0
             tum_hafiza[kural_tipi][clean_ticker] = simdi_epoch
 
-        # 4. Strateji: Süper Fisher 15 (Mavi Top 🔵)
+        # 4. Süper Fisher 15
         kural_tipi = "super_fisher_15"
         label = "Süper Fisher 15"
         if kural_tipi not in tum_hafiza: tum_hafiza[kural_tipi] = {}
@@ -328,7 +331,8 @@ def run_scanner():
 
         if (rvol_curr_15 >= 0.6) and (close_curr_15 > strend_line.iloc[-1]) and (close_curr_15 > hma20_15.iloc[-1]) and sart_fisher and (mfi_curr_15 > 45) and (plus_di_curr_15 > minus_di_curr_15):
           if simdi_epoch - tum_hafiza[kural_tipi].get(clean_ticker, 0) > COOLDOWN_SECONDS:
-            tetiklenen_str.append(f"• 🔵 Tarama: {label} (**MFi: {mfi_curr_15:.1f}** | RSI: {rsi_curr_15:.1f})")
+            tetiklenen_str.append(f"• 🔵 **Strateji:** {label}\n  └ *MFi:* **{mfi_curr_15:.1f}** | *RSI:* **{rsi_curr_15:.1f}**")
+            toplam_puan += 25.0
             tum_hafiza[kural_tipi][clean_ticker] = simdi_epoch
 
       # --- 1 SAATLİK STRATEJİLER KONTROLÜ ---
@@ -361,17 +365,18 @@ def run_scanner():
         hma20_1h = calculate_hma(close_1h, 20)
         wave_breakout_1h = check_wave_margins(df_1h, lookback=3)
 
-        # 5. Strateji: 1 Saatlik Dalga Marjı (Mor Top 🟣)
+        # 5. 1 Saatlik Dalga Marjı
         kural_tipi = "1h_dalga_gorsel"
         label = "1 Saatlik Dalga Marjı"
         if kural_tipi not in tum_hafiza: tum_hafiza[kural_tipi] = {}
 
         if (close_curr_1h > hma20_1h.iloc[-1]) and (rsi_curr_1h > 50) and (plus_di_curr_1h > 25) and wave_breakout_1h:
           if simdi_epoch - tum_hafiza[kural_tipi].get(clean_ticker, 0) > COOLDOWN_SECONDS:
-            tetiklenen_str.append(f"• 🟣 Tarama: {label} (RSI: {rsi_curr_1h:.1f} | +DI: {plus_di_curr_1h:.1f})")
+            tetiklenen_str.append(f"• 🟣 **Strateji:** {label}\n  └ *RSI:* **{rsi_curr_1h:.1f}** | *+DI:* **{plus_di_curr_1h:.1f}**")
+            toplam_puan += 25.0
             tum_hafiza[kural_tipi][clean_ticker] = simdi_epoch
 
-        # 6. Strateji: 1 saat süper (Turuncu Top 🟠)
+        # 6. 1 saat süper
         kural_tipi = "1_saat_super"
         label = "1 saat süper"
         if kural_tipi not in tum_hafiza: tum_hafiza[kural_tipi] = {}
@@ -389,21 +394,98 @@ def run_scanner():
 
         if (close_curr_1h > hma20_1h.iloc[-1]) and (mfi_curr_1h > 30) and (plus_di_curr_1h > 20) and (cmf_curr_1h > -0.20) and wave_breakout_1h:
           if simdi_epoch - tum_hafiza[kural_tipi].get(clean_ticker, 0) > COOLDOWN_SECONDS:
-            tetiklenen_str.append(f"• 🟠 Tarama: {label} (**MFi: {mfi_curr_1h:.1f}** | CMF: {cmf_curr_1h:.2f})")
+            tetiklenen_str.append(f"• 🟠 **Strateji:** {label}\n  └ *MFi:* **{mfi_curr_1h:.1f}** | *CMF:* **{cmf_curr_1h:.2f}**")
+            toplam_puan += 30.0
             tum_hafiza[kural_tipi][clean_ticker] = simdi_epoch
 
-      # --- EĞER BU HİSSE İÇİN STRATEJİLER TETİKLENDİYSE TEK MESAJDA GÖNDER ---
+      # Eğer bu hisse için sinyal çıktıysa havuza ekle
       if tetiklenen_str:
-        stratejiler_metni = "\n".join(tetiklenen_str)
-        mesaj = f"🚀 *BIST Çoklu Sinyal* ({datetime.now(TZ_TR).strftime('%H:%M')})\n• Hisse: `🟦 {temiz_isim} 🟦` | Fiyat: {guncel_fiyat:.2f}\n{stratejiler_metni}"
-        send_ntfy(mesaj, f"BIST Sinyal: {temiz_isim}")
+        if toplam_puan == 0:
+          toplam_puan = 30.0  # Varsayılan taban puan
+
+        toplanan_sinyaller.append({
+            "temiz_isim": temiz_isim,
+            "fiyat": guncel_fiyat,
+            "puan": toplam_puan,
+            "stratejiler": tetiklenen_str
+        })
         hafiza_kaydet(tum_hafiza)
 
     except Exception as e:
       print(f"Hata oluştu ({clean_ticker}): {e}")
       continue
 
-  print("\nTüm Hisseler ve 6 Strateji Başarıyla Tarandı.")
+  # --- KATEGORİZASYON VE TOPLU MESAJ GÖNDERİMİ ---
+  if toplanan_sinyaller:
+    # Puana göre büyükten küçüğe sırala
+    toplanan_sinyaller.sort(key=lambda x: x["puan"], reverse=True)
+
+    grup_3_fuze = []  # 60 - 100 Puan (Top Sinyal + 👑)
+    grup_2_fuze = []  # 40 - 59 Puan (Güçlü)
+    grup_1_fuze = []  # 20 - 39 Puan (Standart / Gevşetilmiş)
+
+    for item in toplanan_sinyaller:
+      p = item["puan"]
+      if p >= 60.0:
+        grup_3_fuze.append(item)
+      elif p >= 40.0:
+        grup_2_fuze.append(item)
+      else:
+        grup_1_fuze.append(item)
+
+    zaman_str = datetime.now(TZ_TR).strftime('%H:%M')
+
+    # 1. Bildirim: 3 Füzeli Zirve Sinyaller (Kral Tacı ile)
+    if grup_3_fuze:
+      icerik_listesi = []
+      for s in grup_3_fuze:
+        str_metni = "\n".join(s["stratejiler"])
+        kart = (
+            f"🚀🚀🚀 **[TOP SİNYAL] — 👑 {s['puan']:.1f} Puan**\n"
+            f"📌 **Hisse:** `🟦 {s['temiz_isim']} 🟦` | **Fiyat:** ₺{s['fiyat']:.2f}\n"
+            f"{str_metni}\n"
+            "━━━━━━━━━━━━━━━━━━━━━━"
+        )
+        icerik_listesi.append(kart)
+
+      mesaj_3 = f"🚀🚀🚀 **[BIST TOP SİNYALLER - ZİRVE]** ({zaman_str})\n━━━━━━━━━━━━━━━━━━━━━━\n" + "\n".join(icerik_listesi)
+      send_ntfy(mesaj_3, "BIST Zirve Sinyaller (3 Füze)")
+      time.sleep(1)
+
+    # 2. Bildirim: 2 Füzeli Güçlü Sinyaller
+    if grup_2_fuze:
+      icerik_listesi = []
+      for s in grup_2_fuze:
+        str_metni = "\n".join(s["stratejiler"])
+        kart = (
+            f"🚀🚀 **[GÜÇLÜ SİNYAL] — {s['puan']:.1f} Puan**\n"
+            f"📌 **Hisse:** `🟦 {s['temiz_isim']} 🟦` | **Fiyat:** ₺{s['fiyat']:.2f}\n"
+            f"{str_metni}\n"
+            "━━━━━━━━━━━━━━━━━━━━━━"
+        )
+        icerik_listesi.append(kart)
+
+      mesaj_2 = f"🚀🚀 **[BIST GÜÇLÜ SİNYALLER]** ({zaman_str})\n━━━━━━━━━━━━━━━━━━━━━━\n" + "\n".join(icerik_listesi)
+      send_ntfy(mesaj_2, "BIST Güçlü Sinyaller (2 Füze)")
+      time.sleep(1)
+
+    # 3. Bildirim: 1 Füzeli Standart / Gevşetilmiş Sinyaller
+    if grup_1_fuze:
+      icerik_listesi = []
+      for s in grup_1_fuze:
+        str_metni = "\n".join(s["stratejiler"])
+        kart = (
+            f"🚀 **[STANDART SİNYAL] — {s['puan']:.1f} Puan**\n"
+            f"📌 **Hisse:** `🟦 {s['temiz_isim']} 🟦` | **Fiyat:** ₺{s['fiyat']:.2f}\n"
+            f"{str_metni}\n"
+            "━━━━━━━━━━━━━━━━━━━━━━"
+        )
+        icerik_listesi.append(kart)
+
+      mesaj_1 = f"🚀 **[BIST STANDART / GEVŞETİLMİŞ]** ({zaman_str})\n━━━━━━━━━━━━━━━━━━━━━━\n" + "\n".join(icerik_listesi)
+      send_ntfy(mesaj_1, "BIST Standart Sinyaller (1 Füze)")
+
+  print("\nTüm Hisseler ve 6 Strateji Başarıyla Tarandı ve Kategorize Edilerek Gönderildi.")
 
 
 if __name__ == "__main__":
