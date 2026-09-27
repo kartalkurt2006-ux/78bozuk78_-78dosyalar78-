@@ -328,9 +328,9 @@ def run_scanner():
             toplam_puan += 35.0
             tum_hafiza[kural_tipi][clean_ticker] = simdi_epoch
 
-        # 2. 15m Profesjonel Momentum
+        # 2. 15dk Yakala
         kural_tipi = "15m_profesjonel"
-        label = "15m Prof. Momentum"
+        label = "15dk Yakala"
         if kural_tipi not in tum_hafiza: tum_hafiza[kural_tipi] = {}
         
         sart_wave = check_wave_margins(df_15m, lookback=5)
@@ -398,9 +398,9 @@ def run_scanner():
         hma20_1h = calculate_hma(close_1h, 20)
         wave_breakout_1h = check_wave_margins(df_1h, lookback=3)
 
-        # 5. 1 Saatlik Dalga Marjı (Orijinal)
+        # 5. 1 Saat Yakala (Orijinal Dalga Marjı)
         kural_tipi = "1h_dalga_gorsel"
-        label = "1Saat Dalga Marji"
+        label = "1 Saat Yakala"
         if kural_tipi not in tum_hafiza: tum_hafiza[kural_tipi] = {}
 
         if (close_curr_1h > hma20_1h.iloc[-1]) and (rsi_curr_1h > 50) and (plus_di_curr_1h > 25) and wave_breakout_1h:
