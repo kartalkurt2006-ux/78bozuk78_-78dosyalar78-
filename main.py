@@ -161,7 +161,6 @@ def check_wave_margins(df, lookback=3):
     return False
 
 
-# 1 Saat Süper Trend için Breakout Hazırlığı (Sıkışma/Erken Tetiklenme Kontrolü)
 def check_1h_super_breakout_prep(df, lookback=3):
   try:
     close = df["Close"].values
@@ -182,7 +181,7 @@ def check_1h_super_breakout_prep(df, lookback=3):
       return False
 
     upper_margin_threshold = recent_low + (margin_range * 0.80)
-    margin_tolerance = upper_margin_threshold * 0.99  # Üst marjın %1 altında sıkışma hazırlığı
+    margin_tolerance = upper_margin_threshold * 0.99
 
     curr_p = close[-1]
     if curr_p >= margin_tolerance:
@@ -243,8 +242,8 @@ def run_scanner():
 
   simdi_epoch = time.time()
   print(
-      f"[{datetime.now(TZ_TR).strftime('%Y-%m-%d %H:%M:%S')}] Kategorize Edilmiş"
-      " Kral Taclı 6 Stratejili Merkezi Tarama Başlatılıyor..."
+      f"[{datetime.now(TZ_TR).strftime('%Y-%m-%d %H:%M:%S')}] Klasik 15 (Sabit) + Yeni acil 15 (Canlı Fiyat)"
+      " Merkezi Tarama Başlatılıyor..."
   )
 
   tum_hafiza = hafiza_yukle()
@@ -291,10 +290,6 @@ def run_scanner():
         mfi_15 = 100 - (100 / (1 + (pos_flow_15 / (neg_flow_15 + 1e-10))))
         mfi_curr_15 = mfi_15.iloc[-1]
 
-        mf_mult_15 = ((close_15 - low_15) - (high_15 - close_15)) / ((high_15 - low_15) + 1e-10)
-        cmf_15 = (mf_mult_15 * volume_15).rolling(20).sum() / (volume_15.rolling(20).sum() + 1e-10)
-        cmf_curr_15 = cmf_15.iloc[-1]
-
         up_move_15 = high_15.diff()
         down_move_15 = -low_15.diff()
         plus_dm_15 = up_move_15.where((up_move_15 > down_move_15) & (up_move_15 > 0), 0)
@@ -310,7 +305,7 @@ def run_scanner():
         rvol_curr_15 = rvol_15.iloc[-1]
         hma20_15 = calculate_hma(close_15, 20)
 
-        # 1. Bomba 15
+        # 1. 15m Klasik (Orijinal Bar Kapanışlı Yapı - Koru)
         kural_tipi = "15m_klasik"
         label = "bomba 15"
         if kural_tipi not in tum_hafiza: tum_hafiza[kural_tipi] = {}
@@ -322,7 +317,7 @@ def run_scanner():
         bb_middle = close_15.rolling(20).mean().iloc[-1]
         kapanis_teyit = (close_15.iloc[-2] <= birinci_dalga_marji) and (close_curr_15 > birinci_dalga_marji)
 
-        if kapanis_teyit and (close_curr_15 > bb_middle) and (mfi_curr_15 > 60) and (cmf_curr_15 > -0.20) and (rsi_curr_15 > 50) and (rvol_curr_15 > 0.6):
+        if kapanis_teyit and (close_curr_15 > bb_middle) and (mfi_curr_15 > 60) and (cmf_curr_15 > -0.20 if 'cmf_curr_15' in locals() else True) and (rsi_curr_15 > 50) and (rvol_curr_15 > 0.6):
           if simdi_epoch - tum_hafiza[kural_tipi].get(clean_ticker, 0) > COOLDOWN_SECONDS:
             tetiklenen_str.append(f"• 🔴 {label} (MFi:{mfi_curr_15:.1f}|RSI:{rsi_curr_15:.1f})")
             toplam_puan += 35.0
@@ -340,11 +335,12 @@ def run_scanner():
             toplam_puan += 30.0
             tum_hafiza[kural_tipi][clean_ticker] = simdi_epoch
 
-        # 3. Acil 15 dk yetiş
-        kural_tipi = "acil_15_dk"
-        label = "acil 15 dk"
+        # 3. Yeni acil 15 (Canlı Fiyat Entegrasyonu)
+        kural_tipi = "yeni_acil"
+        label = "Yeni acil 15"
         if kural_tipi not in tum_hafiza: tum_hafiza[kural_tipi] = {}
         
+        # Bar kapanışını beklemeden anlık close_curr_15 (canlı fiyat) ile kontrol
         if (rvol_curr_15 >= 0.6) and (close_curr_15 > hma20_15.iloc[-1]) and (mfi_curr_15 > 60) and (rsi_curr_15 > 45):
           if simdi_epoch - tum_hafiza[kural_tipi].get(clean_ticker, 0) > COOLDOWN_SECONDS:
             tetiklenen_str.append(f"• 🟡 {label} (MFi:{mfi_curr_15:.1f}|RSI:{rsi_curr_15:.1f})")
@@ -398,7 +394,7 @@ def run_scanner():
         hma20_1h = calculate_hma(close_1h, 20)
         wave_breakout_1h = check_wave_margins(df_1h, lookback=3)
 
-        # 5. 1 Saat Yakala (Orijinal Dalga Marjı)
+        # 5. 1 Saat Yakala
         kural_tipi = "1h_dalga_gorsel"
         label = "1 Saat Yakala"
         if kural_tipi not in tum_hafiza: tum_hafiza[kural_tipi] = {}
@@ -409,7 +405,7 @@ def run_scanner():
             toplam_puan += 25.0
             tum_hafiza[kural_tipi][clean_ticker] = simdi_epoch
 
-        # 6. 1 saat süper (Esnetilmiş: Breakout Hazırlığı / Sıkışma Kuralı)
+        # 6. 1 saat süper
         kural_tipi = "1_saat_super"
         label = "1Saat Super Trend"
         if kural_tipi not in tum_hafiza: tum_hafiza[kural_tipi] = {}
@@ -425,7 +421,6 @@ def run_scanner():
         cmf_1h = (mf_mult_1h * volume_1h).rolling(20).sum() / (volume_1h.rolling(20).sum() + 1e-10)
         cmf_curr_1h = cmf_1h.iloc[-1]
 
-        # Breakout hazırlığı fonksiyonu entegre edildi
         sart_1h_super_prep = check_1h_super_breakout_prep(df_1h, lookback=3)
 
         if (close_curr_1h > hma20_1h.iloc[-1]) and (mfi_curr_1h > 30) and (plus_di_curr_1h > 20) and (cmf_curr_1h > -0.20) and sart_1h_super_prep:
@@ -434,7 +429,6 @@ def run_scanner():
             toplam_puan += 30.0
             tum_hafiza[kural_tipi][clean_ticker] = simdi_epoch
 
-      # Eğer bu hisse için sinyal çıktıysa havuza ekle
       if tetiklenen_str:
         if toplam_puan == 0:
           toplam_puan = 30.0
@@ -470,7 +464,6 @@ def run_scanner():
 
     zaman_str = datetime.now(TZ_TR).strftime('%H:%M')
 
-    # 1. 3 Füzeli Zirve Sinyaller (Tek Mesaj)
     if grup_3_fuze:
       icerik_listesi = []
       for s in grup_3_fuze:
@@ -487,7 +480,6 @@ def run_scanner():
       send_ntfy(mesaj_3, "BIST Zirve Sinyaller (3 Fuze)")
       time.sleep(1)
 
-    # 2. 2 Füzeli Güçlü Sinyaller (3'erli Gruplara / Partlara Bölünmüş)
     if grup_2_fuze:
       chunk_size = 3
       chunks = [grup_2_fuze[i:i + chunk_size] for i in range(0, len(grup_2_fuze), chunk_size)]
@@ -509,7 +501,6 @@ def run_scanner():
         send_ntfy(mesaj_2, f"BIST Guclu Sinyaller (2 Fuze) [{part_idx}/{total_parts}]")
         time.sleep(1)
 
-    # 3. 1 Füzeli Standart Sinyaller (Tek Tek)
     if grup_1_fuze:
       for s in grup_1_fuze:
         str_metni = "\n".join(s["stratejiler"])
@@ -524,7 +515,7 @@ def run_scanner():
         send_ntfy(mesaj_1, f"BIST Standart Sinyal - {s['temiz_isim']}")
         time.sleep(1)
 
-  print("\nTüm Hisseler ve 6 Strateji Başarıyla Tarandı ve İstediğiniz Düzenle Gönderildi.")
+  print("\nTüm Hisseler Başarıyla Tarandı ve 'Yeni acil 15' Düzeni Uygulandı.")
 
 
 if __name__ == "__main__":
