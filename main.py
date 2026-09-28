@@ -259,7 +259,7 @@ def run_scanner():
     try:
       df_15m_all = yf.download(chunk, period="1mo", interval="15m", group_by='ticker', progress=False)
       time.sleep(0.5)
-      df_1h_all = yf.download(chunk, period="1mo", interval="1h", group_by='ticker', progress=False)
+      df_1h_all = yf.download(chunk, period="2mo", interval="1h", group_by='ticker', progress=False)
       time.sleep(0.5)
     except Exception as e:
       print(f"Grup {chunk_idx} indirilirken hata oluştu: {e}")
@@ -338,7 +338,7 @@ def run_scanner():
           rvol_curr_15 = rvol_15.iloc[-1]
           hma20_15 = calculate_hma(close_15, 20)
 
-          # 1. 15m Klasik (Orijinal Bar Kapanışlı Yapı - Koru)
+          # 1. 15m Klasik
           kural_tipi = "15m_klasik"
           label = "bomba 15"
           if kural_tipi not in tum_hafiza: tum_hafiza[kural_tipi] = {}
@@ -368,7 +368,7 @@ def run_scanner():
               toplam_puan += 30.0
               tum_hafiza[kural_tipi][clean_ticker] = simdi_epoch
 
-          # 3. Yeni acil 15 (Canlı Fiyat Entegrasyonu)
+          # 3. Yeni acil 15
           kural_tipi = "yeni_acil"
           label = "Yeni acil 15"
           if kural_tipi not in tum_hafiza: tum_hafiza[kural_tipi] = {}
@@ -423,6 +423,9 @@ def run_scanner():
           plus_di_1h = 100 * (plus_dm_1h.rolling(14).sum() / (tr_1h.rolling(14).sum() + 1e-10))
           plus_di_curr_1h = plus_di_1h.iloc[-1]
 
+          rvol_1h = volume_1h / volume_1h.rolling(20).mean()
+          rvol_curr_1h = rvol_1h.iloc[-1]
+
           hma20_1h = calculate_hma(close_1h, 20)
           wave_breakout_1h = check_wave_margins(df_1h, lookback=3)
 
@@ -459,6 +462,24 @@ def run_scanner():
             if simdi_epoch - tum_hafiza[kural_tipi].get(clean_ticker, 0) > COOLDOWN_SECONDS:
               tetiklenen_str.append(f"• 🟠 {label} (MFi:{mfi_curr_1h:.1f}|CMF:{cmf_curr_1h:.2f})")
               toplam_puan += 30.0
+              tum_hafiza[kural_tipi][clean_ticker] = simdi_epoch
+
+          # 7. DELİ 1 SAAT (Saf Dalga Marjı + Hacim Onayı)
+          kural_tipi = "deli_1_saat"
+          label = "DELİ 1 SAAT"
+          if kural_tipi not in tum_hafiza: tum_hafiza[kural_tipi] = {}
+          
+          bar_sayisi_deli = 6
+          recent_df_deli = df_1h.iloc[-(bar_sayisi_deli + 1) : -1]
+          pivot_deli = (recent_df_deli["High"].mean() + recent_df_deli["Low"].mean() + recent_df_deli["Close"].mean()) / 3
+          birinci_dalga_marji_deli = pivot_deli * 1.0023
+          
+          kapanis_teyit_deli = (close_1h.iloc[-2] <= birinci_dalga_marji_deli) and (close_curr_1h > birinci_dalga_marji_deli)
+
+          if kapanis_teyit_deli and (rvol_curr_1h > 1.0):
+            if simdi_epoch - tum_hafiza[kural_tipi].get(clean_ticker, 0) > 14400:  # 4 Saat Cooldown
+              tetiklenen_str.append(f"• ⚡ {label} (RVOL:{rvol_curr_1h:.2f})")
+              toplam_puan += 50.0
               tum_hafiza[kural_tipi][clean_ticker] = simdi_epoch
 
         if tetiklenen_str:
