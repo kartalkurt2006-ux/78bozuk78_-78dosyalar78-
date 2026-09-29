@@ -18,7 +18,7 @@ NTFY_URL = "https://ntfy.sh/borsa_senet"
 # Tek Merkezi Hafıza Dosyası
 MERKEZI_HAFIZA_DOSYASI = "borsa_hafiza.json"
 
-# BIST Tüm Hisseler (MARKA.IS çıkarıldı)
+# BIST Tüm Hisseler
 STOCKS = [
     "AAVST.IS", "ACSEL.IS", "ADEL.IS", "ADESE.IS", "ADGYO.IS", "AEFES.IS", "AFYON.IS", "AGESA.IS", "AGHOL.IS", "AGROT.IS",
     "AKBNK.IS", "AKENR.IS", "AKFGY.IS", "AKFYE.IS", "AKGRT.IS", "AKMGY.IS", "AKSA.IS", "AKSEN.IS", "AKSGY.IS", "ALARK.IS",
@@ -97,6 +97,20 @@ def calculate_strend(df, period=10, multiplier=3):
   return lowerband
 
 
+def calculate_cmf(df, period=20):
+  high = df["High"]
+  low = df["Low"]
+  close = df["Close"]
+  volume = df["Volume"]
+  
+  denom = high - low
+  denom = denom.replace(0, 1e-10)
+  mf_multiplier = ((close - low) - (high - close)) / denom
+  mf_volume = mf_multiplier * volume
+  cmf = mf_volume.rolling(period).sum() / (volume.rolling(period).sum() + 1e-10)
+  return cmf
+
+
 def calculate_fisher(df, length=9):
   high = df["High"]
   low = df["Low"]
@@ -136,7 +150,7 @@ def check_wave_margins(df, lookback=3):
     low = df["Low"].values
 
     if len(close) < 35:
-      return False
+      return False, 0.0
 
     wave_sequence = [4, 8, 5, 8, 9]
     total_cycle = sum(wave_sequence)
@@ -146,50 +160,25 @@ def check_wave_margins(df, lookback=3):
     margin_range = recent_high - recent_low
 
     if margin_range == 0:
-      return False
+      return False, 0.0
 
     upper_margin_threshold = recent_low + (margin_range * 0.80)
+    
+    current_price = close[-1]
+    konum_yuzde = ((current_price - recent_low) / margin_range) * 100.0
+    konum_yuzde = np.clip(konum_yuzde, 0.0, 100.0)
 
+    triggered = False
     for i in range(-lookback, 0):
       prev_p = close[i - 1]
       curr_p = close[i]
       if prev_p <= upper_margin_threshold and curr_p > upper_margin_threshold:
-        return True
+        triggered = True
+        break
 
-    return False
+    return triggered, konum_yuzde
   except Exception:
-    return False
-
-
-def check_1h_super_breakout_prep(df, lookback=3):
-  try:
-    close = df["Close"].values
-    high = df["High"].values
-    low = df["Low"].values
-
-    if len(close) < 35:
-      return False
-
-    wave_sequence = [4, 8, 5, 8, 9]
-    total_cycle = sum(wave_sequence)
-
-    recent_high = np.max(high[-total_cycle:])
-    recent_low = np.min(low[-total_cycle:])
-    margin_range = recent_high - recent_low
-
-    if margin_range == 0:
-      return False
-
-    upper_margin_threshold = recent_low + (margin_range * 0.80)
-    margin_tolerance = upper_margin_threshold * 0.99
-
-    curr_p = close[-1]
-    if curr_p >= margin_tolerance:
-      return True
-
-    return False
-  except Exception:
-    return False
+    return False, 0.0
 
 
 def hafiza_yukle():
@@ -249,7 +238,6 @@ def run_scanner():
   tum_hafiza = hafiza_yukle()
   toplanan_sinyaller = []
 
-  # --- 40'ARLI GRUPLARA BÖLEREK TOPLU VERİ ÇEKME ---
   chunk_size = 40
   stock_chunks = [STOCKS[i:i + chunk_size] for i in range(0, len(STOCKS), chunk_size)]
 
@@ -273,7 +261,6 @@ def run_scanner():
       toplam_puan = 0.0
 
       try:
-        # İlgili hissenin verisini ayıkla
         df_15m = pd.DataFrame()
         df_1h = pd.DataFrame()
 
@@ -319,10 +306,6 @@ def run_scanner():
           mfi_15 = 100 - (100 / (1 + (pos_flow_15 / (neg_flow_15 + 1e-10))))
           mfi_curr_15 = mfi_15.iloc[-1]
 
-          mf_mult_15 = ((close_15 - low_15) - (high_15 - close_15)) / ((high_15 - low_15) + 1e-10)
-          cmf_15 = (mf_mult_15 * volume_15).rolling(20).sum() / (volume_15.rolling(20).sum() + 1e-10)
-          cmf_curr_15 = cmf_15.iloc[-1]
-
           up_move_15 = high_15.diff()
           down_move_15 = -low_15.diff()
           plus_dm_15 = up_move_15.where((up_move_15 > down_move_15) & (up_move_15 > 0), 0)
@@ -337,31 +320,15 @@ def run_scanner():
           rvol_15 = volume_15 / volume_15.rolling(20).mean()
           rvol_curr_15 = rvol_15.iloc[-1]
           hma20_15 = calculate_hma(close_15, 20)
+          sart_wave_15, konum_yuzde_15 = check_wave_margins(df_15m, lookback=5)
 
-          # 1. 15m Gitan (Gitan 15m Entegrasyonu) - RVOL eşiği 1.0 olarak güncellendi
-          kural_tipi = "15m_klasik"
+          # 1. GİTAN 15
+          kural_tipi = "gitan_15"
           label = "Gitan 15"
           if kural_tipi not in tum_hafiza: tum_hafiza[kural_tipi] = {}
-          
-          bar_sayisi = 6
-          recent_df = df_15m.iloc[-(bar_sayisi + 1) : -1]
-          pivot = (recent_df["High"].mean() + recent_df["Low"].mean() + recent_df["Close"].mean()) / 3
-          birinci_dalga_marji = pivot * 1.0023
-          bb_middle = close_15.rolling(20).mean().iloc[-1]
-          kapanis_teyit = (close_15.iloc[-2] <= birinci_dalga_marji) and (close_curr_15 > birinci_dalga_marji)
-
-          # Gitan 15m Metrikleri
-          df_15m['Bar_Boyu'] = df_15m['High'] - df_15m['Low']
-          df_15m['Ort_Bar_Boyu'] = df_15m['Bar_Boyu'].rolling(window=6).mean()
-          df_15m['Kapanis_Konumu'] = (df_15m['Close'] - df_15m['Low']) / (df_15m['High'] - df_15m['Low'] + 1e-10)
-
-          bar_boyu_val_15 = df_15m['Bar_Boyu'].iloc[-1]
-          ort_bar_boyu_val_15 = df_15m['Ort_Bar_Boyu'].iloc[-1]
-          kapanis_konumu_val_15 = df_15m['Kapanis_Konumu'].iloc[-1]
-
-          if kapanis_teyit and (close_curr_15 > bb_middle) and (mfi_curr_15 > 60) and (cmf_curr_15 > -0.20) and (rsi_curr_15 > 50) and (rvol_curr_15 >= 1.0) and (bar_boyu_val_15 >= ort_bar_boyu_val_15) and (kapanis_konumu_val_15 >= 0.70):
+          if (rvol_curr_15 >= 1.0) and sart_wave_15:
             if simdi_epoch - tum_hafiza[kural_tipi].get(clean_ticker, 0) > COOLDOWN_SECONDS:
-              tetiklenen_str.append(f"• 🔴 {label} (RVOL:{rvol_curr_15:.2f}|Konum:%{kapanis_konumu_val_15*100:.1f})")
+              tetiklenen_str.append(f"• 🔴 {label} (RVOL:{rvol_curr_15:.2f}|Konum:%{konum_yuzde_15:.1f})")
               toplam_puan += 35.0
               tum_hafiza[kural_tipi][clean_ticker] = simdi_epoch
 
@@ -369,41 +336,36 @@ def run_scanner():
           kural_tipi = "15m_profesjonel"
           label = "15dk Yakala"
           if kural_tipi not in tum_hafiza: tum_hafiza[kural_tipi] = {}
-          
-          sart_wave = check_wave_margins(df_15m, lookback=5)
-          if sart_wave and (volume_15.iloc[-1] > volume_15.iloc[-2]) and (rvol_curr_15 > 1.0) and (close_curr_15 > hma20_15.iloc[-1]) and (close_curr_15 >= close_15.rolling(20).mean().iloc[-1]) and (mfi_curr_15 > 25) and (plus_di_curr_15 > 15) and (rsi_curr_15 > 45):
+          if sart_wave_15 and (volume_15.iloc[-1] > volume_15.iloc[-2]) and (rvol_curr_15 > 1.0) and (close_curr_15 > hma20_15.iloc[-1]) and (close_curr_15 >= close_15.rolling(20).mean().iloc[-1]) and (mfi_curr_15 > 25) and (plus_di_curr_15 > 15) and (rsi_curr_15 > 45):
             if simdi_epoch - tum_hafiza[kural_tipi].get(clean_ticker, 0) > COOLDOWN_SECONDS:
               tetiklenen_str.append(f"• 🟢 {label} (MFi:{mfi_curr_15:.1f}|RSI:{rsi_curr_15:.1f})")
               toplam_puan += 30.0
               tum_hafiza[kural_tipi][clean_ticker] = simdi_epoch
 
-          # 3. Yeni acil 15 (PASİFİZE EDİLDİ - False koşulu eklendi)
-          kural_tipi = "yeni_acil"
-          label = "Yeni acil 15"
-          if kural_tipi not in tum_hafiza: tum_hafiza[kural_tipi] = {}
-          
-          if False and (rvol_curr_15 >= 0.6) and (close_curr_15 > hma20_15.iloc[-1]) and (mfi_curr_15 > 60) and (rsi_curr_15 > 45):
-            if simdi_epoch - tum_hafiza[kural_tipi].get(clean_ticker, 0) > COOLDOWN_SECONDS:
-              tetiklenen_str.append(f"• 🟡 {label} (MFi:{mfi_curr_15:.1f}|RSI:{rsi_curr_15:.1f})")
-              toplam_puan += 20.0
-              tum_hafiza[kural_tipi][clean_ticker] = simdi_epoch
-
-          # 4. Süper Fisher 15
+          # 3. Super Fisher 15
           kural_tipi = "super_fisher_15"
           label = "Super Fisher 15"
           if kural_tipi not in tum_hafiza: tum_hafiza[kural_tipi] = {}
-          
-          strend_line = calculate_strend(df_15m, period=10, multiplier=3)
-          fish, trg = calculate_fisher(df_15m, length=9)
-          fish_curr, trg_curr = fish.iloc[-1], trg.iloc[-1]
-          fish_prev, trg_prev = fish.iloc[-2], trg.iloc[-2]
-          sart_fisher = (fish_curr > trg_curr) or ((fish_prev <= trg_prev) and (fish_curr > trg_curr))
-
-          if (rvol_curr_15 >= 0.6) and (close_curr_15 > strend_line.iloc[-1]) and (close_curr_15 > hma20_15.iloc[-1]) and sart_fisher and (mfi_curr_15 > 45) and (plus_di_curr_15 > minus_di_curr_15):
+          strend_line_15 = calculate_strend(df_15m, period=10, multiplier=3)
+          fish_15, trg_15 = calculate_fisher(df_15m, length=9)
+          fish_curr_15, trg_curr_15 = fish_15.iloc[-1], trg_15.iloc[-1]
+          fish_prev_15, trg_prev_15 = fish_15.iloc[-2], trg_15.iloc[-2]
+          sart_fisher_15 = (fish_curr_15 > trg_curr_15) or ((fish_prev_15 <= trg_prev_15) and (fish_curr_15 > trg_curr_15))
+          if (rvol_curr_15 >= 0.6) and (close_curr_15 > strend_line_15.iloc[-1]) and (close_curr_15 > hma20_15.iloc[-1]) and sart_fisher_15 and (mfi_curr_15 > 45) and (plus_di_curr_15 > minus_di_curr_15):
             if simdi_epoch - tum_hafiza[kural_tipi].get(clean_ticker, 0) > COOLDOWN_SECONDS:
               tetiklenen_str.append(f"• 🔵 {label} (MFi:{mfi_curr_15:.1f}|RSI:{rsi_curr_15:.1f})")
               toplam_puan += 25.0
               tum_hafiza[kural_tipi][clean_ticker] = simdi_epoch
+
+          # 4. Yeni acil 15 (PASİFİZE EDİLDİ)
+          # kural_tipi = "yeni_acil_15"
+          # label = "Yeni acil 15"
+          # if kural_tipi not in tum_hafiza: tum_hafiza[kural_tipi] = {}
+          # if (close_curr_15 > hma20_15.iloc[-1]) and (mfi_curr_15 > 40):
+          #   if simdi_epoch - tum_hafiza[kural_tipi].get(clean_ticker, 0) > COOLDOWN_SECONDS:
+          #     tetiklenen_str.append(f"• 🟡 {label} (MFi:{mfi_curr_15:.1f}|RSI:{rsi_curr_15:.1f})")
+          #     toplam_puan += 20.0
+          #     tum_hafiza[kural_tipi][clean_ticker] = simdi_epoch
 
         # --- 1 SAATLİK STRATEJİLER KONTROLÜ ---
         if not df_1h.empty and len(df_1h) >= 40:
@@ -425,35 +387,6 @@ def run_scanner():
           rsi_1h = 100 - (100 / (1 + rs_1h))
           rsi_curr_1h = rsi_1h.iloc[-1]
 
-          up_move_1h = high_1h.diff()
-          down_move_1h = -low_1h.diff()
-          plus_dm_1h = up_move_1h.where((up_move_1h > down_move_1h) & (up_move_1h > 0), 0)
-          tr_1h = pd.concat([high_1h - low_1h, (high_1h - close_1h.shift()).abs(), (low_1h - close_1h.shift()).abs()], axis=1).max(axis=1)
-          plus_di_1h = 100 * (plus_dm_1h.rolling(14).sum() / (tr_1h.rolling(14).sum() + 1e-10))
-          plus_di_curr_1h = plus_di_1h.iloc[-1]
-
-          rvol_1h = volume_1h / volume_1h.rolling(20).mean()
-          rvol_curr_1h = rvol_1h.iloc[-1]
-
-          hma20_1h = calculate_hma(close_1h, 20)
-          wave_breakout_1h = check_wave_margins(df_1h, lookback=3)
-
-          # 5. 1 Saat Yakala
-          kural_tipi = "1h_dalga_gorsel"
-          label = "1 Saat Yakala"
-          if kural_tipi not in tum_hafiza: tum_hafiza[kural_tipi] = {}
-
-          if (close_curr_1h > hma20_1h.iloc[-1]) and (rsi_curr_1h > 50) and (plus_di_curr_1h > 25) and wave_breakout_1h:
-            if simdi_epoch - tum_hafiza[kural_tipi].get(clean_ticker, 0) > COOLDOWN_SECONDS:
-              tetiklenen_str.append(f"• 🟣 {label} (RSI:{rsi_curr_1h:.1f}|+DI:{plus_di_curr_1h:.1f})")
-              toplam_puan += 25.0
-              tum_hafiza[kural_tipi][clean_ticker] = simdi_epoch
-
-          # 6. Deli Gitan 1 Saat (1 Saatlik Periyotta Deli Gitan Entegrasyonu)
-          kural_tipi = "deli_gitan_1h"
-          label = "Deli Gitan 1 Saat"
-          if kural_tipi not in tum_hafiza: tum_hafiza[kural_tipi] = {}
-
           tp_1h = (high_1h + low_1h + close_1h) / 3
           mf_1h = tp_1h * volume_1h
           pos_flow_1h = mf_1h.where(tp_1h > tp_1h.shift(1), 0).rolling(14).sum()
@@ -461,25 +394,62 @@ def run_scanner():
           mfi_1h = 100 - (100 / (1 + (pos_flow_1h / (neg_flow_1h + 1e-10))))
           mfi_curr_1h = mfi_1h.iloc[-1]
 
-          mf_mult_1h = ((close_1h - low_1h) - (high_1h - close_1h)) / ((high_1h - low_1h) + 1e-10)
-          cmf_1h = (mf_mult_1h * volume_1h).rolling(20).sum() / (volume_1h.rolling(20).sum() + 1e-10)
+          up_move_1h = high_1h.diff()
+          down_move_1h = -low_1h.diff()
+          plus_dm_1h = up_move_1h.where((up_move_1h > down_move_1h) & (up_move_1h > 0), 0)
+          minus_dm_1h = down_move_1h.where((down_move_1h > up_move_1h) & (down_move_1h > 0), 0)
+          tr_1h = pd.concat([high_1h - low_1h, (high_1h - close_1h.shift()).abs(), (low_1h - close_1h.shift()).abs()], axis=1).max(axis=1)
+          tr_smooth_1h = tr_1h.rolling(14).sum()
+          plus_di_1h = 100 * (plus_dm_1h.rolling(14).sum() / (tr_smooth_1h + 1e-10))
+          plus_di_curr_1h = plus_di_1h.iloc[-1]
+
+          rvol_1h = volume_1h / volume_1h.rolling(20).mean()
+          rvol_curr_1h = rvol_1h.iloc[-1]
+
+          hma20_1h = calculate_hma(close_1h, 20)
+          wave_breakout_1h, _ = check_wave_margins(df_1h, lookback=3)
+          strend_line_1h = calculate_strend(df_1h, period=10, multiplier=3)
+          cmf_1h = calculate_cmf(df_1h, period=20)
           cmf_curr_1h = cmf_1h.iloc[-1]
 
-          sart_1h_super_prep = check_1h_super_breakout_prep(df_1h, lookback=3)
-
-          # Deli Gitan 1h Anatomi Metrikleri
-          df_1h['Bar_Boyu'] = df_1h['High'] - df_1h['Low']
-          df_1h['Ort_Bar_Boyu'] = df_1h['Bar_Boyu'].rolling(window=6).mean()
-          df_1h['Kapanis_Konumu'] = (df_1h['Close'] - df_1h['Low']) / (df_1h['High'] - df_1h['Low'] + 1e-10)
-
-          bar_boyu_val_1h = df_1h['Bar_Boyu'].iloc[-1]
-          ort_bar_boyu_val_1h = df_1h['Ort_Bar_Boyu'].iloc[-1]
-          kapanis_konumu_val_1h = df_1h['Kapanis_Konumu'].iloc[-1]
-
-          if (close_curr_1h > hma20_1h.iloc[-1]) and (mfi_curr_1h > 30) and (plus_di_curr_1h > 20) and (cmf_curr_1h > -0.20) and sart_1h_super_prep and (rvol_curr_1h >= 0.6) and (bar_boyu_val_1h >= ort_bar_boyu_val_1h) and (kapanis_konumu_val_1h >= 0.70):
+          # 5. 1 Saat Yakala
+          kural_tipi = "1h_dalga_gorsel"
+          label = "1 Saat Yakala"
+          if kural_tipi not in tum_hafiza: tum_hafiza[kural_tipi] = {}
+          if (close_curr_1h > hma20_1h.iloc[-1]) and (rsi_curr_1h > 50) and (plus_di_curr_1h > 25) and wave_breakout_1h:
             if simdi_epoch - tum_hafiza[kural_tipi].get(clean_ticker, 0) > COOLDOWN_SECONDS:
-              tetiklenen_str.append(f"• 🟠 {label} (RVOL:{rvol_curr_1h:.2f}|Konum:%{kapanis_konumu_val_1h*100:.1f})")
+              tetiklenen_str.append(f"• 🟣 {label} (RSI:{rsi_curr_1h:.1f}|+DI:{plus_di_curr_1h:.1f})")
+              toplam_puan += 25.0
+              tum_hafiza[kural_tipi][clean_ticker] = simdi_epoch
+
+          # 6. Deli Gitan 1 Saat
+          kural_tipi = "deli_gitan_1h"
+          label = "Deli Gitan 1 Saat"
+          if kural_tipi not in tum_hafiza: tum_hafiza[kural_tipi] = {}
+          if (close_curr_1h > hma20_1h.iloc[-1]) and (rvol_curr_1h >= 2.0) and wave_breakout_1h:
+            if simdi_epoch - tum_hafiza[kural_tipi].get(clean_ticker, 0) > COOLDOWN_SECONDS:
+              tetiklenen_str.append(f"• 🟠 {label} (RV0L:{rvol_curr_1h:.2f}|Konum:%100.0)")
               toplam_puan += 35.0
+              tum_hafiza[kural_tipi][clean_ticker] = simdi_epoch
+
+          # 7. 1 Saat Gitan
+          kural_tipi = "yeni_1h_gitan"
+          label = "1 Saat Gitan"
+          if kural_tipi not in tum_hafiza: tum_hafiza[kural_tipi] = {}
+          if (close_curr_1h > hma20_1h.iloc[-1]) and (rvol_curr_1h >= 0.6):
+            if simdi_epoch - tum_hafiza[kural_tipi].get(clean_ticker, 0) > COOLDOWN_SECONDS:
+              tetiklenen_str.append(f"• 🟡 {label} (RVOL:{rvol_curr_1h:.2f})")
+              toplam_puan += 30.0
+              tum_hafiza[kural_tipi][clean_ticker] = simdi_epoch
+
+          # 8. 1Saat Super Trend
+          kural_tipi = "1_saat_super_trend"
+          label = "1Saat Super Trend"
+          if kural_tipi not in tum_hafiza: tum_hafiza[kural_tipi] = {}
+          if (close_curr_1h > strend_line_1h.iloc[-1]) and (close_curr_1h > hma20_1h.iloc[-1]):
+            if simdi_epoch - tum_hafiza[kural_tipi].get(clean_ticker, 0) > COOLDOWN_SECONDS:
+              tetiklenen_str.append(f"• 🟠 {label} (MFi:{mfi_curr_1h:.1f}|CMF:{cmf_curr_1h:.2f})")
+              toplam_puan += 30.0
               tum_hafiza[kural_tipi][clean_ticker] = simdi_epoch
 
         if tetiklenen_str:
