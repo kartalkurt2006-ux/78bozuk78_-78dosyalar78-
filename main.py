@@ -377,12 +377,12 @@ def run_scanner():
               toplam_puan += 30.0
               tum_hafiza[kural_tipi][clean_ticker] = simdi_epoch
 
-          # 3. Yeni acil 15
+          # 3. Yeni acil 15 (PASİFİZE EDİLDİ - False koşulu eklendi)
           kural_tipi = "yeni_acil"
           label = "Yeni acil 15"
           if kural_tipi not in tum_hafiza: tum_hafiza[kural_tipi] = {}
           
-          if (rvol_curr_15 >= 0.6) and (close_curr_15 > hma20_15.iloc[-1]) and (mfi_curr_15 > 60) and (rsi_curr_15 > 45):
+          if False and (rvol_curr_15 >= 0.6) and (close_curr_15 > hma20_15.iloc[-1]) and (mfi_curr_15 > 60) and (rsi_curr_15 > 45):
             if simdi_epoch - tum_hafiza[kural_tipi].get(clean_ticker, 0) > COOLDOWN_SECONDS:
               tetiklenen_str.append(f"• 🟡 {label} (MFi:{mfi_curr_15:.1f}|RSI:{rsi_curr_15:.1f})")
               toplam_puan += 20.0
