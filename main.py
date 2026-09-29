@@ -464,21 +464,24 @@ def run_scanner():
               toplam_puan += 30.0
               tum_hafiza[kural_tipi][clean_ticker] = simdi_epoch
 
-          # 7. DELİ 1 SAAT (Saf Dalga Marjı + Hacim Onayı)
-          kural_tipi = "deli_1_saat"
-          label = "DELİ 1 SAAT"
+          # 7. DELİ GİTAN 1 SAAT (Levent Erol Bar/Kapanış Analizi + RVOL >= 0.6)
+          kural_tipi = "deli_gitan_1_saat"
+          label = "DELİ GİTAN 1 SAAT"
           if kural_tipi not in tum_hafiza: tum_hafiza[kural_tipi] = {}
           
-          bar_sayisi_deli = 6
-          recent_df_deli = df_1h.iloc[-(bar_sayisi_deli + 1) : -1]
-          pivot_deli = (recent_df_deli["High"].mean() + recent_df_deli["Low"].mean() + recent_df_deli["Close"].mean()) / 3
-          birinci_dalga_marji_deli = pivot_deli * 1.0023
-          
-          kapanis_teyit_deli = (close_1h.iloc[-2] <= birinci_dalga_marji_deli) and (close_curr_1h > birinci_dalga_marji_deli)
+          # Bar boyu ve ortalama hesapları
+          df_1h['Bar_Boyu'] = df_1h['High'] - df_1h['Low']
+          df_1h['Ort_Bar_Boyu'] = df_1h['Bar_Boyu'].rolling(window=6).mean()
+          df_1h['Kapanis_Konumu'] = (df_1h['Close'] - df_1h['Low']) / (df_1h['High'] - df_1h['Low'])
 
-          if kapanis_teyit_deli and (rvol_curr_1h > 1.0):
+          bar_boyu_val = df_1h['Bar_Boyu'].iloc[-1]
+          ort_bar_boyu_val = df_1h['Ort_Bar_Boyu'].iloc[-1]
+          kapanis_konumu_val = df_1h['Kapanis_Konumu'].iloc[-1]
+
+          # Kriterler: RVOL >= 0.6, Bar boyu ortalamadan büyük/eşit ve kapanış mumun üst kısmında (>= %70)
+          if (rvol_curr_1h >= 0.6) and (bar_boyu_val >= ort_bar_boyu_val) and (kapanis_konumu_val >= 0.70):
             if simdi_epoch - tum_hafiza[kural_tipi].get(clean_ticker, 0) > 14400:  # 4 Saat Cooldown
-              tetiklenen_str.append(f"• ⚡ {label} (RVOL:{rvol_curr_1h:.2f})")
+              tetiklenen_str.append(f"• ⚡ {label} (RVOL:{rvol_curr_1h:.2f} | Konum:%{kapanis_konumu_val*100:.1f})")
               toplam_puan += 50.0
               tum_hafiza[kural_tipi][clean_ticker] = simdi_epoch
 
