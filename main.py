@@ -442,15 +442,15 @@ def run_scanner():
               toplam_puan += 30.0
               tum_hafiza[kural_tipi][clean_ticker] = simdi_epoch
 
-          # 8. 1Saat Super Trend
-          kural_tipi = "1_saat_super_trend"
-          label = "1Saat Super Trend"
-          if kural_tipi not in tum_hafiza: tum_hafiza[kural_tipi] = {}
-          if (close_curr_1h > strend_line_1h.iloc[-1]) and (close_curr_1h > hma20_1h.iloc[-1]):
-            if simdi_epoch - tum_hafiza[kural_tipi].get(clean_ticker, 0) > COOLDOWN_SECONDS:
-              tetiklenen_str.append(f"• 🟠 {label} (MFi:{mfi_curr_1h:.1f}|CMF:{cmf_curr_1h:.2f})")
-              toplam_puan += 30.0
-              tum_hafiza[kural_tipi][clean_ticker] = simdi_epoch
+          # 8. 1Saat Super Trend (PASİFİZE EDİLDİ)
+          # kural_tipi = "1_saat_super_trend"
+          # label = "1Saat Super Trend"
+          # if kural_tipi not in tum_hafiza: tum_hafiza[kural_tipi] = {}
+          # if (close_curr_1h > strend_line_1h.iloc[-1]) and (close_curr_1h > hma20_1h.iloc[-1]):
+          #   if simdi_epoch - tum_hafiza[kural_tipi].get(clean_ticker, 0) > COOLDOWN_SECONDS:
+          #     tetiklenen_str.append(f"• 🟠 {label} (MFi:{mfi_curr_1h:.1f}|CMF:{cmf_curr_1h:.2f})")
+          #     toplam_puan += 30.0
+          #     tum_hafiza[kural_tipi][clean_ticker] = simdi_epoch
 
         if tetiklenen_str:
           if toplam_puan == 0:
