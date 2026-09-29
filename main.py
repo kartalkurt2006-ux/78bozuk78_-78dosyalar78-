@@ -357,16 +357,6 @@ def run_scanner():
               toplam_puan += 25.0
               tum_hafiza[kural_tipi][clean_ticker] = simdi_epoch
 
-          # 4. Yeni acil 15 (PASİFİZE EDİLDİ)
-          # kural_tipi = "yeni_acil_15"
-          # label = "Yeni acil 15"
-          # if kural_tipi not in tum_hafiza: tum_hafiza[kural_tipi] = {}
-          # if (close_curr_15 > hma20_15.iloc[-1]) and (mfi_curr_15 > 40):
-          #   if simdi_epoch - tum_hafiza[kural_tipi].get(clean_ticker, 0) > COOLDOWN_SECONDS:
-          #     tetiklenen_str.append(f"• 🟡 {label} (MFi:{mfi_curr_15:.1f}|RSI:{rsi_curr_15:.1f})")
-          #     toplam_puan += 20.0
-          #     tum_hafiza[kural_tipi][clean_ticker] = simdi_epoch
-
         # --- 1 SAATLİK STRATEJİLER KONTROLÜ ---
         if not df_1h.empty and len(df_1h) >= 40:
           if isinstance(df_1h.columns, pd.MultiIndex):
@@ -412,6 +402,10 @@ def run_scanner():
           cmf_1h = calculate_cmf(df_1h, period=20)
           cmf_curr_1h = cmf_1h.iloc[-1]
 
+          # 1 saatlik Super Fisher hesaplaması
+          fish_1h, trg_1h = calculate_fisher(df_1h, length=9)
+          fish_curr_1h, trg_curr_1h = fish_1h.iloc[-1], trg_1h.iloc[-1]
+
           # 5. 1 Saat Yakala
           kural_tipi = "1h_dalga_gorsel"
           label = "1 Saat Yakala"
@@ -432,25 +426,15 @@ def run_scanner():
               toplam_puan += 35.0
               tum_hafiza[kural_tipi][clean_ticker] = simdi_epoch
 
-          # 7. 1 Saat Gitan
+          # 7. 1 Saat Gitan (MFI > 55, Fisher Mavi > Turuncu, +DI > 20 güncellendi)
           kural_tipi = "yeni_1h_gitan"
           label = "1 Saat Gitan"
           if kural_tipi not in tum_hafiza: tum_hafiza[kural_tipi] = {}
-          if (close_curr_1h > hma20_1h.iloc[-1]) and (rvol_curr_1h >= 0.6):
+          if (close_curr_1h > hma20_1h.iloc[-1]) and (rvol_curr_1h >= 0.6) and (mfi_curr_1h > 55) and (fish_curr_1h > trg_curr_1h) and (plus_di_curr_1h > 20):
             if simdi_epoch - tum_hafiza[kural_tipi].get(clean_ticker, 0) > COOLDOWN_SECONDS:
-              tetiklenen_str.append(f"• 🟡 {label} (RVOL:{rvol_curr_1h:.2f})")
+              tetiklenen_str.append(f"• 🟡 {label} (RVOL:{rvol_curr_1h:.2f}|MFi:{mfi_curr_1h:.1f}|Fish:{fish_curr_1h:.2f}|+DI:{plus_di_curr_1h:.1f})")
               toplam_puan += 30.0
               tum_hafiza[kural_tipi][clean_ticker] = simdi_epoch
-
-          # 8. 1Saat Super Trend (PASİFİZE EDİLDİ)
-          # kural_tipi = "1_saat_super_trend"
-          # label = "1Saat Super Trend"
-          # if kural_tipi not in tum_hafiza: tum_hafiza[kural_tipi] = {}
-          # if (close_curr_1h > strend_line_1h.iloc[-1]) and (close_curr_1h > hma20_1h.iloc[-1]):
-          #   if simdi_epoch - tum_hafiza[kural_tipi].get(clean_ticker, 0) > COOLDOWN_SECONDS:
-          #     tetiklenen_str.append(f"• 🟠 {label} (MFi:{mfi_curr_1h:.1f}|CMF:{cmf_curr_1h:.2f})")
-          #     toplam_puan += 30.0
-          #     tum_hafiza[kural_tipi][clean_ticker] = simdi_epoch
 
         if tetiklenen_str:
           if toplam_puan == 0:
