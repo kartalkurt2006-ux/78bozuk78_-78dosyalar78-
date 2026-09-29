@@ -338,7 +338,7 @@ def run_scanner():
           rvol_curr_15 = rvol_15.iloc[-1]
           hma20_15 = calculate_hma(close_15, 20)
 
-          # 1. 15m Klasik
+          # 1. 15m Klasik (Bomba 15 + Deli Gitan 15m Entegrasyonu)
           kural_tipi = "15m_klasik"
           label = "bomba 15"
           if kural_tipi not in tum_hafiza: tum_hafiza[kural_tipi] = {}
@@ -350,9 +350,18 @@ def run_scanner():
           bb_middle = close_15.rolling(20).mean().iloc[-1]
           kapanis_teyit = (close_15.iloc[-2] <= birinci_dalga_marji) and (close_curr_15 > birinci_dalga_marji)
 
-          if kapanis_teyit and (close_curr_15 > bb_middle) and (mfi_curr_15 > 60) and (cmf_curr_15 > -0.20) and (rsi_curr_15 > 50) and (rvol_curr_15 > 0.6):
+          # Deli Gitan 15m Metrikleri
+          df_15m['Bar_Boyu'] = df_15m['High'] - df_15m['Low']
+          df_15m['Ort_Bar_Boyu'] = df_15m['Bar_Boyu'].rolling(window=6).mean()
+          df_15m['Kapanis_Konumu'] = (df_15m['Close'] - df_15m['Low']) / (df_15m['High'] - df_15m['Low'] + 1e-10)
+
+          bar_boyu_val_15 = df_15m['Bar_Boyu'].iloc[-1]
+          ort_bar_boyu_val_15 = df_15m['Ort_Bar_Boyu'].iloc[-1]
+          kapanis_konumu_val_15 = df_15m['Kapanis_Konumu'].iloc[-1]
+
+          if kapanis_teyit and (close_curr_15 > bb_middle) and (mfi_curr_15 > 60) and (cmf_curr_15 > -0.20) and (rsi_curr_15 > 50) and (rvol_curr_15 >= 0.6) and (bar_boyu_val_15 >= ort_bar_boyu_val_15) and (kapanis_konumu_val_15 >= 0.70):
             if simdi_epoch - tum_hafiza[kural_tipi].get(clean_ticker, 0) > COOLDOWN_SECONDS:
-              tetiklenen_str.append(f"• 🔴 {label} (MFi:{mfi_curr_15:.1f}|RSI:{rsi_curr_15:.1f})")
+              tetiklenen_str.append(f"• 🔴 {label} (RVOL:{rvol_curr_15:.2f}|Konum:%{kapanis_konumu_val_15*100:.1f})")
               toplam_puan += 35.0
               tum_hafiza[kural_tipi][clean_ticker] = simdi_epoch
 
@@ -462,27 +471,6 @@ def run_scanner():
             if simdi_epoch - tum_hafiza[kural_tipi].get(clean_ticker, 0) > COOLDOWN_SECONDS:
               tetiklenen_str.append(f"• 🟠 {label} (MFi:{mfi_curr_1h:.1f}|CMF:{cmf_curr_1h:.2f})")
               toplam_puan += 30.0
-              tum_hafiza[kural_tipi][clean_ticker] = simdi_epoch
-
-          # 7. DELİ GİTAN 1 SAAT (Levent Erol Bar/Kapanış Analizi + RVOL >= 0.6)
-          kural_tipi = "deli_gitan_1_saat"
-          label = "DELİ GİTAN 1 SAAT"
-          if kural_tipi not in tum_hafiza: tum_hafiza[kural_tipi] = {}
-          
-          # Bar boyu ve ortalama hesapları
-          df_1h['Bar_Boyu'] = df_1h['High'] - df_1h['Low']
-          df_1h['Ort_Bar_Boyu'] = df_1h['Bar_Boyu'].rolling(window=6).mean()
-          df_1h['Kapanis_Konumu'] = (df_1h['Close'] - df_1h['Low']) / (df_1h['High'] - df_1h['Low'])
-
-          bar_boyu_val = df_1h['Bar_Boyu'].iloc[-1]
-          ort_bar_boyu_val = df_1h['Ort_Bar_Boyu'].iloc[-1]
-          kapanis_konumu_val = df_1h['Kapanis_Konumu'].iloc[-1]
-
-          # Kriterler: RVOL >= 0.6, Bar boyu ortalamadan büyük/eşit ve kapanış mumun üst kısmında (>= %70)
-          if (rvol_curr_1h >= 0.6) and (bar_boyu_val >= ort_bar_boyu_val) and (kapanis_konumu_val >= 0.70):
-            if simdi_epoch - tum_hafiza[kural_tipi].get(clean_ticker, 0) > 14400:  # 4 Saat Cooldown
-              tetiklenen_str.append(f"• ⚡ {label} (RVOL:{rvol_curr_1h:.2f} | Konum:%{kapanis_konumu_val*100:.1f})")
-              toplam_puan += 50.0
               tum_hafiza[kural_tipi][clean_ticker] = simdi_epoch
 
         if tetiklenen_str:
