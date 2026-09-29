@@ -338,7 +338,7 @@ def run_scanner():
           rvol_curr_15 = rvol_15.iloc[-1]
           hma20_15 = calculate_hma(close_15, 20)
 
-          # 1. 15m Gitan (Gitan 15m Entegrasyonu)
+          # 1. 15m Gitan (Gitan 15m Entegrasyonu) - RVOL eşiği 1.0 olarak güncellendi
           kural_tipi = "15m_klasik"
           label = "Gitan 15"
           if kural_tipi not in tum_hafiza: tum_hafiza[kural_tipi] = {}
@@ -359,7 +359,7 @@ def run_scanner():
           ort_bar_boyu_val_15 = df_15m['Ort_Bar_Boyu'].iloc[-1]
           kapanis_konumu_val_15 = df_15m['Kapanis_Konumu'].iloc[-1]
 
-          if kapanis_teyit and (close_curr_15 > bb_middle) and (mfi_curr_15 > 60) and (cmf_curr_15 > -0.20) and (rsi_curr_15 > 50) and (rvol_curr_15 >= 0.6) and (bar_boyu_val_15 >= ort_bar_boyu_val_15) and (kapanis_konumu_val_15 >= 0.70):
+          if kapanis_teyit and (close_curr_15 > bb_middle) and (mfi_curr_15 > 60) and (cmf_curr_15 > -0.20) and (rsi_curr_15 > 50) and (rvol_curr_15 >= 1.0) and (bar_boyu_val_15 >= ort_bar_boyu_val_15) and (kapanis_konumu_val_15 >= 0.70):
             if simdi_epoch - tum_hafiza[kural_tipi].get(clean_ticker, 0) > COOLDOWN_SECONDS:
               tetiklenen_str.append(f"• 🔴 {label} (RVOL:{rvol_curr_15:.2f}|Konum:%{kapanis_konumu_val_15*100:.1f})")
               toplam_puan += 35.0
