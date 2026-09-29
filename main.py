@@ -338,9 +338,9 @@ def run_scanner():
           rvol_curr_15 = rvol_15.iloc[-1]
           hma20_15 = calculate_hma(close_15, 20)
 
-          # 1. 15m Klasik (Bomba 15 + Deli Gitan 15m Entegrasyonu)
+          # 1. 15m Gitan (Gitan 15m Entegrasyonu)
           kural_tipi = "15m_klasik"
-          label = "bomba 15"
+          label = "Gitan 15"
           if kural_tipi not in tum_hafiza: tum_hafiza[kural_tipi] = {}
           
           bar_sayisi = 6
@@ -350,7 +350,7 @@ def run_scanner():
           bb_middle = close_15.rolling(20).mean().iloc[-1]
           kapanis_teyit = (close_15.iloc[-2] <= birinci_dalga_marji) and (close_curr_15 > birinci_dalga_marji)
 
-          # Deli Gitan 15m Metrikleri
+          # Gitan 15m Metrikleri
           df_15m['Bar_Boyu'] = df_15m['High'] - df_15m['Low']
           df_15m['Ort_Bar_Boyu'] = df_15m['Bar_Boyu'].rolling(window=6).mean()
           df_15m['Kapanis_Konumu'] = (df_15m['Close'] - df_15m['Low']) / (df_15m['High'] - df_15m['Low'] + 1e-10)
@@ -449,9 +449,9 @@ def run_scanner():
               toplam_puan += 25.0
               tum_hafiza[kural_tipi][clean_ticker] = simdi_epoch
 
-          # 6. 1 saat süper
-          kural_tipi = "1_saat_super"
-          label = "1Saat Super Trend"
+          # 6. Deli Gitan 1 Saat (1 Saatlik Periyotta Deli Gitan Entegrasyonu)
+          kural_tipi = "deli_gitan_1h"
+          label = "Deli Gitan 1 Saat"
           if kural_tipi not in tum_hafiza: tum_hafiza[kural_tipi] = {}
 
           tp_1h = (high_1h + low_1h + close_1h) / 3
@@ -467,10 +467,19 @@ def run_scanner():
 
           sart_1h_super_prep = check_1h_super_breakout_prep(df_1h, lookback=3)
 
-          if (close_curr_1h > hma20_1h.iloc[-1]) and (mfi_curr_1h > 30) and (plus_di_curr_1h > 20) and (cmf_curr_1h > -0.20) and sart_1h_super_prep:
+          # Deli Gitan 1h Anatomi Metrikleri
+          df_1h['Bar_Boyu'] = df_1h['High'] - df_1h['Low']
+          df_1h['Ort_Bar_Boyu'] = df_1h['Bar_Boyu'].rolling(window=6).mean()
+          df_1h['Kapanis_Konumu'] = (df_1h['Close'] - df_1h['Low']) / (df_1h['High'] - df_1h['Low'] + 1e-10)
+
+          bar_boyu_val_1h = df_1h['Bar_Boyu'].iloc[-1]
+          ort_bar_boyu_val_1h = df_1h['Ort_Bar_Boyu'].iloc[-1]
+          kapanis_konumu_val_1h = df_1h['Kapanis_Konumu'].iloc[-1]
+
+          if (close_curr_1h > hma20_1h.iloc[-1]) and (mfi_curr_1h > 30) and (plus_di_curr_1h > 20) and (cmf_curr_1h > -0.20) and sart_1h_super_prep and (rvol_curr_1h >= 0.6) and (bar_boyu_val_1h >= ort_bar_boyu_val_1h) and (kapanis_konumu_val_1h >= 0.70):
             if simdi_epoch - tum_hafiza[kural_tipi].get(clean_ticker, 0) > COOLDOWN_SECONDS:
-              tetiklenen_str.append(f"• 🟠 {label} (MFi:{mfi_curr_1h:.1f}|CMF:{cmf_curr_1h:.2f})")
-              toplam_puan += 30.0
+              tetiklenen_str.append(f"• 🟠 {label} (RVOL:{rvol_curr_1h:.2f}|Konum:%{kapanis_konumu_val_1h*100:.1f})")
+              toplam_puan += 35.0
               tum_hafiza[kural_tipi][clean_ticker] = simdi_epoch
 
         if tetiklenen_str:
