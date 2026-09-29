@@ -322,13 +322,13 @@ def run_scanner():
           hma20_15 = calculate_hma(close_15, 20)
           sart_wave_15, konum_yuzde_15 = check_wave_margins(df_15m, lookback=5)
 
-          # 1. GİTAN 15
+          # 1. GİTAN 15 (MFI > 55 ve +DI > 25 şartları eklendi)
           kural_tipi = "gitan_15"
           label = "Gitan 15"
           if kural_tipi not in tum_hafiza: tum_hafiza[kural_tipi] = {}
-          if (rvol_curr_15 >= 1.0) and sart_wave_15:
+          if (rvol_curr_15 >= 1.0) and sart_wave_15 and (mfi_curr_15 > 55) and (plus_di_curr_15 > 25):
             if simdi_epoch - tum_hafiza[kural_tipi].get(clean_ticker, 0) > COOLDOWN_SECONDS:
-              tetiklenen_str.append(f"• 🔴 {label} (RVOL:{rvol_curr_15:.2f}|Konum:%{konum_yuzde_15:.1f})")
+              tetiklenen_str.append(f"• 🔴 {label} (RVOL:{rvol_curr_15:.2f}|MFi:{mfi_curr_15:.1f}|+DI:{plus_di_curr_15:.1f}|Konum:%{konum_yuzde_15:.1f})")
               toplam_puan += 35.0
               tum_hafiza[kural_tipi][clean_ticker] = simdi_epoch
 
@@ -426,7 +426,7 @@ def run_scanner():
               toplam_puan += 35.0
               tum_hafiza[kural_tipi][clean_ticker] = simdi_epoch
 
-          # 7. 1 Saat Gitan (MFI > 55, Fisher Mavi > Turuncu, +DI > 20 güncellendi)
+          # 7. 1 Saat Gitan
           kural_tipi = "yeni_1h_gitan"
           label = "1 Saat Gitan"
           if kural_tipi not in tum_hafiza: tum_hafiza[kural_tipi] = {}
