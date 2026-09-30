@@ -197,7 +197,8 @@ def hafiza_kaydet(hafiza):
 
 
 def piyasa_zaman_kontrolu():
-  if os.environ.get("FORCE_RUN", "true").lower() == "true":
+  # Varsayılan olarak "false" yapıldı: Elle FORCE_RUN=true verilmedikçe seans dışı / hafta sonu çalışmaz.
+  if os.environ.get("FORCE_RUN", "false").lower() == "true":
     return True
 
   simdi = datetime.now(TZ_TR)
@@ -526,4 +527,12 @@ def run_scanner():
 
 
 if __name__ == "__main__":
-  run_scanner()
+  print("Sürekli tarama sistemi başlatıldı (15 dakikalık periyotlarla çalışacak)...")
+  while True:
+    try:
+      run_scanner()
+    except Exception as e:
+      print(f"Döngü içinde hata oluştu: {e}")
+    
+    # 15 dakika (900 saniye) bekleme süresi
+    time.sleep(900)
