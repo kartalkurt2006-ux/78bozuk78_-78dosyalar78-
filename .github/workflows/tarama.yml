@@ -1,8 +1,8 @@
-name: BIST Tarama Botu
+Name: BIST Tarama Botu
 
 on:
   schedule:
-    - cron: '*/30 6-15 * * 1-5'
+    - cron: '*/15 6-15 * * 1-5'
   workflow_dispatch:
 
 permissions:
