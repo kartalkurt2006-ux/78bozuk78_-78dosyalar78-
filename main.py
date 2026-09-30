@@ -478,7 +478,7 @@ def run_scanner():
         kart = (
             f"----------------------------------------\n"
             f"🚀🚀🚀 TOP SİNYAL - {s['puan']:.1f} Puan\n"
-            f"📌 Hisse: 🟦 **{hisse_adi_str}** 🟦 | Fiyat: ₺{s['fiyat']:.2f}\n"
+            f"📌 Hisse: 🟦 {hisse_adi_str} 🟦 | Fiyat: ₺{s['fiyat']:.2f}\n"
             f"{str_metni}\n"
             f"----------------------------------------"
         )
@@ -501,7 +501,7 @@ def run_scanner():
           kart = (
               f"----------------------------------------\n"
               f"🚀🚀 GÜÇLÜ SİNYAL - {s['puan']:.1f} Puan\n"
-              f"📌 Hisse: 🟦 **{hisse_adi_str}** 🟦 | Fiyat: ₺{s['fiyat']:.2f}\n"
+              f"📌 Hisse: 🟦 {hisse_adi_str} 🟦 | Fiyat: ₺{s['fiyat']:.2f}\n"
               f"{str_metni}\n"
               f"----------------------------------------"
           )
@@ -519,7 +519,7 @@ def run_scanner():
             f"{zaman_str} 🔺\n"
             f"----------------------------------------\n"
             f"🚀 STANDART SİNYAL - {s['puan']:.1f} Puan\n"
-            f"📌 Hisse: 🟦 **{hisse_adi_str}** 🟦 | Fiyat: ₺{s['fiyat']:.2f}\n"
+            f"📌 Hisse: 🟦 {hisse_adi_str} 🟦 | Fiyat: ₺{s['fiyat']:.2f}\n"
             f"{str_metni}\n"
             f"----------------------------------------"
         )
