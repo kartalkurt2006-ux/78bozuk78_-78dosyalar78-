@@ -25,6 +25,8 @@ jobs:
           pip install --no-cache-dir requests yfinance pandas pytz numpy
 
       - name: Botu Çalıştır
+        env:
+          FORCE_RUN: ${{ github.event_name == 'workflow_dispatch' && 'true' || 'false' }}
         run: |
           python main.py
 
