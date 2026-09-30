@@ -477,7 +477,7 @@ def run_scanner():
         hisse_adi_str = s['temiz_isim'].upper()
         kart = (
             f"----------------------------------------\n"
-            f"🚀 TOP SİNYAL - {s['puan']:.1f} Puan\n"
+            f"🚀🚀🚀 TOP SİNYAL - {s['puan']:.1f} Puan\n"
             f"📌 Hisse: 🟦 **{hisse_adi_str}** 🟦 | Fiyat: ₺{s['fiyat']:.2f}\n"
             f"{str_metni}\n"
             f"----------------------------------------"
@@ -500,7 +500,7 @@ def run_scanner():
           hisse_adi_str = s['temiz_isim'].upper()
           kart = (
               f"----------------------------------------\n"
-              f"🚀 GÜÇLÜ SİNYAL - {s['puan']:.1f} Puan\n"
+              f"🚀🚀 GÜÇLÜ SİNYAL - {s['puan']:.1f} Puan\n"
               f"📌 Hisse: 🟦 **{hisse_adi_str}** 🟦 | Fiyat: ₺{s['fiyat']:.2f}\n"
               f"{str_metni}\n"
               f"----------------------------------------"
