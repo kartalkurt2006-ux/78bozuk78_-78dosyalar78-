@@ -322,7 +322,7 @@ def run_scanner():
           hma20_15 = calculate_hma(close_15, 20)
           sart_wave_15, konum_yuzde_15 = check_wave_margins(df_15m, lookback=5)
 
-          # 1. GİTAN 15 -> DELİRDİ olarak güncellendi ve istenen format uygulandı
+          # 1. GİTAN 15 -> DELİRDİ formatı
           kural_tipi = "gitan_15"
           label = "DELİRDİ"
           if kural_tipi not in tum_hafiza: tum_hafiza[kural_tipi] = {}
@@ -415,7 +415,7 @@ def run_scanner():
               toplam_puan += 25.0
               tum_hafiza[kural_tipi][clean_ticker] = simdi_epoch
 
-          # 6. Deli Gitan 1 Saat -> DELİRDİ olarak güncellendi
+          # 6. Deli Gitan 1 Saat -> DELİRDİ formatı
           kural_tipi = "deli_gitan_1h"
           label = "DELİRDİ"
           if kural_tipi not in tum_hafiza: tum_hafiza[kural_tipi] = {}
@@ -425,7 +425,7 @@ def run_scanner():
               toplam_puan += 35.0
               tum_hafiza[kural_tipi][clean_ticker] = simdi_epoch
 
-          # 7. 1 Saat Gitan -> DELİRDİ olarak güncellendi
+          # 7. 1 Saat Gitan -> DELİRDİ formatı
           kural_tipi = "yeni_1h_gitan"
           label = "DELİRDİ"
           if kural_tipi not in tum_hafiza: tum_hafiza[kural_tipi] = {}
@@ -530,11 +530,5 @@ def run_scanner():
 
 
 if __name__ == "__main__":
-  print("Sürekli tarama sistemi başlatıldı (15 dakikalık periyotlarla çalışacak)...")
-  while True:
-    try:
-      run_scanner()
-    except Exception as e:
-      print(f"Döngü içinde hata oluştu: {e}")
-    
-    time.sleep(900)
+  print("Tarama sistemi başlatıldı...")
+  run_scanner()
