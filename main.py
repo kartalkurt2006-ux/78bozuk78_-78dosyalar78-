@@ -280,6 +280,11 @@ def run_scanner():
         except:
           pass
 
+        # Değişkenleri önceden tanımlayalım (15m verileri 1h içindeki hibrit tetikte kullanılacak)
+        rvol_curr_15 = 0.0
+        konum_yuzde_15 = 0.0
+        sart_wave_15 = False
+
         # --- 15 DAKİKALIK STRATEJİLER KONTROLÜ ---
         if not df_15m.empty and len(df_15m) >= 40:
           if isinstance(df_15m.columns, pd.MultiIndex):
@@ -415,13 +420,19 @@ def run_scanner():
               toplam_puan += 25.0
               tum_hafiza[kural_tipi][clean_ticker] = simdi_epoch
 
-          # 6. Deli Gitan 1 Saat -> DELİRDİ formatı
+          # 6. Deli Gitan 1 Saat -> DELİRDİ formatı (HİBRİT + ERKEN UYARI OPTİMİZASYONU)
           kural_tipi = "deli_gitan_1h"
           label = "DELİRDİ"
           if kural_tipi not in tum_hafiza: tum_hafiza[kural_tipi] = {}
-          if (close_curr_1h > hma20_1h.iloc[-1]) and (rvol_curr_1h >= 2.0) and wave_breakout_1h:
+          
+          # 1 saatlik ana trend arkaplan filtresi
+          trend_1h_ok = (close_curr_1h > hma20_1h.iloc[-1])
+          # 15 dakikalık alt periyotla erken tetik (RVOL min 2.0 ve Konum %75-%95 aralığında esnetildi)
+          erken_tetik_15m = (rvol_curr_15 >= 2.0) and (75.0 <= konum_yuzde_15 <= 95.0) and sart_wave_15
+
+          if trend_1h_ok and erken_tetik_15m:
             if simdi_epoch - tum_hafiza[kural_tipi].get(clean_ticker, 0) > COOLDOWN_SECONDS:
-              tetiklenen_str.append(f"• 🟠 {label} 1 Saat (RVOL:{rvol_curr_1h:.2f}|Konum:%100.0)")
+              tetiklenen_str.append(f"• 🟠 {label} 1 Saat (RVOL:{rvol_curr_15:.2f}|Konum:%{konum_yuzde_15:.1f})")
               toplam_puan += 35.0
               tum_hafiza[kural_tipi][clean_ticker] = simdi_epoch
 
