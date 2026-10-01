@@ -322,13 +322,13 @@ def run_scanner():
           hma20_15 = calculate_hma(close_15, 20)
           sart_wave_15, konum_yuzde_15 = check_wave_margins(df_15m, lookback=5)
 
-          # 1. GİTAN 15 -> DELİRDİ formatı
+          # 1. GİTAN 15 -> DELİRDİ formatı (Yıldızlar arındırıldı)
           kural_tipi = "gitan_15"
           label = "DELİRDİ"
           if kural_tipi not in tum_hafiza: tum_hafiza[kural_tipi] = {}
           if (rvol_curr_15 >= 1.0) and sart_wave_15 and (mfi_curr_15 > 55) and (plus_di_curr_15 > 25):
             if simdi_epoch - tum_hafiza[kural_tipi].get(clean_ticker, 0) > COOLDOWN_SECONDS:
-              tetiklenen_str.append(f"• 🔴 **{label}** 15 (RVOL:{rvol_curr_15:.2f}|MFI:**{mfi_curr_15:.1f}**|+DI:{plus_di_curr_15:.1f}|Konum:**%{konum_yuzde_15:.1f}**)")
+              tetiklenen_str.append(f"• 🔴 {label} 15 (RVOL:{rvol_curr_15:.2f}|MFI:{mfi_curr_15:.1f}|+DI:{plus_di_curr_15:.1f}|Konum:%{konum_yuzde_15:.1f})")
               toplam_puan += 35.0
               tum_hafiza[kural_tipi][clean_ticker] = simdi_epoch
 
@@ -338,7 +338,7 @@ def run_scanner():
           if kural_tipi not in tum_hafiza: tum_hafiza[kural_tipi] = {}
           if sart_wave_15 and (volume_15.iloc[-1] > volume_15.iloc[-2]) and (rvol_curr_15 > 1.0) and (close_curr_15 > hma20_15.iloc[-1]) and (close_curr_15 >= close_15.rolling(20).mean().iloc[-1]) and (mfi_curr_15 > 25) and (plus_di_curr_15 > 15) and (rsi_curr_15 > 45):
             if simdi_epoch - tum_hafiza[kural_tipi].get(clean_ticker, 0) > COOLDOWN_SECONDS:
-              tetiklenen_str.append(f"• 🟢 {label} (MFI:**{mfi_curr_15:.1f}**|RSI:{rsi_curr_15:.1f})")
+              tetiklenen_str.append(f"• 🟢 {label} (MFI:{mfi_curr_15:.1f}|RSI:{rsi_curr_15:.1f})")
               toplam_puan += 30.0
               tum_hafiza[kural_tipi][clean_ticker] = simdi_epoch
 
@@ -353,7 +353,7 @@ def run_scanner():
           sart_fisher_15 = (fish_curr_15 > trg_curr_15) or ((fish_prev_15 <= trg_prev_15) and (fish_curr_15 > trg_curr_15))
           if (rvol_curr_15 >= 0.6) and (close_curr_15 > strend_line_15.iloc[-1]) and (close_curr_15 > hma20_15.iloc[-1]) and sart_fisher_15 and (mfi_curr_15 > 45) and (plus_di_curr_15 > minus_di_curr_15):
             if simdi_epoch - tum_hafiza[kural_tipi].get(clean_ticker, 0) > COOLDOWN_SECONDS:
-              tetiklenen_str.append(f"• 🔵 {label} (MFI:**{mfi_curr_15:.1f}**|RSI:{rsi_curr_15:.1f})")
+              tetiklenen_str.append(f"• 🔵 {label} (MFI:{mfi_curr_15:.1f}|RSI:{rsi_curr_15:.1f})")
               toplam_puan += 25.0
               tum_hafiza[kural_tipi][clean_ticker] = simdi_epoch
 
@@ -415,23 +415,23 @@ def run_scanner():
               toplam_puan += 25.0
               tum_hafiza[kural_tipi][clean_ticker] = simdi_epoch
 
-          # 6. Deli Gitan 1 Saat -> DELİRDİ formatı
+          # 6. Deli Gitan 1 Saat -> DELİRDİ formatı (Yıldızlar arındırıldı)
           kural_tipi = "deli_gitan_1h"
           label = "DELİRDİ"
           if kural_tipi not in tum_hafiza: tum_hafiza[kural_tipi] = {}
           if (close_curr_1h > hma20_1h.iloc[-1]) and (rvol_curr_1h >= 2.0) and wave_breakout_1h:
             if simdi_epoch - tum_hafiza[kural_tipi].get(clean_ticker, 0) > COOLDOWN_SECONDS:
-              tetiklenen_str.append(f"• 🟠 **{label}** 1 Saat (RVOL:{rvol_curr_1h:.2f}|Konum:**%100.0**)")
+              tetiklenen_str.append(f"• 🟠 {label} 1 Saat (RVOL:{rvol_curr_1h:.2f}|Konum:%100.0)")
               toplam_puan += 35.0
               tum_hafiza[kural_tipi][clean_ticker] = simdi_epoch
 
-          # 7. 1 Saat Gitan -> DELİRDİ formatı
+          # 7. 1 Saat Gitan -> DELİRDİ formatı (Yıldızlar arındırıldı)
           kural_tipi = "yeni_1h_gitan"
           label = "DELİRDİ"
           if kural_tipi not in tum_hafiza: tum_hafiza[kural_tipi] = {}
           if (close_curr_1h > hma20_1h.iloc[-1]) and (rvol_curr_1h >= 0.6) and (mfi_curr_1h > 55) and (fish_curr_1h > trg_curr_1h) and (plus_di_curr_1h > 20):
             if simdi_epoch - tum_hafiza[kural_tipi].get(clean_ticker, 0) > COOLDOWN_SECONDS:
-              tetiklenen_str.append(f"• 🟡 **{label}** 1 Saat (RVOL:{rvol_curr_1h:.2f}|MFI:**{mfi_curr_1h:.1f}**|Fish:{fish_curr_1h:.2f}|+DI:{plus_di_curr_1h:.1f})")
+              tetiklenen_str.append(f"• 🟡 {label} 1 Saat (RVOL:{rvol_curr_1h:.2f}|MFI:{mfi_curr_1h:.1f}|Fish:{fish_curr_1h:.2f}|+DI:{plus_di_curr_1h:.1f})")
               toplam_puan += 30.0
               tum_hafiza[kural_tipi][clean_ticker] = simdi_epoch
 
