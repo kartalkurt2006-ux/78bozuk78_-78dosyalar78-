@@ -181,6 +181,19 @@ def check_wave_margins(df, lookback=3):
     return False, 0.0
 
 
+def calculate_tdst_levels(df, length=9):
+    """
+    TD Sequential Destek/Direnç (TDST) Seviyelerini Hesaplayan Fonksiyon
+    """
+    high = df["High"]
+    low = df["Low"]
+    close = df["Close"]
+    
+    tdst_destek = low.rolling(window=length*3, min_periods=1).min()
+    tdst_direnc = high.rolling(window=length*3, min_periods=1).max()
+    return tdst_destek, tdst_direnc
+
+
 def hafiza_yukle():
   if os.path.exists(MERKEZI_HAFIZA_DOSYASI):
     try:
@@ -225,7 +238,6 @@ def send_ntfy(message, baslik):
 
 
 def download_with_retry(chunk, interval, period, max_retries=3):
-  """Bağlantı koptuğunda veya hata alındığında otomatik tekrar deneme (Retry) mekanizması"""
   for attempt in range(1, max_retries + 1):
     try:
       df_all = yf.download(chunk, period=period, interval=interval, group_by='ticker', progress=False)
@@ -289,7 +301,6 @@ def run_scanner():
         except:
           pass
 
-        # NaN Güvenlik Kontrolleri
         if df_15m.empty or df_1h.empty or len(df_15m) < 40 or len(df_1h) < 40:
           continue
 
@@ -360,18 +371,21 @@ def run_scanner():
             toplam_puan += 30.0
             tum_hafiza[kural_tipi][clean_ticker] = simdi_epoch
 
-        # 3. Super Fisher 15
-        kural_tipi = "super_fisher_15"
-        label = "Super Fisher 15"
+        # 3. YENİ MODÜL: HİBRİT 15 (TDST Destek + Hibrit Trend + Dalga Marjı Konumu)
+        kural_tipi = "hibrit_15"
+        label = "HİBRİT 15"
         if kural_tipi not in tum_hafiza: tum_hafiza[kural_tipi] = {}
-        strend_line_15 = calculate_strend(df_15m, period=10, multiplier=3)
-        fish_15, trg_15 = calculate_fisher(df_15m, length=9)
-        fish_curr_15, trg_curr_15 = fish_15.iloc[-1], trg_15.iloc[-1]
-        fish_prev_15, trg_prev_15 = fish_15.iloc[-2], trg_15.iloc[-2]
-        sart_fisher_15 = (fish_curr_15 > trg_curr_15) or ((fish_prev_15 <= trg_prev_15) and (fish_curr_15 > trg_curr_15))
-        if (rvol_curr_15 >= 0.6) and (close_curr_15 > strend_line_15.iloc[-1]) and (close_curr_15 > hma20_15.iloc[-1]) and sart_fisher_15 and (mfi_curr_15 > 45) and (plus_di_curr_15 > minus_di_curr_15):
+        
+        tdst_destek_15, tdst_direnc_15 = calculate_tdst_levels(df_15m, length=9)
+        destek_temas_ok = (close_curr_15 <= tdst_destek_15.iloc[-1] * 1.02) or (low_15.iloc[-1] <= tdst_destek_15.iloc[-1])
+        ema20_15 = close_15.ewm(span=20, adjust=False).mean()
+        trend_onay_15 = (close_curr_15 > ema20_15.iloc[-1]) and (close_curr_15 > hma20_15.iloc[-1])
+        hacim_onay_15 = (rvol_curr_15 >= 0.8)
+        dalga_uygun_15 = (konum_yuzde_15 <= 60.0) or sart_wave_15
+
+        if destek_temas_ok and trend_onay_15 and hacim_onay_15 and dalga_uygun_15:
           if simdi_epoch - tum_hafiza[kural_tipi].get(clean_ticker, 0) > COOLDOWN_SECONDS:
-            tetiklenen_str.append(f"• 🔵 {label} (MFI:{mfi_curr_15:.1f}|RSI:{rsi_curr_15:.1f})")
+            tetiklenen_str.append(f"• 🟡 {label} (RVOL:{rvol_curr_15:.2f}|Konum:%{konum_yuzde_15:.1f}|Destek Teyit)")
             toplam_puan += 25.0
             tum_hafiza[kural_tipi][clean_ticker] = simdi_epoch
 
@@ -429,7 +443,7 @@ def run_scanner():
             toplam_puan += 25.0
             tum_hafiza[kural_tipi][clean_ticker] = simdi_epoch
 
-        # 6. Deli Gitan 1 Saat -> DELİRDİ formatı (ESKİ KLASİK KURAL - DOKUNulmadı)
+        # 6. Deli Gitan 1 Saat -> DELİRDİ formatı
         kural_tipi = "deli_gitan_1h"
         label = "DELİRDİ"
         if kural_tipi not in tum_hafiza: tum_hafiza[kural_tipi] = {}
@@ -449,7 +463,7 @@ def run_scanner():
             toplam_puan += 30.0
             tum_hafiza[kural_tipi][clean_ticker] = simdi_epoch
 
-        # 8. YENİ KURAL: Erken Hibrit 1 Saat (15m tetik + %75-%95 konum + 2.0x RVOL)
+        # 8. YENİ KURAL: Erken Hibrit 1 Saat
         kural_tipi = "erken_hibrit_1h"
         label = "ERKEN DELİRDİ"
         if kural_tipi not in tum_hafiza: tum_hafiza[kural_tipi] = {}
