@@ -2,6 +2,7 @@ from datetime import datetime
 import json
 import os
 import time
+import math
 import numpy as np
 import pandas as pd
 import pytz
@@ -280,6 +281,9 @@ def run_scanner():
       tetiklenen_str = []
       guncel_fiyat = 0.0
       toplam_puan = 0.0
+      # İlgili hissenin D+ ve MFI değerlerini yakalamak için değişkenler
+      son_d_plus = 0.0
+      son_mfi = 0.0
 
       try:
         df_15m = pd.DataFrame()
@@ -334,6 +338,7 @@ def run_scanner():
         neg_flow_15 = mf_15.where(tp_15 < tp_15.shift(1), 0).rolling(14).sum()
         mfi_15 = 100 - (100 / (1 + (pos_flow_15 / (neg_flow_15 + 1e-10))))
         mfi_curr_15 = mfi_15.iloc[-1]
+        son_mfi = mfi_curr_15
 
         up_move_15 = high_15.diff()
         down_move_15 = -low_15.diff()
@@ -345,6 +350,7 @@ def run_scanner():
         minus_di_15 = 100 * (minus_dm_15.rolling(14).sum() / (tr_smooth_15 + 1e-10))
         plus_di_curr_15 = plus_di_15.iloc[-1]
         minus_di_curr_15 = minus_di_15.iloc[-1]
+        son_d_plus = plus_di_curr_15
 
         rvol_15 = volume_15 / volume_15.rolling(20).mean()
         rvol_curr_15 = rvol_15.iloc[-1]
@@ -485,7 +491,9 @@ def run_scanner():
               "temiz_isim": temiz_isim,
               "fiyat": guncel_fiyat,
               "puan": toplam_puan,
-              "stratejiler": tetiklenen_str
+              "stratejiler": tetiklenen_str,
+              "d_plus": son_d_plus,
+              "mfi": son_mfi
           })
           hafiza_kaydet(tum_hafiza)
           print(f"  > {clean_ticker} inceleniyor... 🎯 Sinyal Yakalandı! (+{toplam_puan} Puan)")
@@ -496,40 +504,104 @@ def run_scanner():
         print(f"  > Hata oluştu ({clean_ticker}): {e}")
         continue
 
-  # --- ÜÇERLİ GRUPLAR HALİNDE TOPLU BİLDİRİM GÖNDERİMİ ---
+  # --- BİLDİRİM GÖNDERİM MANTIĞI ---
   if toplanan_sinyaller:
     toplanan_sinyaller.sort(key=lambda x: x["puan"], reverse=True)
     zaman_str = datetime.now(TZ_TR).strftime('%d.%m.%Y %H:%M')
 
-    batch_size = 3
-    for i in range(0, len(toplanan_sinyaller), batch_size):
-      batch = toplanan_sinyaller[i:i + batch_size]
-      icerik_listesi = []
+    # 1. 3 Füzeli (>= 60.0 Puan) ve 2 Füzeli (40.0 - 59.9 Puan) olanlar eski orijinal yapısıyla ayrı ayrı gönderilir
+    yuksek_sinyaller = [s for s in toplanan_sinyaller if s["puan"] >= 40.0]
+    
+    for s in yuksek_sinyaller:
+      str_metni = "\n".join(s["stratejiler"])
+      hisse_adi_str = s['temiz_isim'].upper()
+      p = s['puan']
       
-      for s in batch:
-        str_metni = "\n".join(s["stratejiler"])
-        hisse_adi_str = s['temiz_isim'].upper()
-        p = s['puan']
-        
-        if p >= 60.0:
-          baslik_tipi = f"🚀🚀🚀 TOP SİNYAL - {p:.1f} Puan"
-        elif p >= 40.0:
-          baslik_tipi = f"🚀🚀 GÜÇLÜ SİNYAL - {p:.1f} Puan"
-        else:
-          baslik_tipi = f"🚀 STANDART SİNYAL - {p:.1f} Puan"
+      if p >= 60.0:
+        baslik_tipi = f"🚀🚀🚀 TOP SİNYAL - {p:.1f} Puan"
+      else:
+        baslik_tipi = f"🚀🚀 GÜÇLÜ SİNYAL - {p:.1f} Puan"
 
-        kart = (
-            f"----------------------------------------\n"
-            f"{baslik_tipi}\n"
-            f"📌 Hisse: 🟦 {hisse_adi_str} 🟦 | Fiyat: ₺{s['fiyat']:.2f}\n"
-            f"{str_metni}\n"
-            f"----------------------------------------"
-        )
-        icerik_listesi.append(kart)
-
-      toplu_mesaj = f"{zaman_str} 🔺\n" + "\n".join(icerik_listesi)
+      kart = (
+          f"----------------------------------------\n"
+          f"{baslik_tipi}\n"
+          f"📌 Hisse: 🟦 {hisse_adi_str} 🟦 | Fiyat: ₺{s['fiyat']:.2f}\n"
+          f"{str_metni}\n"
+          f"----------------------------------------"
+      )
+      toplu_mesaj = f"{zaman_str} 🔺\n" + kart
       send_ntfy(toplu_mesaj, "BIST Zirve Sinyaller")
       time.sleep(1)
+
+    # 2. Tek Füzeliler (< 40.0 Puan) için İstediğin Özel 3'erli Paketleme ve Kompakt Tasarım
+    tek_fuzeliler = [s for s in toplanan_sinyaller if s["puan"] < 40.0]
+    
+    if tek_fuzeliler:
+      # Aynı hisseler tekilleştirilip stratejileri parantez içinde birleştirilir
+      birlesmis_dict = {}
+      for item in tek_fuzeliler:
+        hisse = item['temiz_isim']
+        # Stratejilerden emoji ve detayları temizleyip sade bir isim çıkaralım veya orijinal metni koruyalım
+        # Orijinal tetiklenen_str metinlerinden strateji isimlerini ayıklayalım:
+        temiz_strat_isimleri = []
+        for st in item['stratejiler']:
+            # Örn: "• 🔴 DELİRDİ 15 (...)" -> "DELİRDİ 15"
+            temiz = st.replace("•", "").strip()
+            # Emojileri temizlemek istersen ya da ham bırakmak istersen doğrudan ekleyebilirsin
+            if temiz not in temiz_strat_isimleri:
+                temiz_strat_isimleri.append(temiz)
+
+        if hisse in birlesmis_dict:
+            for strat in temiz_strat_isimleri:
+                if strat not in birlesmis_dict[hisse]['stratejiler']:
+                    birlesmis_dict[hisse]['stratejiler'].append(strat)
+            if item['puan'] > birlesmis_dict[hisse]['puan']:
+                birlesmis_dict[hisse]['puan'] = item['puan']
+                birlesmis_dict[hisse]['d_plus'] = item['d_plus']
+                birlesmis_dict[hisse]['mfi'] = item['mfi']
+                birlesmis_dict[hisse]['fiyat'] = item['fiyat']
+        else:
+            birlesmis_dict[hisse] = {
+                'fiyat': item['fiyat'],
+                'puan': item['puan'],
+                'd_plus': item['d_plus'],
+                'mfi': item['mfi'],
+                'stratejiler': list(temiz_strat_isimleri)
+            }
+
+      unique_tek_listesi = [{'hisse': k, **v} for k, v in birlesmis_dict.items()]
+      
+      batch_size = 3
+      total_items = len(unique_tek_listesi)
+      total_packages = math.ceil(total_items / batch_size)
+
+      for i in range(0, total_items, batch_size):
+        chunk = unique_tek_listesi[i:i + batch_size]
+        package_no = (i // batch_size) + 1
+        
+        icerik_listesi = [
+            f"🚀 TEK FÜZELİLER RAPORU (Paket {package_no}/{total_packages}) [{zaman_str}]",
+            "----------------------------------------"
+        ]
+        
+        for item in chunk:
+            hisse = item['hisse'].upper()
+            fiyat = f"{item['fiyat']:.2f} TL"
+            puan = f"{item['puan']:.1f}"
+            d_plus = f"{item['d_plus']:.2f}"
+            mfi = f"{item['mfi']:.1f}"
+            strats = ", ".join(item['stratejiler'])
+            
+            satir = (
+                f"🚀 🟦 {hisse} 🟦 : {fiyat} ({strats})\n"
+                f"   • Puan: {puan} | D+: {d_plus} | MFI: {mfi}"
+            )
+            icerik_listesi.append(satir)
+            
+        icerik_listesi.append("----------------------------------------")
+        toplu_tek_mesaj = "\n".join(icerik_listesi)
+        send_ntfy(toplu_tek_mesaj, "BIST Tek Füze Sinyalleri")
+        time.sleep(1)
 
   print("\nTüm Hisseler 40'ar gruplar halinde tarandı ve süreç tamamlandı.")
 
