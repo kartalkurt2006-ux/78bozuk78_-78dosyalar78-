@@ -182,19 +182,6 @@ def check_wave_margins(df, lookback=3):
     return False, 0.0
 
 
-def calculate_tdst_levels(df, length=9):
-    """
-    TD Sequential Destek/Direnç (TDST) Seviyelerini Hesaplayan Fonksiyon
-    """
-    high = df["High"]
-    low = df["Low"]
-    close = df["Close"]
-    
-    tdst_destek = low.rolling(window=length*3, min_periods=1).min()
-    tdst_direnc = high.rolling(window=length*3, min_periods=1).max()
-    return tdst_destek, tdst_direnc
-
-
 def hafiza_yukle():
   if os.path.exists(MERKEZI_HAFIZA_DOSYASI):
     try:
@@ -281,7 +268,6 @@ def run_scanner():
       tetiklenen_str = []
       guncel_fiyat = 0.0
       toplam_puan = 0.0
-      # İlgili hissenin D+ ve MFI değerlerini yakalamak için değişkenler
       son_d_plus = 0.0
       son_mfi = 0.0
 
@@ -357,7 +343,7 @@ def run_scanner():
         hma20_15 = calculate_hma(close_15, 20)
         sart_wave_15, konum_yuzde_15 = check_wave_margins(df_15m, lookback=5)
 
-        # 1. GİTAN 15 -> DELİRDİ formatı
+        # 1. GİTAN 15 -> DELİRDİ formatı (AKTİF)
         kural_tipi = "gitan_15"
         label = "DELİRDİ"
         if kural_tipi not in tum_hafiza: tum_hafiza[kural_tipi] = {}
@@ -367,33 +353,15 @@ def run_scanner():
             toplam_puan += 35.0
             tum_hafiza[kural_tipi][clean_ticker] = simdi_epoch
 
-        # 2. 15dk Yakala
-        kural_tipi = "15m_profesjonel"
-        label = "15dk Yakala"
-        if kural_tipi not in tum_hafiza: tum_hafiza[kural_tipi] = {}
-        if sart_wave_15 and (volume_15.iloc[-1] > volume_15.iloc[-2]) and (rvol_curr_15 > 1.0) and (close_curr_15 > hma20_15.iloc[-1]) and (close_curr_15 >= close_15.rolling(20).mean().iloc[-1]) and (mfi_curr_15 > 25) and (plus_di_curr_15 > 15) and (rsi_curr_15 > 45):
-          if simdi_epoch - tum_hafiza[kural_tipi].get(clean_ticker, 0) > COOLDOWN_SECONDS:
-            tetiklenen_str.append(f"• 🟢 {label} (MFI:{mfi_curr_15:.1f}|RSI:{rsi_curr_15:.1f})")
-            toplam_puan += 30.0
-            tum_hafiza[kural_tipi][clean_ticker] = simdi_epoch
-
-        # 3. YENİ MODÜL: HİBRİT 15 (TDST Destek + Hibrit Trend + Dalga Marjı Konumu)
-        kural_tipi = "hibrit_15"
-        label = "HİBRİT 15"
-        if kural_tipi not in tum_hafiza: tum_hafiza[kural_tipi] = {}
-        
-        tdst_destek_15, tdst_direnc_15 = calculate_tdst_levels(df_15m, length=9)
-        destek_temas_ok = (close_curr_15 <= tdst_destek_15.iloc[-1] * 1.02) or (low_15.iloc[-1] <= tdst_destek_15.iloc[-1])
-        ema20_15 = close_15.ewm(span=20, adjust=False).mean()
-        trend_onay_15 = (close_curr_15 > ema20_15.iloc[-1]) and (close_curr_15 > hma20_15.iloc[-1])
-        hacim_onay_15 = (rvol_curr_15 >= 0.8)
-        dalga_uygun_15 = (konum_yuzde_15 <= 60.0) or sart_wave_15
-
-        if destek_temas_ok and trend_onay_15 and hacim_onay_15 and dalga_uygun_15:
-          if simdi_epoch - tum_hafiza[kural_tipi].get(clean_ticker, 0) > COOLDOWN_SECONDS:
-            tetiklenen_str.append(f"• 🟡 {label} (RVOL:{rvol_curr_15:.2f}|Konum:%{konum_yuzde_15:.1f}|Destek Teyit)")
-            toplam_puan += 25.0
-            tum_hafiza[kural_tipi][clean_ticker] = simdi_epoch
+        # --- [PASİFİZE EDİLDİ] 2. 15dk Yakala ---
+        # kural_tipi = "15m_profesjonel"
+        # label = "15dk Yakala"
+        # if kural_tipi not in tum_hafiza: tum_hafiza[kural_tipi] = {}
+        # if sart_wave_15 and (volume_15.iloc[-1] > volume_15.iloc[-2]) and (rvol_curr_15 > 1.0) and (close_curr_15 > hma20_15.iloc[-1]) and (close_curr_15 >= close_15.rolling(20).mean().iloc[-1]) and (mfi_curr_15 > 25) and (plus_di_curr_15 > 15) and (rsi_curr_15 > 45):
+        #   if simdi_epoch - tum_hafiza[kural_tipi].get(clean_ticker, 0) > COOLDOWN_SECONDS:
+        #     tetiklenen_str.append(f"• 🟢 {label} (MFI:{mfi_curr_15:.1f}|RSI:{rsi_curr_15:.1f})")
+        #     toplam_puan += 30.0
+        #     tum_hafiza[kural_tipi][clean_ticker] = simdi_epoch
 
         # 1h Değişkenler
         close_1h = df_1h["Close"]
@@ -439,7 +407,27 @@ def run_scanner():
         fish_1h, trg_1h = calculate_fisher(df_1h, length=9)
         fish_curr_1h, trg_curr_1h = fish_1h.iloc[-1], trg_1h.iloc[-1]
 
-        # 5. 1 Saat Yakala
+        # 3. YENİ MODÜL: DİP HİBRİT (AKTİF)
+        kural_tipi = "dip_hibrit"
+        label = "DİP HİBRİT"
+        if kural_tipi not in tum_hafiza: tum_hafiza[kural_tipi] = {}
+        
+        donem_min_1h = low_1h.rolling(window=50).min()
+        donem_max_1h = high_1h.rolling(window=50).max()
+        fark_1h = donem_max_1h - donem_min_1h
+        konum_yuzde_1h_ser = np.where(fark_1h == 0, 0, ((close_1h - donem_min_1h) / fark_1h) * 100)
+        konum_yuzde_1h_curr = konum_yuzde_1h_ser[-1] if isinstance(konum_yuzde_1h_ser, np.ndarray) else konum_yuzde_1h_ser.iloc[-1]
+        
+        dip_sarti_1h = (0.0 <= konum_yuzde_1h_curr <= 15.0)
+        momentum_sarti_15m = (plus_di_curr_15 > 30.0)
+
+        if dip_sarti_1h and momentum_sarti_15m:
+          if simdi_epoch - tum_hafiza[kural_tipi].get(clean_ticker, 0) > COOLDOWN_SECONDS:
+            tetiklenen_str.append(f"• 🟡 {label} (1H Konum:%{konum_yuzde_1h_curr:.1f}|15m +DI:{plus_di_curr_15:.1f})")
+            toplam_puan += 25.0
+            tum_hafiza[kural_tipi][clean_ticker] = simdi_epoch
+
+        # 5. 1 Saat Yakala (AKTİF)
         kural_tipi = "1h_dalga_gorsel"
         label = "1 Saat Yakala"
         if kural_tipi not in tum_hafiza: tum_hafiza[kural_tipi] = {}
@@ -449,7 +437,7 @@ def run_scanner():
             toplam_puan += 25.0
             tum_hafiza[kural_tipi][clean_ticker] = simdi_epoch
 
-        # 6. Deli Gitan 1 Saat -> DELİRDİ formatı
+        # 6. Deli Gitan 1 Saat -> DELİRDİ formatı (AKTİF)
         kural_tipi = "deli_gitan_1h"
         label = "DELİRDİ"
         if kural_tipi not in tum_hafiza: tum_hafiza[kural_tipi] = {}
@@ -459,17 +447,17 @@ def run_scanner():
             toplam_puan += 35.0
             tum_hafiza[kural_tipi][clean_ticker] = simdi_epoch
 
-        # 7. 1 Saat Gitan -> DELİRDİ formatı
-        kural_tipi = "yeni_1h_gitan"
-        label = "DELİRDİ"
-        if kural_tipi not in tum_hafiza: tum_hafiza[kural_tipi] = {}
-        if (close_curr_1h > hma20_1h.iloc[-1]) and (rvol_curr_1h >= 0.6) and (mfi_curr_1h > 55) and (fish_curr_1h > trg_curr_1h) and (plus_di_curr_1h > 20):
-          if simdi_epoch - tum_hafiza[kural_tipi].get(clean_ticker, 0) > COOLDOWN_SECONDS:
-            tetiklenen_str.append(f"• 🟡 {label} 1 Saat (RVOL:{rvol_curr_1h:.2f}|MFI:{mfi_curr_1h:.1f}|Fish:{fish_curr_1h:.2f}|+DI:{plus_di_curr_1h:.1f})")
-            toplam_puan += 30.0
-            tum_hafiza[kural_tipi][clean_ticker] = simdi_epoch
+        # --- [PASİFİZE EDİLDİ] 7. 1 Saat Gitan ---
+        # kural_tipi = "yeni_1h_gitan"
+        # label = "DELİRDİ"
+        # if kural_tipi not in tum_hafiza: tum_hafiza[kural_tipi] = {}
+        # if (close_curr_1h > hma20_1h.iloc[-1]) and (rvol_curr_1h >= 0.6) and (mfi_curr_1h > 55) and (fish_curr_1h > trg_curr_1h) and (plus_di_curr_1h > 20):
+        #   if simdi_epoch - tum_hafiza[kural_tipi].get(clean_ticker, 0) > COOLDOWN_SECONDS:
+        #     tetiklenen_str.append(f"• 🟡 {label} 1 Saat (RVOL:{rvol_curr_1h:.2f}|MFI:{mfi_curr_1h:.1f}|Fish:{fish_curr_1h:.2f}|+DI:{plus_di_curr_1h:.1f})")
+        #     toplam_puan += 30.0
+        #     tum_hafiza[kural_tipi][clean_ticker] = simdi_epoch
 
-        # 8. YENİ KURAL: Erken Hibrit 1 Saat
+        # 8. YENİ KURAL: Erken Hibrit 1 Saat (AKTİF)
         kural_tipi = "erken_hibrit_1h"
         label = "ERKEN DELİRDİ"
         if kural_tipi not in tum_hafiza: tum_hafiza[kural_tipi] = {}
@@ -509,7 +497,6 @@ def run_scanner():
     toplanan_sinyaller.sort(key=lambda x: x["puan"], reverse=True)
     zaman_str = datetime.now(TZ_TR).strftime('%d.%m.%Y %H:%M')
 
-    # 1. 3 Füzeli (>= 60.0 Puan) ve 2 Füzeli (40.0 - 59.9 Puan) olanlar eski orijinal yapısıyla ayrı ayrı gönderilir
     yuksek_sinyaller = [s for s in toplanan_sinyaller if s["puan"] >= 40.0]
     
     for s in yuksek_sinyaller:
@@ -533,21 +520,15 @@ def run_scanner():
       send_ntfy(toplu_mesaj, "BIST Zirve Sinyaller")
       time.sleep(1)
 
-    # 2. Tek Füzeliler (< 40.0 Puan) için İstediğin Özel 3'erli Paketleme ve Kompakt Tasarım
     tek_fuzeliler = [s for s in toplanan_sinyaller if s["puan"] < 40.0]
     
     if tek_fuzeliler:
-      # Aynı hisseler tekilleştirilip stratejileri parantez içinde birleştirilir
       birlesmis_dict = {}
       for item in tek_fuzeliler:
         hisse = item['temiz_isim']
-        # Stratejilerden emoji ve detayları temizleyip sade bir isim çıkaralım veya orijinal metni koruyalım
-        # Orijinal tetiklenen_str metinlerinden strateji isimlerini ayıklayalım:
         temiz_strat_isimleri = []
         for st in item['stratejiler']:
-            # Örn: "• 🔴 DELİRDİ 15 (...)" -> "DELİRDİ 15"
             temiz = st.replace("•", "").strip()
-            # Emojileri temizlemek istersen ya da ham bırakmak istersen doğrudan ekleyebilirsin
             if temiz not in temiz_strat_isimleri:
                 temiz_strat_isimleri.append(temiz)
 
