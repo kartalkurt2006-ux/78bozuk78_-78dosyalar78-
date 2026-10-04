@@ -342,13 +342,6 @@ def performans_raporu_gonder(rapor_turu="Gün Sonu"):
       print(f"Performans raporu fiyat güncelleme hatası: {e}")
 
   strat_istatistikleri = strateji_basari_analizi_yap(tum_hafiza)
-  genel_tutturma = 0.0
-  if strat_istatistikleri:
-    toplam_t = sum(v["tutturma_orani"] for v in strat_istatistikleri.values())
-    genel_tutturma = toplam_t / len(strat_istatistikleri)
-
-  simdi_tr = datetime.now(TZ_TR)
-  bugun_tarih = simdi_tr.date()
 
   hisse_getirileri = {}
   for kural, hisseler in kayitlar.items():
@@ -357,25 +350,9 @@ def performans_raporu_gonder(rapor_turu="Gün Sonu"):
         if isinstance(detay, dict):
           ilk = detay.get("ilk_fiyat", 0.0)
           son = detay.get("son_fiyat", ilk)
-          zaman_epoch = detay.get("zaman", time.time())
-          
           if ilk > 0:
             getiri = ((son - ilk) / ilk) * 100.0
-            sinyal_tarihi = datetime.fromtimestamp(zaman_epoch, TZ_TR).date()
-            gun_farki = (bugun_tarih - sinyal_tarihi).days
-            
-            if gun_farki == 0:
-              sure_str = "Bugün"
-            elif gun_farki == 1:
-              sure_str = "Dün"
-            else:
-              sure_str = f"{gun_farki}G"
-
-            hisse_getirileri[hisse] = {
-                "getiri": getiri, 
-                "kural": kural, 
-                "sure": sure_str
-            }
+            hisse_getirileri[hisse] = {"getiri": getiri, "kural": kural}
 
   sirali_hisseler = sorted(hisse_getirileri.items(), key=lambda x: x[1]["getiri"], reverse=True)
 
@@ -383,25 +360,40 @@ def performans_raporu_gonder(rapor_turu="Gün Sonu"):
     print("Rapor oluşturuldu ancak listelenecek aktif sinyal/getiri verisi bulunamadı.")
     return
 
-  # 5'erli gruplar halinde rapor gönderimi
-  grup_boyutu = 5
-  for i in range(0, len(sirali_hisseler), grup_boyutu):
-    alt_grup = sirali_hisseler[i:i + grup_boyutu]
-    mesaj_satirlari = [
-        f"📊 **GÜNLÜK ÖZET RAPORU**",
-        f"🏆 En Başarılı Strateji: `SİSTEM_KÜMÜLATİF` (Tutturma: %{genel_tutturma:.1f})",
-        f"----------------------------------------"
-    ]
-
-    for hisse, veri in alt_grup:
-      g = veri["getiri"]
-      g_str = f"+%{g:.1f}" if g >= 0 else f"%{g:.1f}"
-      strat_adi = veri["kural"][:10].upper()
-      mesaj_satirlari.append(f"🚀 🟦 {hisse.upper()} 🟦 : {g_str} ({strat_adi})")
-
+  if "Gün Sonu" in rapor_turu:
+    # Gün Sonu Ultra Sade Format
+    mesaj_satirlari = ["🏆 **GÜN SONU ÖZETİ**"]
+    for kural, istatistik in strat_istatistikleri.items():
+      tutturma = istatistik["tutturma_orani"]
+      ort_g = istatistik["ortalama_getiri"]
+      g_str = f"+%{ort_g:.1f}" if ort_g >= 0 else f"%{ort_g:.1f}"
+      kural_adi = kural.replace("_", " ").title()
+      mesaj_satirlari.append(f"• {kural_adi} : **%{tutturma:.1f}** ({g_str})")
+    
+    mesaj_satirlari.append("----------------------------------------")
+    en_iyiler_str = " | ".join([f"{h.upper()} (%{v['getiri']:+.1f})" for h, v in sirali_hisseler[:3]])
+    mesaj_satirlari.append(f"📈 **En İyiler:** {en_iyiler_str}")
+    
     final_mesaj = "\n".join(mesaj_satirlari)
-    send_ntfy(final_mesaj, f"BIST {rapor_turu} Raporu")
-    time.sleep(0.4)
+    send_ntfy(final_mesaj, "BIST Gün Sonu Raporu")
+  else:
+    # Canlı / Gün İçi 10'arlı Sade Format
+    grup_boyutu = 10
+    for i in range(0, len(sirali_hisseler), grup_boyutu):
+      alt_grup = sirali_hisseler[i:i + grup_boyutu]
+      sayfa_no = (i // grup_boyutu) + 1
+      toplam_sayfa = (len(sirali_hisseler) + grup_boyutu - 1) // grup_boyutu
+      
+      mesaj_satirlari = [f"📊 **CANLI PERFORMANS ({sayfa_no}/{toplam_sayfa})**", "----------------------------------------"]
+      for hisse, veri in alt_grup:
+        g = veri["getiri"]
+        g_str = f"+%{g:.1f}" if g >= 0 else f"%{g:.1f}"
+        strat_adi = veri["kural"].replace("_", " ").title()
+        mesaj_satirlari.append(f"• {hisse.upper()} : **{g_str}** ({strat_adi})")
+
+      final_mesaj = "\n".join(mesaj_satirlari)
+      send_ntfy(final_mesaj, f"BIST {rapor_turu} Raporu")
+      time.sleep(0.4)
 
   print(f"BIST {rapor_turu} Raporu başarıyla gönderildi.")
 
