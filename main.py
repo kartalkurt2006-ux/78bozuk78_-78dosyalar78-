@@ -192,7 +192,6 @@ def hafiza_yukle():
     except:
       hafiza = {}
   
-  # 10 günden (10 * 24 * 3600 saniye) eski kayıtları temizle
   simdi_epoch = time.time()
   on_gun_sn = 10 * 24 * 3600
   temiz_hafiza = {}
@@ -340,8 +339,7 @@ def run_scanner():
         loss_15 = (-delta_15.where(delta_15 < 0, 0)).rolling(14).mean()
         rs_15 = gain_15 / (loss_15 + 1e-10)
         rsi_15 = 100 - (100 / (1 + rs_15))
-        rsi_curr_15 = rsi_15.iloc[-1]
-
+        
         tp_15 = (high_15 + low_15 + close_15) / 3
         mf_15 = tp_15 * volume_15
         pos_flow_15 = mf_15.where(tp_15 > tp_15.shift(1), 0).rolling(14).sum()
@@ -357,14 +355,11 @@ def run_scanner():
         tr_15 = pd.concat([high_15 - low_15, (high_15 - close_15.shift()).abs(), (low_15 - close_15.shift()).abs()], axis=1).max(axis=1)
         tr_smooth_15 = tr_15.rolling(14).sum()
         plus_di_15 = 100 * (plus_dm_15.rolling(14).sum() / (tr_smooth_15 + 1e-10))
-        minus_di_15 = 100 * (minus_dm_15.rolling(14).sum() / (tr_smooth_15 + 1e-10))
         plus_di_curr_15 = plus_di_15.iloc[-1]
-        minus_di_curr_15 = minus_di_15.iloc[-1]
         son_d_plus = plus_di_curr_15
 
         rvol_15 = volume_15 / volume_15.rolling(20).mean()
         rvol_curr_15 = rvol_15.iloc[-1]
-        hma20_15 = calculate_hma(close_15, 20)
         sart_wave_15, konum_yuzde_15 = check_wave_margins(df_15m, lookback=5)
         cmf_15 = calculate_cmf(df_15m, 20)
         cmf_curr_15 = cmf_15.iloc[-1]
@@ -399,17 +394,9 @@ def run_scanner():
         rsi_1h = 100 - (100 / (1 + rs_1h))
         rsi_curr_1h = rsi_1h.iloc[-1]
 
-        tp_1h = (high_1h + low_1h + close_1h) / 3
-        mf_1h = tp_1h * volume_1h
-        pos_flow_1h = mf_1h.where(tp_1h > tp_1h.shift(1), 0).rolling(14).sum()
-        neg_flow_1h = mf_1h.where(tp_1h < tp_1h.shift(1), 0).rolling(14).sum()
-        mfi_1h = 100 - (100 / (1 + (pos_flow_1h / (neg_flow_1h + 1e-10))))
-        mfi_curr_1h = mfi_1h.iloc[-1]
-
         up_move_1h = high_1h.diff()
         down_move_1h = -low_1h.diff()
         plus_dm_1h = up_move_1h.where((up_move_1h > down_move_1h) & (up_move_1h > 0), 0)
-        minus_dm_1h = down_move_1h.where((down_move_1h > up_move_1h) & (down_move_1h > 0), 0)
         tr_1h = pd.concat([high_1h - low_1h, (high_1h - close_1h.shift()).abs(), (low_1h - close_1h.shift()).abs()], axis=1).max(axis=1)
         tr_smooth_1h = tr_1h.rolling(14).sum()
         plus_di_1h = 100 * (plus_dm_1h.rolling(14).sum() / (tr_smooth_1h + 1e-10))
@@ -420,10 +407,8 @@ def run_scanner():
 
         hma20_1h = calculate_hma(close_1h, 20)
         wave_breakout_1h, _ = check_wave_margins(df_1h, lookback=3)
-        fish_1h, trg_1h = calculate_fisher(df_1h, length=9)
-        fish_curr_1h, trg_curr_1h = fish_1h.iloc[-1], trg_1h.iloc[-1]
 
-        # 3. DİP HİBRİT (GÜNCELLENMİŞ VERSİYON)
+        # 3. DİP HİBRİT
         kural_tipi = "dip_hibrit"
         label = "DİP HİBRİT"
         if kural_tipi not in tum_hafiza: tum_hafiza[kural_tipi] = {}
@@ -443,7 +428,7 @@ def run_scanner():
             toplam_puan += 25.0
             tum_hafiza[kural_tipi][clean_ticker] = simdi_epoch
 
-        # 5. 1 Saat Yakala (AKTİF)
+        # 5. 1 Saat Yakala
         kural_tipi = "1h_dalga_gorsel"
         label = "1 Saat Yakala"
         if kural_tipi not in tum_hafiza: tum_hafiza[kural_tipi] = {}
@@ -453,7 +438,7 @@ def run_scanner():
             toplam_puan += 25.0
             tum_hafiza[kural_tipi][clean_ticker] = simdi_epoch
 
-        # 6. Deli Gitan 1 Saat -> DELİRDİ formatı (AKTİF)
+        # 6. Deli Gitan 1 Saat
         kural_tipi = "deli_gitan_1h"
         label = "DELİRDİ"
         if kural_tipi not in tum_hafiza: tum_hafiza[kural_tipi] = {}
@@ -463,7 +448,7 @@ def run_scanner():
             toplam_puan += 35.0
             tum_hafiza[kural_tipi][clean_ticker] = simdi_epoch
 
-        # 8. Erken Hibrit 1 Saat (AKTİF)
+        # 8. Erken Hibrit 1 Saat
         kural_tipi = "erken_hibrit_1h"
         label = "ERKEN DELİRDİ"
         if kural_tipi not in tum_hafiza: tum_hafiza[kural_tipi] = {}
@@ -498,45 +483,31 @@ def run_scanner():
         print(f"  > Hata oluştu ({clean_ticker}): {e}")
         continue
 
-  # --- BİLDİRİM GÖNDERİM MANTIĞI ---
+  # --- TOPLU RAPOR GÖNDERİMİ (GÜNDE 2 KERE TETİKLENEN ÖZET MİMARİSİ) ---
   if toplanan_sinyaller:
     toplanan_sinyaller.sort(key=lambda x: x["puan"], reverse=True)
     zaman_str = datetime.now(TZ_TR).strftime('%d.%m.%Y %H:%M')
 
+    # 1. Yüksek Puanlılar Toplu Raporu
     yuksek_sinyaller = [s for s in toplanan_sinyaller if s["puan"] >= 40.0]
-    
-    for s in yuksek_sinyaller:
-      str_metni = "\n".join(s["stratejiler"])
-      hisse_adi_str = s['temiz_isim'].upper()
-      p = s['puan']
+    if yuksek_sinyaller:
+      rapor_satirlari = [f"📊 BİST GÜNLÜK ÖZET RAPORU (Yüksek Sinyaller) [{zaman_str}]", "----------------------------------------"]
+      for s in yuksek_sinyaller:
+        str_metni = "\n".join(s["stratejiler"])
+        p = s['puan']
+        baslik_tipi = f"🚀 TOP SİNYAL - {p:.1f} Puan" if p >= 60.0 else f"🚀 GÜÇLÜ SİNYAL - {p:.1f} Puan"
+        rapor_satirlari.append(f"{baslik_tipi}\n📌 Hisse: 🟦 {s['temiz_isim'].upper()} 🟦 | Fiyat: ₺{s['fiyat']:.2f}\n{str_metni}\n----------------------------------------")
       
-      if p >= 60.0:
-        baslik_tipi = f"🚀🚀🚀 TOP SİNYAL - {p:.1f} Puan"
-      else:
-        baslik_tipi = f"🚀🚀 GÜÇLÜ SİNYAL - {p:.1f} Puan"
-
-      kart = (
-          f"----------------------------------------\n"
-          f"{baslik_tipi}\n"
-          f"📌 Hisse: 🟦 {hisse_adi_str} 🟦 | Fiyat: ₺{s['fiyat']:.2f}\n"
-          f"{str_metni}\n"
-          f"----------------------------------------"
-      )
-      toplu_mesaj = f"{zaman_str} 🔺\n" + kart
-      send_ntfy(toplu_mesaj, "BIST Zirve Sinyaller")
+      send_ntfy("\n".join(rapor_satirlari), "BIST Günlük Özet - Yüksek Sinyaller")
       time.sleep(1)
 
+    # 2. Tek Füzeliler (Normal Sinyaller) Toplu Raporu
     tek_fuzeliler = [s for s in toplanan_sinyaller if s["puan"] < 40.0]
-    
     if tek_fuzeliler:
       birlesmis_dict = {}
       for item in tek_fuzeliler:
         hisse = item['temiz_isim']
-        temiz_strat_isimleri = []
-        for st in item['stratejiler']:
-            temiz = st.replace("•", "").strip()
-            if temiz not in temiz_strat_isimleri:
-                temiz_strat_isimleri.append(temiz)
+        temiz_strat_isimleri = [st.replace("•", "").strip() for st in item['stratejiler']]
 
         if hisse in birlesmis_dict:
             for strat in temiz_strat_isimleri:
@@ -557,8 +528,7 @@ def run_scanner():
             }
 
       unique_tek_listesi = [{'hisse': k, **v} for k, v in birlesmis_dict.items()]
-      
-      batch_size = 3
+      batch_size = 5  # Toplu raporda paket boyutu biraz daha optimize edildi
       total_items = len(unique_tek_listesi)
       total_packages = math.ceil(total_items / batch_size)
 
@@ -567,32 +537,25 @@ def run_scanner():
         package_no = (i // batch_size) + 1
         
         icerik_listesi = [
-            f"🚀 TEK FÜZELİLER RAPORU (Paket {package_no}/{total_packages}) [{zaman_str}]",
+            f"🚀 BİST GÜNLÜK ÖZET RAPORU (Tek Füzeliler - Paket {package_no}/{total_packages}) [{zaman_str}]",
             "----------------------------------------"
         ]
         
         for item in chunk:
             hisse = item['hisse'].upper()
-            fiyat = f"{item['fiyat']:.2f} TL"
-            puan = f"{item['puan']:.1f}"
-            d_plus = f"{item['d_plus']:.2f}"
-            mfi = f"{item['mfi']:.1f}"
-            strats = ", ".join(item['stratejiler'])
-            
             satir = (
-                f"🚀 🟦 {hisse} 🟦 : {fiyat} ({strats})\n"
-                f"   • Puan: {puan} | D+: {d_plus} | MFI: {mfi}"
+                f"🚀 🟦 {hisse} 🟦 : {item['fiyat']:.2f} TL ({', '.join(item['stratejiler'])})\n"
+                f"   • Puan: {item['puan']:.1f} | D+: {item['d_plus']:.2f} | MFI: {item['mfi']:.1f}"
             )
             icerik_listesi.append(satir)
             
         icerik_listesi.append("----------------------------------------")
-        toplu_tek_mesaj = "\n".join(icerik_listesi)
-        send_ntfy(toplu_tek_mesaj, "BIST Tek Füze Sinyalleri")
+        send_ntfy("\n".join(icerik_listesi), f"BIST Günlük Özet - Tek Füzeliler ({package_no}/{total_packages})")
         time.sleep(1)
 
-  print("\nTüm Hisseler 40'ar gruplar halinde tarandı ve süreç tamamlandı.")
+  print("\nTüm Hisseler 40'ar gruplar halinde tarandı ve günlük özet raporu süreci tamamlandı.")
 
 
 if __name__ == "__main__":
-  print("Tarama sistemi başlatıldı...")
+  print("Günlük Özet Tarama sistemi başlatıldı...")
   run_scanner()
