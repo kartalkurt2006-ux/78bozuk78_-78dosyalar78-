@@ -360,10 +360,19 @@ def performans_raporu_gonder(rapor_turu="Gün Sonu"):
           ilk = detay.get("ilk_fiyat", 0.0)
           son = detay.get("son_fiyat", ilk)
           zaman_epoch = detay.get("zaman", time.time())
-          gecen_gun = max(1, int((time.time() - zaman_epoch) / (24 * 3600)))
+          
+          # Dün / Son 4S performans kırılımı için hesaplama eklemeleri
+          gecen_saniye = time.time() - zaman_epoch
+          gecen_gun = max(1, int(gecen_saniye / (24 * 3600)))
+          
           if ilk > 0:
             getiri = ((son - ilk) / ilk) * 100.0
-            hisse_getirileri[hisse] = {"getiri": getiri, "kural": kural, "gecen_gun": gecen_gun}
+            hisse_getirileri[hisse] = {
+                "getiri": getiri, 
+                "kural": kural, 
+                "gecen_gun": gecen_gun,
+                "gecen_saniye": gecen_saniye
+            }
 
   sirali_hisseler = sorted(hisse_getirileri.items(), key=lambda x: x[1]["getiri"], reverse=True)
 
@@ -398,7 +407,10 @@ def performans_raporu_gonder(rapor_turu="Gün Sonu"):
         g = veri["getiri"]
         g_str = f"+%{g:.1f}" if g >= 0 else f"%{g:.1f}"
         strat_adi = veri["kural"].replace("_", " ").title()
-        mesaj_satirlari.append(f"• {hisse.upper()} : **{g_str}** (İlk Sinyal: {veri['gecen_gun']} gün önce) [{strat_adi}]")
+        
+        # Kompakt, Dün / Son 4S performans kırılımlı etiketleme yapısı
+        zaman_etiketi = "Son 4S" if veri["gecen_saniye"] <= 14400 else "Dün"
+        mesaj_satirlari.append(f"• {hisse.upper()} : **{g_str}** ({zaman_etiketi}) [{strat_adi}]")
 
       final_mesaj = "\n".join(mesaj_satirlari)
       send_ntfy(final_mesaj, f"BIST {rapor_turu} Raporu")
@@ -457,6 +469,7 @@ def run_scanner():
       son_konum = 0.0
       rsi_curr_1h_val = 0.0
       gecen_gun_sayisi = 0
+      gecen_saniye_degeri = 0.0
       stop_seviyesi = 0.0
       hedef_seviyesi = 0.0
       atr_1h_val = 0.0
@@ -517,14 +530,13 @@ def run_scanner():
 
         hma20_15 = calculate_hma(close_15, 20)
         
-        # Standart dalga marjı (eski taramalar için %80)
         sart_wave_15, konum_yuzde_15 = check_wave_margins(df_15m, lookback=5, threshold_pct=0.80)
         son_konum = konum_yuzde_15
         cmf_15 = calculate_cmf(df_15m, 20)
         cmf_curr_15 = cmf_15.iloc[-1]
 
         def kayit_guncelle(kural_adi):
-            nonlocal gecen_gun_sayisi
+            nonlocal gecen_gun_sayisi, gecen_saniye_degeri
             if kural_adi not in tum_hafiza["kayitlar"]:
                 tum_hafiza["kayitlar"][kural_adi] = {}
             
@@ -533,7 +545,8 @@ def run_scanner():
                 mevcut_kayit["son_fiyat"] = guncel_fiyat
                 mevcut_kayit["tekrar_sayisi"] = mevcut_kayit.get("tekrar_sayisi", 1) + 1
                 son_zaman = mevcut_kayit.get("zaman", simdi_epoch)
-                gecen_gun_sayisi = max(1, int((simdi_epoch - son_zaman) / (24 * 3600)))
+                gecen_saniye_degeri = simdi_epoch - son_zaman
+                gecen_gun_sayisi = max(1, int(gecen_saniye_degeri / (24 * 3600)))
             else:
                 tum_hafiza["kayitlar"][kural_adi][clean_ticker] = {
                     "zaman": simdi_epoch,
@@ -542,6 +555,7 @@ def run_scanner():
                     "tekrar_sayisi": 1
                 }
                 son_zaman = simdi_epoch
+                gecen_saniye_degeri = 0.0
                 gecen_gun_sayisi = 0
             
             if is_manual_run:
@@ -606,7 +620,6 @@ def run_scanner():
         fish_1h, trg_1h = calculate_fisher(df_1h, length=9)
         fish_curr_1h, trg_curr_1h = fish_1h.iloc[-1], trg_1h.iloc[-1]
 
-        # 1 Saatlik ATR Hesaplaması (Risk Yönetimi İçin)
         atr_1h_series = calculate_atr(df_1h, period=14)
         atr_1h_val = atr_1h_series.iloc[-1] if not atr_1h_series.empty else 0.0
 
@@ -622,7 +635,7 @@ def run_scanner():
             tetiklenen_str.append("DELİRDİ 1 Saat")
             toplam_puan += 35.0
 
-        # Strateji 5: ERKEN DELİRDİ (Yeni Hibrit Mimari: 15m esnetilmiş dalga + MFI > 55 + +DI > 20 + 1h ATR Risk)
+        # Strateji 5: ERKEN DELİRDİ
         sart_wave_15_erken, konum_yuzde_15_erken = check_wave_margins(df_15m, lookback=3, threshold_pct=0.75)
         if sart_wave_15_erken and (mfi_curr_15 > 55.0) and (plus_di_curr_15 > 20.0):
           if kayit_guncelle("erken_hibrit_1h"):
@@ -637,7 +650,6 @@ def run_scanner():
           ilk_f = tum_hafiza["kayitlar"].get(tetiklenen_str[0], {}).get(clean_ticker, {}).get("ilk_fiyat", guncel_fiyat)
           kazanc_yuzde = ((guncel_fiyat - ilk_f) / ilk_f) * 100.0 if ilk_f > 0 else 0.0
 
-          # 1h ATR tabanlı stop ve hedef hesaplaması (Çarpan: 2.0)
           if atr_1h_val > 0:
             stop_seviyesi = guncel_fiyat - (2.0 * atr_1h_val)
             hedef_seviyesi = guncel_fiyat + (2.0 * atr_1h_val)
@@ -657,6 +669,7 @@ def run_scanner():
               "konum": son_konum,
               "rsi": rsi_curr_1h_val,
               "gecen_gun": gecen_gun_sayisi,
+              "gecen_saniye": gecen_saniye_degeri,
               "stop": stop_seviyesi,
               "hedef": hedef_seviyesi,
               "atr": atr_1h_val
@@ -691,8 +704,11 @@ def run_scanner():
         mesaj_satirlari = [grup_baslik, "----------------------------------------"]
 
         for item in alt_grup:
+          # Kompakt, Dün / Son 4S performans kırılımlı etiketleme yapısı
+          zaman_etiketi = "Son 4S" if item['gecen_saniye'] <= 14400 else "Dün"
+          
           mesaj_satirlari.append(f"📌 Hisse: 🟦 {item['temiz_isim']} 🟦 | Fiyat: ₺{item['fiyat']:.2f}")
-          mesaj_satirlari.append(f"📈 Sinyalden Beri Getiri: %{item['kazanc_yuzde']:+.2f} (İlk Sinyal: {item['gecen_gun']} gün önce)")
+          mesaj_satirlari.append(f"📈 Getiri: %{item['kazanc_yuzde']:+.2f} ({zaman_etiketi})")
           
           for strat in item['stratejiler']:
             strat_upper = strat.upper()
