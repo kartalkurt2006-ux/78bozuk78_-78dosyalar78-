@@ -438,6 +438,8 @@ def run_scanner():
       toplam_puan = 0.0
       son_d_plus = 0.0
       son_mfi = 0.0
+      son_rvol = 0.0
+      son_konum = 0.0
 
       try:
         df_15m = extract_ticker_df(df_15m_all, clean_ticker, chunk)
@@ -491,8 +493,11 @@ def run_scanner():
 
         rvol_15 = volume_15 / volume_15.rolling(20).mean()
         rvol_curr_15 = rvol_15.iloc[-1]
+        son_rvol = rvol_curr_15
+
         hma20_15 = calculate_hma(close_15, 20)
         sart_wave_15, konum_yuzde_15 = check_wave_margins(df_15m, lookback=5)
+        son_konum = konum_yuzde_15
         cmf_15 = calculate_cmf(df_15m, 20)
         cmf_curr_15 = cmf_15.iloc[-1]
 
@@ -520,7 +525,7 @@ def run_scanner():
             return simdi_epoch - son_zaman > COOLDOWN_SECONDS
 
         kural_tipi = "gitan_15"
-        label = "D15"
+        label = "DELİRDİ 15"
         if (rvol_curr_15 >= 1.0) and sart_wave_15 and (mfi_curr_15 > 55) and (plus_di_curr_15 > 25):
           if kayit_guncelle(kural_tipi):
             tetiklenen_str.append(label)
@@ -569,45 +574,12 @@ def run_scanner():
         fish_1h, trg_1h = calculate_fisher(df_1h, length=9)
         fish_curr_1h, trg_curr_1h = fish_1h.iloc[-1], trg_1h.iloc[-1]
 
-        kural_tipi = "dip_hibrit"
-        label = "DİP"
-        donem_min_1h = low_1h.rolling(window=50).min()
-        donem_max_1h = high_1h.rolling(window=50).max()
-        fark_1h = donem_max_1h - donem_min_1h
-        konum_yuzde_1h_ser = np.where(fark_1h == 0, 0, ((close_1h - donem_min_1h) / fark_1h) * 100)
-        konum_yuzde_1h_curr = konum_yuzde_1h_ser[-1] if isinstance(konum_yuzde_1h_ser, np.ndarray) else konum_yuzde_1h_ser.iloc[-1]
-        
-        dip_sarti_1h = (0.0 <= konum_yuzde_1h_curr <= 15.0)
-        momentum_sarti_15m = (mfi_curr_15 > 60.0) and (plus_di_curr_15 > 30.0) and (cmf_curr_15 > 0.0)
-
-        if dip_sarti_1h and momentum_sarti_15m:
-          if kayit_guncelle(kural_tipi):
-            tetiklenen_str.append(label)
-            toplam_puan += 25.0
-
         kural_tipi = "1h_dalga_gorsel"
-        label = "1SAAT"
+        label = "1 Saat Yakala"
         if (close_curr_1h > hma20_1h.iloc[-1]) and (rsi_curr_1h > 50) and (plus_di_curr_1h > 25) and wave_breakout_1h:
           if kayit_guncelle(kural_tipi):
             tetiklenen_str.append(label)
             toplam_puan += 25.0
-
-        kural_tipi = "deli_gitan_1h"
-        label = "DELİ1H"
-        if (close_curr_1h > hma20_1h.iloc[-1]) and (rvol_curr_1h >= 2.0) and wave_breakout_1h:
-          if kayit_guncelle(kural_tipi):
-            tetiklenen_str.append(label)
-            toplam_puan += 35.0
-
-        kural_tipi = "erken_hibrit_1h"
-        label = "ERKEN"
-        trend_1h_ok = (close_curr_1h > hma20_1h.iloc[-1])
-        erken_tetik_15m = (rvol_curr_15 >= 2.0) and (75.0 <= konum_yuzde_15 <= 95.0) and sart_wave_15
-
-        if trend_1h_ok and erken_tetik_15m:
-          if kayit_guncelle(kural_tipi):
-            tetiklenen_str.append(label)
-            toplam_puan += 35.0
 
         if tetiklenen_str:
           if toplam_puan == 0:
@@ -623,7 +595,10 @@ def run_scanner():
               "puan": toplam_puan,
               "stratejiler": tetiklenen_str,
               "d_plus": son_d_plus,
-              "mfi": son_mfi
+              "mfi": son_mfi,
+              "rvol": son_rvol,
+              "konum": son_konum,
+              "rsi": rsi_curr_1h
           })
           hafiza_kaydet(tum_hafiza)
           print(f"  > {clean_ticker} inceleniyor... 🎯 Sinyal Yakalandı!")
@@ -636,51 +611,28 @@ def run_scanner():
 
   if toplanan_sinyaller:
     toplanan_sinyaller.sort(key=lambda x: x["puan"], reverse=True)
-    zaman_str = datetime.now(TZ_TR).strftime('%d.%m %H:%M')
-
-    birlesmis_dict = {}
+    
+    # Orijinal Zengin Kart Yapısıyla Tek Tek Bildirim Gönderimi
     for item in toplanan_sinyaller:
-      hisse = item['temiz_isim']
-      if hisse not in birlesmis_dict:
-        birlesmis_dict[hisse] = {
-            'fiyat': item['fiyat'],
-            'kazanc_yuzde': item['kazanc_yuzde'],
-            'puan': item['puan'],
-            'stratejiler': []
-        }
-      for strat in item['stratejiler']:
-        if strat not in birlesmis_dict[hisse]['stratejiler']:
-          birlesmis_dict[hisse]['stratejiler'].append(strat)
-      if item['puan'] > birlesmis_dict[hisse]['puan']:
-        birlesmis_dict[hisse]['puan'] = item['puan']
-
-    sirali_hisseler = sorted(birlesmis_dict.items(), key=lambda x: x[1]['puan'], reverse=True)
-    toplam_adet = len(sirali_hisseler)
-
-    # 5'erli gruplara bölerek ntfy sınırına takılmadan parça parça gönderim
-    grup_boyutu = 5
-    for i in range(0, toplam_adet, grup_boyutu):
-      grup_dilim = sirali_hisseler[i:i + grup_boyutu]
-      grup_no = (i // grup_boyutu) + 1
-      toplam_grup = math.ceil(toplam_adet / grup_boyutu)
-
       mesaj_satirlari = [
-          f"📊 BİST SİNYALLERİ ({toplam_adet} Adet) [Paket {grup_no}/{toplam_grup}]",
-          f"⏱️ {zaman_str}",
-          "-" * 25
+          f"BIST Zirve Sinyaller",
+          f"📊 **PROFESYONEL TARAMA RAPORU & ANALİZ**",
+          f"🏆 En Başarılı Strateji: `15M_KLASİK` (Tutturma: %0.0)",
+          f"----------------------------------------",
+          f"🚀🚀🚀 TOP SİNYAL - {item['puan']} Puan",
+          f"📌 Hisse: 🟦 {item['temiz_isim']} 🟦 | Fiyat: ₺{item['fiyat']:.2f}",
+          f"📈 Sinyalden Beri Getiri: %{item['kazanc_yuzde']:+.2f}"
       ]
-
-      for hisse, veri in grup_dilim:
-        kz = veri['kazanc_yuzde']
-        getiri_str = f"+%{kz:.1f}" if kz >= 0 else f"%{kz:.1f}"
-        strat_str = "/".join(veri['stratejiler'])
-        
-        satir = f"• **{hisse.upper()}**: ₺{veri['fiyat']:.2f} ({getiri_str}) | {strat_str}"
-        mesaj_satirlari.append(satir)
+      
+      for strat in item['stratejiler']:
+        if "DELİRDİ" in strat:
+          mesaj_satirlari.append(f"• 🔴 {strat} (RVOL:{item['rvol']:.2f}|MFI:{item['mfi']:.1f}|+DI:{item['d_plus']:.1f}|Konum:%{item['konum']:.1f})")
+        else:
+          mesaj_satirlari.append(f"• 🟣 {strat} (RSI:{item['rsi']:.1f}|+DI:{item['d_plus']:.1f})")
 
       final_mesaj = "\n".join(mesaj_satirlari)
-      send_ntfy(final_mesaj, f"BIST Zirve Sinyalleri ({grup_no}/{toplam_grup})")
-      time.sleep(0.5) # Mesajların sırayla düzgün düşmesi için kısa bekleme
+      send_ntfy(final_mesaj, "BIST Zirve Sinyaller")
+      time.sleep(0.4)
 
   print("\nTüm Hisseler tarandı ve süreç tamamlandı.")
 
