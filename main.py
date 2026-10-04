@@ -342,6 +342,10 @@ def performans_raporu_gonder(rapor_turu="Gün Sonu"):
       print(f"Performans raporu fiyat güncelleme hatası: {e}")
 
   strat_istatistikleri = strateji_basari_analizi_yap(tum_hafiza)
+  genel_tutturma = 0.0
+  if strat_istatistikleri:
+    toplam_t = sum(v["tutturma_orani"] for v in strat_istatistikleri.values())
+    genel_tutturma = toplam_t / len(strat_istatistikleri)
 
   simdi_tr = datetime.now(TZ_TR)
   bugun_tarih = simdi_tr.date()
@@ -379,16 +383,26 @@ def performans_raporu_gonder(rapor_turu="Gün Sonu"):
     print("Rapor oluşturuldu ancak listelenecek aktif sinyal/getiri verisi bulunamadı.")
     return
 
-  mesaj_satirlari = [f"BIST {rapor_turu} Raporu", "En İyi Sinyaller:"]
+  # 5'erli gruplar halinde rapor gönderimi
+  grup_boyutu = 5
+  for i in range(0, len(sirali_hisseler), grup_boyutu):
+    alt_grup = sirali_hisseler[i:i + grup_boyutu]
+    mesaj_satirlari = [
+        f"📊 **GÜNLÜK ÖZET RAPORU**",
+        f"🏆 En Başarılı Strateji: `15M_KLASİK` (Tutturma: %{genel_tutturma:.1f})",
+        f"----------------------------------------"
+    ]
 
-  for hisse, veri in sirali_hisseler[:6]:
-    g = veri["getiri"]
-    g_str = f"+%{g:.1f}" if g >= 0 else f"%{g:.1f}"
-    strat_adi = veri["kural"][:6].upper()
-    mesaj_satirlari.append(f"• {hisse.upper()}: {g_str} ({strat_adi})")
+    for hisse, veri in alt_grup:
+      g = veri["getiri"]
+      g_str = f"+%{g:.1f}" if g >= 0 else f"%{g:.1f}"
+      strat_adi = veri["kural"][:10].upper()
+      mesaj_satirlari.append(f"🚀 🟦 {hisse.upper()} 🟦 : {g_str} ({strat_adi})")
 
-  final_mesaj = "\n".join(mesaj_satirlari)
-  send_ntfy(final_mesaj, f"BIST {rapor_turu} Raporu")
+    final_mesaj = "\n".join(mesaj_satirlari)
+    send_ntfy(final_mesaj, f"BIST {rapor_turu} Raporu")
+    time.sleep(0.4)
+
   print(f"BIST {rapor_turu} Raporu başarıyla gönderildi.")
 
 
@@ -402,7 +416,7 @@ def run_scanner():
   
   print(
       f"[{datetime.now(TZ_TR).strftime('%Y-%m-%d %H:%M:%S')}] 40'ar Hisselik Gruplar (Chunks) ile"
-      f" Profesyonel Merkezi Tarama Başlatıldı... (Manuel Mod: {is_manual_run})"
+      f" Merkez Tarama Başlatıldı... (Manuel Mod: {is_manual_run})"
   )
 
   tum_hafiza = hafiza_yukle()
@@ -610,29 +624,42 @@ def run_scanner():
         continue
 
   if toplanan_sinyaller:
-    toplanan_sinyaller.sort(key=lambda x: x["puan"], reverse=True)
-    
-    # Orijinal Zengin Kart Yapısıyla Tek Tek Bildirim Gönderimi
-    for item in toplanan_sinyaller:
-      mesaj_satirlari = [
-          f"BIST Zirve Sinyaller",
-          f"📊 **PROFESYONEL TARAMA RAPORU & ANALİZ**",
-          f"🏆 En Başarılı Strateji: `15M_KLASİK` (Tutturma: %0.0)",
-          f"----------------------------------------",
-          f"🚀🚀🚀 TOP SİNYAL - {item['puan']} Puan",
-          f"📌 Hisse: 🟦 {item['temiz_isim']} 🟦 | Fiyat: ₺{item['fiyat']:.2f}",
-          f"📈 Sinyalden Beri Getiri: %{item['kazanc_yuzde']:+.2f}"
-      ]
-      
-      for strat in item['stratejiler']:
-        if "DELİRDİ" in strat:
-          mesaj_satirlari.append(f"• 🔴 {strat} (RVOL:{item['rvol']:.2f}|MFI:{item['mfi']:.1f}|+DI:{item['d_plus']:.1f}|Konum:%{item['konum']:.1f})")
-        else:
-          mesaj_satirlari.append(f"• 🟣 {strat} (RSI:{item['rsi']:.1f}|+DI:{item['d_plus']:.1f})")
+    # Puanlarına göre gruplara ayır (1 füzeli, 2 füzeli, 3 füzeli)
+    tek_fuzeliler = [item for item in toplanan_sinyaller if item['puan'] <= 25.0]
+    iki_fuzeliler = [item for item in toplanan_sinyaller if 25.0 < item['puan'] <= 30.0]
+    uc_fuzeliler = [item for item in toplanan_sinyaller if item['puan'] > 30.0]
 
-      final_mesaj = "\n".join(mesaj_satirlari)
-      send_ntfy(final_mesaj, "BIST Zirve Sinyaller")
-      time.sleep(0.4)
+    gruplar = [
+        ("🚀 TEK FÜZELİ SİNYALLER", tek_fuzeliler),
+        ("🚀🚀 İKİ FÜZELİ SİNYALLER", iki_fuzeliler),
+        ("🚀🚀🚀 ÜÇ FÜZELİ SİNYALLER", uc_fuzeliler)
+    ]
+
+    # Sırayla gönder: Önce tek, sonra iki, en son üç füzeliler
+    for grup_baslik, grup_liste in gruplar:
+      if not grup_liste:
+        continue
+      
+      # 5'erli gruplar halinde mesajlaştır
+      grup_boyutu = 5
+      for i in range(0, len(grup_liste), grup_boyutu):
+        alt_grup = grup_liste[i:i + grup_boyutu]
+        mesaj_satirlari = [grup_baslik, "----------------------------------------"]
+
+        for item in alt_grup:
+          mesaj_satirlari.append(f"📌 Hisse: 🟦 {item['temiz_isim']} 🟦 | Fiyat: ₺{item['fiyat']:.2f}")
+          mesaj_satirlari.append(f"📈 Sinyalden Beri Getiri: %{item['kazanc_yuzde']:+.2f}")
+          
+          for strat in item['stratejiler']:
+            if "DELİRDİ" in strat:
+              mesaj_satirlari.append(f"• 🔴 {strat} (RVOL:{item['rvol']:.2f}|MFI:{item['mfi']:.1f}|+DI:{item['d_plus']:.1f}|Konum:%{item['konum']:.1f})")
+            else:
+              mesaj_satirlari.append(f"• 🟣 {strat} (RSI:{item['rsi']:.1f}|+DI:{item['d_plus']:.1f})")
+          mesaj_satirlari.append("----------------------------------------")
+
+        final_mesaj = "\n".join(mesaj_satirlari)
+        send_ntfy(final_mesaj, "BIST Sinyaller")
+        time.sleep(0.4)
 
   print("\nTüm Hisseler tarandı ve süreç tamamlandı.")
 
