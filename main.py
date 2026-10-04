@@ -11,7 +11,7 @@ import requests
 import yfinance as yf
 
 # --- AYARLAR VE SABİTLER ---
-COOLDOWN_SECONDS = 3600  # Aynı hisse ve aynı periyot için 1 saat bekleme süresi
+COOLDOWN_SECONDS = 3600  # Normal taramada aynı hisse için 1 saat bekleme süresi
 TZ_TR = pytz.timezone("Europe/Istanbul")
 
 # Ntfy Kanal Ayarı
@@ -245,6 +245,31 @@ def download_with_retry(chunk, interval, period, max_retries=4):
   return pd.DataFrame()
 
 
+def extract_ticker_df(df_all, clean_ticker, chunk):
+  try:
+    if df_all is None or df_all.empty:
+      return pd.DataFrame()
+
+    if isinstance(df_all.columns, pd.MultiIndex):
+      if clean_ticker in df_all.columns.levels[0]:
+        sub_df = df_all[clean_ticker].dropna(how="all")
+        if not sub_df.empty:
+          return sub_df
+
+    if len(chunk) == 1:
+      return df_all.copy()
+
+    cols = [col for col in df_all.columns if isinstance(col, tuple) and clean_ticker in col]
+    if cols:
+      sub_df = df_all.xs(clean_ticker, level=0, axis=1).dropna(how="all")
+      if not sub_df.empty:
+        return sub_df
+
+  except Exception:
+    pass
+  return pd.DataFrame()
+
+
 def strateji_basari_analizi_yap(tum_hafiza):
   kayitlar = tum_hafiza.get("kayitlar", {})
   strateji_istatistikleri = {}
@@ -305,12 +330,9 @@ def performans_raporu_gonder(rapor_turu="Gün Sonu"):
           for hisse, detay in hisseler.items():
             full_t = hisse + ".IS"
             try:
-              if not df_guncel.empty and isinstance(df_guncel.columns, pd.MultiIndex) and full_t in df_guncel.columns.levels[0]:
-                s_close = df_guncel[full_t]["Close"].dropna()
-                if not s_close.empty:
-                  detay["son_fiyat"] = float(s_close.iloc[-1])
-              elif not df_guncel.empty and len(tum_hisseler) == 1:
-                s_close = df_guncel["Close"].dropna()
+              sub_f = extract_ticker_df(df_guncel, full_t, list(tum_hisseler))
+              if not sub_f.empty and "Close" in sub_f.columns:
+                s_close = sub_f["Close"].dropna()
                 if not s_close.empty:
                   detay["son_fiyat"] = float(s_close.iloc[-1])
             except:
@@ -335,7 +357,6 @@ def performans_raporu_gonder(rapor_turu="Gün Sonu"):
           
           if ilk > 0:
             getiri = ((son - ilk) / ilk) * 100.0
-            
             sinyal_tarihi = datetime.fromtimestamp(zaman_epoch, TZ_TR).date()
             gun_farki = (bugun_tarih - sinyal_tarihi).days
             
@@ -353,6 +374,10 @@ def performans_raporu_gonder(rapor_turu="Gün Sonu"):
             }
 
   sirali_hisseler = sorted(hisse_getirileri.items(), key=lambda x: x[1]["getiri"], reverse=True)
+
+  if not sirali_hisseler:
+    print("Rapor oluşturuldu ancak listelenecek aktif sinyal/getiri verisi bulunamadı.")
+    return
 
   mesaj_satirlari = [
       f"BIST {rapor_turu} Raporu",
@@ -387,9 +412,11 @@ def run_scanner():
     return
 
   simdi_epoch = time.time()
+  is_manual_run = os.environ.get("FORCE_RUN", "false").lower() == "true"
+  
   print(
       f"[{datetime.now(TZ_TR).strftime('%Y-%m-%d %H:%M:%S')}] 40'ar Hisselik Gruplar (Chunks) ile"
-      " Profesyonel Merkezi Tarama Başlatılıyor..."
+      f" Profesyonel Merkezi Tarama Başlatıldı... (Manuel Mod: {is_manual_run})"
   )
 
   tum_hafiza = hafiza_yukle()
@@ -427,24 +454,8 @@ def run_scanner():
       son_mfi = 0.0
 
       try:
-        df_15m = pd.DataFrame()
-        df_1h = pd.DataFrame()
-
-        try:
-          if not df_15m_all.empty and isinstance(df_15m_all.columns, pd.MultiIndex) and clean_ticker in df_15m_all.columns.levels[0]:
-            df_15m = df_15m_all[clean_ticker].dropna(how="all")
-          elif not df_15m_all.empty and len(chunk) == 1:
-            df_15m = df_15m_all.copy()
-        except:
-          pass
-
-        try:
-          if not df_1h_all.empty and isinstance(df_1h_all.columns, pd.MultiIndex) and clean_ticker in df_1h_all.columns.levels[0]:
-            df_1h = df_1h_all[clean_ticker].dropna(how="all")
-          elif not df_1h_all.empty and len(chunk) == 1:
-            df_1h = df_1h_all.copy()
-        except:
-          pass
+        df_15m = extract_ticker_df(df_15m_all, clean_ticker, chunk)
+        df_1h = extract_ticker_df(df_1h_all, clean_ticker, chunk)
 
         if df_15m.empty or df_1h.empty or len(df_15m) < 40 or len(df_1h) < 40:
           continue
@@ -516,6 +527,11 @@ def run_scanner():
                     "tekrar_sayisi": 1
                 }
                 son_zaman = 0
+            
+            # EĞER MANUEL ÇALIŞTIRMA (FORCE_RUN) İSE COOLDOWN KURALINI YOKSAY VE GEÇİR
+            if is_manual_run:
+                return True
+
             return simdi_epoch - son_zaman > COOLDOWN_SECONDS
 
         kural_tipi = "gitan_15"
@@ -725,5 +741,5 @@ def run_scanner():
 
 
 if __name__ == "__main__":
-  print("Tarama ve Performans Takip Sistemi başlatıldı...")
+  print("Tarama and Performans Takip Sistemi başlatıldı...")
   run_scanner()
