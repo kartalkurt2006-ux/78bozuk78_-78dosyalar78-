@@ -654,26 +654,33 @@ def run_scanner():
       if item['puan'] > birlesmis_dict[hisse]['puan']:
         birlesmis_dict[hisse]['puan'] = item['puan']
 
-    # Kompakt Format: Karakter sınırını aşmamak için tek satırlık yapı
-    mesaj_satirlari = [
-        f"📊 BİST SİNYALLERİ ({len(birlesmis_dict)} Adet)",
-        f"⏱️ {zaman_str}",
-        "-" * 25
-    ]
-
     sirali_hisseler = sorted(birlesmis_dict.items(), key=lambda x: x[1]['puan'], reverse=True)
+    toplam_adet = len(sirali_hisseler)
 
-    for hisse, veri in sirali_hisseler:
-      kz = veri['kazanc_yuzde']
-      getiri_str = f"+%{kz:.1f}" if kz >= 0 else f"%{kz:.1f}"
-      strat_str = "/".join(veri['stratejiler'])
-      
-      # Her hisse için tek satırlık ultra kısa format
-      satir = f"• **{hisse.upper()}**: ₺{veri['fiyat']:.2f} ({getiri_str}) | {strat_str}"
-      mesaj_satirlari.append(satir)
+    # 5'erli gruplara bölerek ntfy sınırına takılmadan parça parça gönderim
+    grup_boyutu = 5
+    for i in range(0, toplam_adet, grup_boyutu):
+      grup_dilim = sirali_hisseler[i:i + grup_boyutu]
+      grup_no = (i // grup_boyutu) + 1
+      toplam_grup = math.ceil(toplam_adet / grup_boyutu)
 
-    final_mesaj = "\n".join(mesaj_satirlari)
-    send_ntfy(final_mesaj, "BIST Zirve Sinyaller")
+      mesaj_satirlari = [
+          f"📊 BİST SİNYALLERİ ({toplam_adet} Adet) [Paket {grup_no}/{toplam_grup}]",
+          f"⏱️ {zaman_str}",
+          "-" * 25
+      ]
+
+      for hisse, veri in grup_dilim:
+        kz = veri['kazanc_yuzde']
+        getiri_str = f"+%{kz:.1f}" if kz >= 0 else f"%{kz:.1f}"
+        strat_str = "/".join(veri['stratejiler'])
+        
+        satir = f"• **{hisse.upper()}**: ₺{veri['fiyat']:.2f} ({getiri_str}) | {strat_str}"
+        mesaj_satirlari.append(satir)
+
+      final_mesaj = "\n".join(mesaj_satirlari)
+      send_ntfy(final_mesaj, f"BIST Zirve Sinyalleri ({grup_no}/{toplam_grup})")
+      time.sleep(0.5) # Mesajların sırayla düzgün düşmesi için kısa bekleme
 
   print("\nTüm Hisseler tarandı ve süreç tamamlandı.")
 
