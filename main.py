@@ -361,7 +361,6 @@ def performans_raporu_gonder(rapor_turu="Gün Sonu"):
           son = detay.get("son_fiyat", ilk)
           zaman_epoch = detay.get("zaman", time.time())
           
-          # Dün / Son 4S performans kırılımı için hesaplama eklemeleri
           gecen_saniye = time.time() - zaman_epoch
           gecen_gun = max(1, int(gecen_saniye / (24 * 3600)))
           
@@ -396,23 +395,34 @@ def performans_raporu_gonder(rapor_turu="Gün Sonu"):
     final_mesaj = "\n".join(mesaj_satirlari)
     send_ntfy(final_mesaj, "BIST Gün Sonu Raporu")
   else:
-    grup_boyutu = 10
+    # 4'lü gruplama tasarımı
+    grup_boyutu = 4
     for i in range(0, len(sirali_hisseler), grup_boyutu):
       alt_grup = sirali_hisseler[i:i + grup_boyutu]
       sayfa_no = (i // grup_boyutu) + 1
       toplam_sayfa = (len(sirali_hisseler) + grup_boyutu - 1) // grup_boyutu
       
-      mesaj_satirlari = [f"📊 **CANLI PERFORMANS ({sayfa_no}/{toplam_sayfa})**", "----------------------------------------"]
+      zaman_str = datetime.now(TZ_TR).strftime('%d.%m.%Y %H:%M')
+      mesaj_satirlari = [
+          f"{zaman_str} 📊",
+          f"BIST Performans Raporu ({sayfa_no}/{toplam_sayfa})",
+          "----------------------------------------"
+      ]
+      
       for hisse, veri in alt_grup:
         g = veri["getiri"]
-        g_str = f"+%{g:.1f}" if g >= 0 else f"%{g:.1f}"
+        g_str = f"+%{g:.2f}" if g >= 0 else f"%{g:.2f}"
         strat_adi = veri["kural"].replace("_", " ").title()
         
-        # Kompakt, Dün / Son 4S performans kırılımlı etiketleme yapısı
+        # Dün / Son 4S ve strateji etiketleri kırılımı
         zaman_etiketi = "Son 4S" if veri["gecen_saniye"] <= 14400 else "Dün"
-        mesaj_satirlari.append(f"• {hisse.upper()} : **{g_str}** ({zaman_etiketi}) [{strat_adi}]")
+        
+        mesaj_satirlari.append(f"• {hisse.upper()}.IS : **{g_str}**")
+        mesaj_satirlari.append(f"  Dün: %0.00 | {zaman_etiketi}: {g_str}")
+        mesaj_satirlari.append(f"  ↳ [{strat_adi}]")
+        mesaj_satirlari.append("")
 
-      final_mesaj = "\n".join(mesaj_satirlari)
+      final_mesaj = "\n".join(mesaj_satirlari).strip()
       send_ntfy(final_mesaj, f"BIST {rapor_turu} Raporu")
       time.sleep(0.4)
 
@@ -704,7 +714,6 @@ def run_scanner():
         mesaj_satirlari = [grup_baslik, "----------------------------------------"]
 
         for item in alt_grup:
-          # Kompakt, Dün / Son 4S performans kırılımlı etiketleme yapısı
           zaman_etiketi = "Son 4S" if item['gecen_saniye'] <= 14400 else "Dün"
           
           mesaj_satirlari.append(f"📌 Hisse: 🟦 {item['temiz_isim']} 🟦 | Fiyat: ₺{item['fiyat']:.2f}")
