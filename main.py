@@ -3,6 +3,7 @@ import json
 import os
 import time
 import math
+import concurrent.futures
 import numpy as np
 import pandas as pd
 import pytz
@@ -183,13 +184,25 @@ def check_wave_margins(df, lookback=3):
 
 
 def hafiza_yukle():
+  hafiza = {}
   if os.path.exists(MERKEZI_HAFIZA_DOSYASI):
     try:
       with open(MERKEZI_HAFIZA_DOSYASI, "r") as f:
-        return json.load(f)
+        hafiza = json.load(f)
     except:
-      return {}
-  return {}
+      hafiza = {}
+  
+  # 10 günden (10 * 24 * 3600 saniye) eski kayıtları temizle
+  simdi_epoch = time.time()
+  on_gun_sn = 10 * 24 * 3600
+  temiz_hafiza = {}
+  for kural, hisseler in hafiza.items():
+    temiz_hafiza[kural] = {}
+    if isinstance(hisseler, dict):
+      for hisse, zaman in hisseler.items():
+        if simdi_epoch - zaman <= on_gun_sn:
+          temiz_hafiza[kural][hisse] = zaman
+  return temiz_hafiza
 
 
 def hafiza_kaydet(hafiza):
@@ -225,10 +238,10 @@ def send_ntfy(message, baslik):
     print(f"Ntfy Mesaj Hatası: {e}")
 
 
-def download_with_retry(chunk, interval, period, max_retries=3):
+def download_with_retry(chunk, interval, period, max_retries=4):
   for attempt in range(1, max_retries + 1):
     try:
-      df_all = yf.download(chunk, period=period, interval=interval, group_by='ticker', progress=False)
+      df_all = yf.download(chunk, period=period, interval=interval, group_by='ticker', progress=False, threads=True)
       if df_all is not None and not df_all.empty:
         return df_all
     except Exception as e:
@@ -254,14 +267,25 @@ def run_scanner():
   chunk_size = 40
   stock_chunks = [STOCKS[i:i + chunk_size] for i in range(0, len(STOCKS), chunk_size)]
 
-  for chunk_idx, chunk in enumerate(stock_chunks, 1):
+  def fetch_chunk_data(chunk_idx, chunk):
     print(f"Grup {chunk_idx}/{len(stock_chunks)} indiriliyor ({len(chunk)} hisse)...")
-    
     df_15m_all = download_with_retry(chunk, "15m", "1mo")
-    time.sleep(0.5)
+    time.sleep(0.2)
     df_1h_all = download_with_retry(chunk, "1h", "2mo")
-    time.sleep(0.5)
+    return chunk_idx, chunk, df_15m_all, df_1h_all
 
+  chunk_results = []
+  with concurrent.futures.ThreadPoolExecutor(max_workers=4) as executor:
+    futures = [executor.submit(fetch_chunk_data, idx, ch) for idx, ch in enumerate(stock_chunks, 1)]
+    for future in concurrent.futures.as_completed(futures):
+      try:
+        chunk_results.append(future.result())
+      except Exception as exc:
+        print(f"Grup indirme sırasında hata: {exc}")
+
+  chunk_results.sort(key=lambda x: x[0])
+
+  for chunk_idx, chunk, df_15m_all, df_1h_all in chunk_results:
     for clean_ticker in chunk:
       temiz_isim = clean_ticker.replace(".IS", "")
 
@@ -342,6 +366,8 @@ def run_scanner():
         rvol_curr_15 = rvol_15.iloc[-1]
         hma20_15 = calculate_hma(close_15, 20)
         sart_wave_15, konum_yuzde_15 = check_wave_margins(df_15m, lookback=5)
+        cmf_15 = calculate_cmf(df_15m, 20)
+        cmf_curr_15 = cmf_15.iloc[-1]
 
         # 1. GİTAN 15 -> DELİRDİ formatı (AKTİF)
         kural_tipi = "gitan_15"
@@ -352,16 +378,6 @@ def run_scanner():
             tetiklenen_str.append(f"• 🔴 {label} 15 (RVOL:{rvol_curr_15:.2f}|MFI:{mfi_curr_15:.1f}|+DI:{plus_di_curr_15:.1f}|Konum:%{konum_yuzde_15:.1f})")
             toplam_puan += 35.0
             tum_hafiza[kural_tipi][clean_ticker] = simdi_epoch
-
-        # --- [PASİFİZE EDİLDİ] 2. 15dk Yakala ---
-        # kural_tipi = "15m_profesjonel"
-        # label = "15dk Yakala"
-        # if kural_tipi not in tum_hafiza: tum_hafiza[kural_tipi] = {}
-        # if sart_wave_15 and (volume_15.iloc[-1] > volume_15.iloc[-2]) and (rvol_curr_15 > 1.0) and (close_curr_15 > hma20_15.iloc[-1]) and (close_curr_15 >= close_15.rolling(20).mean().iloc[-1]) and (mfi_curr_15 > 25) and (plus_di_curr_15 > 15) and (rsi_curr_15 > 45):
-        #   if simdi_epoch - tum_hafiza[kural_tipi].get(clean_ticker, 0) > COOLDOWN_SECONDS:
-        #     tetiklenen_str.append(f"• 🟢 {label} (MFI:{mfi_curr_15:.1f}|RSI:{rsi_curr_15:.1f})")
-        #     toplam_puan += 30.0
-        #     tum_hafiza[kural_tipi][clean_ticker] = simdi_epoch
 
         # 1h Değişkenler
         close_1h = df_1h["Close"]
@@ -407,7 +423,7 @@ def run_scanner():
         fish_1h, trg_1h = calculate_fisher(df_1h, length=9)
         fish_curr_1h, trg_curr_1h = fish_1h.iloc[-1], trg_1h.iloc[-1]
 
-        # 3. YENİ MODÜL: DİP HİBRİT (AKTİF)
+        # 3. DİP HİBRİT (GÜNCELLENMİŞ VERSİYON)
         kural_tipi = "dip_hibrit"
         label = "DİP HİBRİT"
         if kural_tipi not in tum_hafiza: tum_hafiza[kural_tipi] = {}
@@ -419,11 +435,11 @@ def run_scanner():
         konum_yuzde_1h_curr = konum_yuzde_1h_ser[-1] if isinstance(konum_yuzde_1h_ser, np.ndarray) else konum_yuzde_1h_ser.iloc[-1]
         
         dip_sarti_1h = (0.0 <= konum_yuzde_1h_curr <= 15.0)
-        momentum_sarti_15m = (plus_di_curr_15 > 30.0)
+        momentum_sarti_15m = (mfi_curr_15 > 60.0) and (plus_di_curr_15 > 30.0) and (cmf_curr_15 > 0.0)
 
         if dip_sarti_1h and momentum_sarti_15m:
           if simdi_epoch - tum_hafiza[kural_tipi].get(clean_ticker, 0) > COOLDOWN_SECONDS:
-            tetiklenen_str.append(f"• 🟡 {label} (1H Konum:%{konum_yuzde_1h_curr:.1f}|15m +DI:{plus_di_curr_15:.1f})")
+            tetiklenen_str.append(f"• 🟡 {label} (1H Konum:%{konum_yuzde_1h_curr:.1f}|MFI:{mfi_curr_15:.1f}|+DI:{plus_di_curr_15:.1f}|CMF:{cmf_curr_15:.2f})")
             toplam_puan += 25.0
             tum_hafiza[kural_tipi][clean_ticker] = simdi_epoch
 
@@ -447,17 +463,7 @@ def run_scanner():
             toplam_puan += 35.0
             tum_hafiza[kural_tipi][clean_ticker] = simdi_epoch
 
-        # --- [PASİFİZE EDİLDİ] 7. 1 Saat Gitan ---
-        # kural_tipi = "yeni_1h_gitan"
-        # label = "DELİRDİ"
-        # if kural_tipi not in tum_hafiza: tum_hafiza[kural_tipi] = {}
-        # if (close_curr_1h > hma20_1h.iloc[-1]) and (rvol_curr_1h >= 0.6) and (mfi_curr_1h > 55) and (fish_curr_1h > trg_curr_1h) and (plus_di_curr_1h > 20):
-        #   if simdi_epoch - tum_hafiza[kural_tipi].get(clean_ticker, 0) > COOLDOWN_SECONDS:
-        #     tetiklenen_str.append(f"• 🟡 {label} 1 Saat (RVOL:{rvol_curr_1h:.2f}|MFI:{mfi_curr_1h:.1f}|Fish:{fish_curr_1h:.2f}|+DI:{plus_di_curr_1h:.1f})")
-        #     toplam_puan += 30.0
-        #     tum_hafiza[kural_tipi][clean_ticker] = simdi_epoch
-
-        # 8. YENİ KURAL: Erken Hibrit 1 Saat (AKTİF)
+        # 8. Erken Hibrit 1 Saat (AKTİF)
         kural_tipi = "erken_hibrit_1h"
         label = "ERKEN DELİRDİ"
         if kural_tipi not in tum_hafiza: tum_hafiza[kural_tipi] = {}
