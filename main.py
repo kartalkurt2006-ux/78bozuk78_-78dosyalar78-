@@ -385,7 +385,21 @@ def performans_raporu_gonder(rapor_turu="Gün Sonu"):
       tutturma = istatistik["tutturma_orani"]
       ort_g = istatistik["ortalama_getiri"]
       g_str = f"+%{ort_g:.1f}" if ort_g >= 0 else f"%{ort_g:.1f}"
-      kural_adi = kural.replace("_", " ").title()
+      
+      # Doğru strateji isimlendirme standartları
+      if kural == "gitan_15":
+        kural_adi = "💥 DELİRDİ 15"
+      elif kural == "deli_gitan_1h":
+        kural_adi = "🟣 DELİRDİ 1 Saat"
+      elif kural == "erken_hibrit_1h":
+        kural_adi = "⚡ Erken Hibrit"
+      elif kural == "dip_hibrit":
+        kural_adi = "🟢 DİP HİBRİT"
+      elif kural == "1h_dalga_gorsel":
+        kural_adi = "🔵 1 Saat Yakala"
+      else:
+        kural_adi = kural.replace("_", " ").title()
+        
       mesaj_satirlari.append(f"• {kural_adi} : **%{tutturma:.1f}** ({g_str})")
     
     mesaj_satirlari.append("----------------------------------------")
@@ -411,7 +425,21 @@ def performans_raporu_gonder(rapor_turu="Gün Sonu"):
       for hisse, veri in alt_grup:
         g = veri["getiri"]
         g_str = f"+%{g:.2f}" if g >= 0 else f"%{g:.2f}"
-        strat_adi = veri["kural"].replace("_", " ").title()
+        
+        kural = veri["kural"]
+        if kural == "gitan_15":
+          strat_adi = "💥 DELİRDİ 15"
+        elif kural == "deli_gitan_1h":
+          strat_adi = "🟣 DELİRDİ 1 Saat"
+        elif kural == "erken_hibrit_1h":
+          strat_adi = "⚡ Erken Hibrit"
+        elif kural == "dip_hibrit":
+          strat_adi = "🟢 DİP HİBRİT"
+        elif kural == "1h_dalga_gorsel":
+          strat_adi = "🔵 1 Saat Yakala"
+        else:
+          strat_adi = kural.replace("_", " ").title()
+          
         temiz_h_adi = hisse.upper().replace(".IS", "")
         
         zaman_etiketi = "Son 4S" if veri["gecen_saniye"] <= 14400 else "Dün"
@@ -720,15 +748,20 @@ def run_scanner():
           
           for strat in item['stratejiler']:
             strat_upper = strat.upper()
-            if "ERKEN HİBRİT" in strat_upper:
-              mesaj_satirlari.append(f"• 🔥 {strat} (RVOL:{item['rvol']:.2f}|MFI:{item['mfi']:.1f}|+DI:{item['d_plus']:.1f}|Konum:%{item['konum']:.1f})")
+            if "ERKEN HİBRİT" in strat_upper or strat == "Erken Hibrit":
+              mesaj_satirlari.append(f"• ⚡ Erken Hibrit (RVOL:{item['rvol']:.2f}|MFI:{item['mfi']:.1f}|+DI:{item['d_plus']:.1f}|Konum:%{item['konum']:.1f})")
               mesaj_satirlari.append(f"📊 1S ATR: {item['atr']:.2f} | 🛑 Stop: ₺{item['stop']:.2f} | 🎯 Hedef: ₺{item['hedef']:.2f}")
-            elif "DELİRDİ 1 SAAT" in strat_upper:
-              mesaj_satirlari.append(f"• ⚠️ {strat} (RVOL:{item['rvol']:.2f}|MFI:{item['mfi']:.1f}|+DI:{item['d_plus']:.1f}|Konum:%{item['konum']:.1f})")
-            elif "DELİRDİ" in strat_upper:
-              mesaj_satirlari.append(f"• 💥 {strat} (RVOL:{item['rvol']:.2f}|MFI:{item['mfi']:.1f}|+DI:{item['d_plus']:.1f}|Konum:%{item['konum']:.1f})")
+            elif "DELİRDİ 1 SAAT" in strat_upper or strat == "DELİRDİ 1 Saat":
+              mesaj_satirlari.append(f"• 🟣 DELİRDİ 1 Saat (RVOL:{item['rvol']:.2f}|MFI:{item['mfi']:.1f}|+DI:{item['d_plus']:.1f}|Konum:%{item['konum']:.1f})")
+            elif "DELİRDİ 15" in strat_upper or strat == "DELİRDİ 15":
+              mesaj_satirlari.append(f"• 💥 DELİRDİ 15 (RVOL:{item['rvol']:.2f}|MFI:{item['mfi']:.1f}|+DI:{item['d_plus']:.1f}|Konum:%{item['konum']:.1f})")
+            elif "DİP HİBRİT" in strat_upper or strat == "DİP HİBRİT":
+              mesaj_satirlari.append(f"• 🟢 DİP HİBRİT (RVOL:{item['rvol']:.2f}|MFI:{item['mfi']:.1f}|+DI:{item['d_plus']:.1f}|Konum:%{item['konum']:.1f})")
+            elif "1 SAAT YAKALA" in strat_upper or strat == "1 Saat Yakala":
+              mesaj_satirlari.append(f"• 🔵 1 Saat Yakala (RSI:{item['rsi']:.1f}|+DI:{item['d_plus']:.1f})")
             else:
               mesaj_satirlari.append(f"• 🟣 {strat} (RSI:{item['rsi']:.1f}|+DI:{item['d_plus']:.1f})")
+              
           mesaj_satirlari.append("----------------------------------------")
 
         final_mesaj = "\n".join(mesaj_satirlari)
