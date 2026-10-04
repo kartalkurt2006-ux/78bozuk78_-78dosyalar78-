@@ -667,8 +667,13 @@ def run_scanner():
           mesaj_satirlari.append(f"📈 Sinyalden Beri Getiri: %{item['kazanc_yuzde']:+.2f}")
           
           for strat in item['stratejiler']:
-            if "DELİRDİ" in strat or "DELİRDİ" in strat.upper():
-              mesaj_satirlari.append(f"• 🔴 {strat} (RVOL:{item['rvol']:.2f}|MFI:{item['mfi']:.1f}|+DI:{item['d_plus']:.1f}|Konum:%{item['konum']:.1f})")
+            strat_upper = strat.upper()
+            if "ERKEN DELİRDİ" in strat_upper:
+              mesaj_satirlari.append(f"• 🔥 {strat} (RVOL:{item['rvol']:.2f}|MFI:{item['mfi']:.1f}|+DI:{item['d_plus']:.1f}|Konum:%{item['konum']:.1f})")
+            elif "DELİRDİ 1 SAAT" in strat_upper:
+              mesaj_satirlari.append(f"• ⚠️ {strat} (RVOL:{item['rvol']:.2f}|MFI:{item['mfi']:.1f}|+DI:{item['d_plus']:.1f}|Konum:%{item['konum']:.1f})")
+            elif "DELİRDİ" in strat_upper:
+              mesaj_satirlari.append(f"• 💥 {strat} (RVOL:{item['rvol']:.2f}|MFI:{item['mfi']:.1f}|+DI:{item['d_plus']:.1f}|Konum:%{item['konum']:.1f})")
             else:
               mesaj_satirlari.append(f"• 🟣 {strat} (RSI:{item['rsi']:.1f}|+DI:{item['d_plus']:.1f})")
           mesaj_satirlari.append("----------------------------------------")
