@@ -189,7 +189,6 @@ def hafiza_yukle():
     try:
       with open(MERKEZI_HAFIZA_DOSYASI, "r") as f:
         data = json.load(f)
-        # Eski yapıyla uyumluluk için kontrol
         if isinstance(data, dict):
           if "kayitlar" in data:
             hafiza = data
@@ -198,7 +197,6 @@ def hafiza_yukle():
     except:
       hafiza = {"kayitlar": {}}
   
-  # 10 günden (10 * 24 * 3600 saniye) eski kayıtları temizle
   simdi_epoch = time.time()
   on_gun_sn = 10 * 24 * 3600
   temiz_kayitlar = {}
@@ -207,7 +205,6 @@ def hafiza_yukle():
     temiz_kayitlar[kural] = {}
     if isinstance(hisseler, dict):
       for hisse, detay in hisseler.items():
-        # Detay hem eski tip timestamp (float/int) hem yeni tip dict olabilir
         zaman = detay.get("zaman", 0) if isinstance(detay, dict) else detay
         if simdi_epoch - zaman <= on_gun_sn:
           temiz_kayitlar[kural][hisse] = detay if isinstance(detay, dict) else {"zaman": zaman, "ilk_fiyat": 0.0, "tekrar_sayisi": 1}
@@ -260,7 +257,7 @@ def download_with_retry(chunk, interval, period, max_retries=4):
   return pd.DataFrame()
 
 
-def strateji_basari_analizi yap(tum_hafiza):
+def strateji_basari_analizi_yap(tum_hafiza):
   """
   Geçmiş taramaların ve stratejilerin başarı oranlarını hesaplar.
   Hangi stratejinin yüzde kaç kazandırdığını ve tutturma oranını bulur.
@@ -420,19 +417,16 @@ def run_scanner():
         cmf_15 = calculate_cmf(df_15m, 20)
         cmf_curr_15 = cmf_15.iloc[-1]
 
-        # Yardımcı kayıt fonksiyonu (İstatistik ve tekrar sayımı için)
         def kayit_guncelle(kural_adi):
             if kural_adi not in tum_hafiza["kayitlar"]:
                 tum_hafiza["kayitlar"][kural_adi] = {}
             
             mevcut_kayit = tum_hafiza["kayitlar"][kural_adi].get(clean_ticker)
             if mevcut_kayit:
-                # Daha önce kaydedilmiş, son fiyatı güncelle ve tekrar sayısını artır
                 mevcut_kayit["son_fiyat"] = guncel_fiyat
                 mevcut_kayit["tekrar_sayisi"] = mevcut_kayit.get("tekrar_sayisi", 1) + 1
                 son_zaman = mevcut_kayit.get("zaman", simdi_epoch)
             else:
-                # Yeni kayıt
                 tum_hafiza["kayitlar"][kural_adi][clean_ticker] = {
                     "zaman": simdi_epoch,
                     "ilk_fiyat": guncel_fiyat,
@@ -547,7 +541,6 @@ def run_scanner():
           if toplam_puan == 0:
             toplam_puan = 30.0
 
-          # Mevcut anlık kazanç yüzdesini hesapla
           ilk_f = tum_hafiza["kayitlar"].get(kural_tipi, {}).get(clean_ticker, {}).get("ilk_fiyat", guncel_fiyat)
           kazanc_yuzde = ((guncel_fiyat - ilk_f) / ilk_f) * 100.0 if ilk_f > 0 else 0.0
 
@@ -574,7 +567,6 @@ def run_scanner():
   en_iyi_strateji = "Veri Yok"
   en_yuksek_tutturma = 0.0
   if istatistikler:
-    # Tutturma oranına göre sırala
     siralI_strat = sorted(istatistikler.items(), key=lambda x: x[1]["tutturma_orani"], reverse=True)
     en_iyi_strateji, en_iyi_veri = siralI_strat[0]
     en_yuksek_tutturma = en_iyi_veri["tutturma_orani"]
@@ -584,7 +576,6 @@ def run_scanner():
     toplanan_sinyaller.sort(key=lambda x: x["puan"], reverse=True)
     zaman_str = datetime.now(TZ_TR).strftime('%d.%m.%Y %H:%M')
 
-    # Profesyonel Özet Başlığı
     analiz_ozeti = (
         f"📊 **PROFESYONEL TARAMA RAPORU & ANALİZ**\n"
         f"🏆 En Başarılı Strateji: `{en_iyi_strateji.upper()}` (Tutturma: %{en_yuksek_tutturma:.1f})\n"
