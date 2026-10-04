@@ -389,7 +389,7 @@ def performans_raporu_gonder(rapor_turu="Gün Sonu"):
     alt_grup = sirali_hisseler[i:i + grup_boyutu]
     mesaj_satirlari = [
         f"📊 **GÜNLÜK ÖZET RAPORU**",
-        f"🏆 En Başarılı Strateji: `15M_KLASİK` (Tutturma: %{genel_tutturma:.1f})",
+        f"🏆 En Başarılı Strateji: `SİSTEM_KÜMÜLATİF` (Tutturma: %{genel_tutturma:.1f})",
         f"----------------------------------------"
     ]
 
@@ -454,6 +454,7 @@ def run_scanner():
       son_mfi = 0.0
       son_rvol = 0.0
       son_konum = 0.0
+      rsi_curr_1h_val = 0.0
 
       try:
         df_15m = extract_ticker_df(df_15m_all, clean_ticker, chunk)
@@ -538,12 +539,18 @@ def run_scanner():
 
             return simdi_epoch - son_zaman > COOLDOWN_SECONDS
 
-        kural_tipi = "gitan_15"
-        label = "DELİRDİ 15"
+        # 1. Strateji: DELİRDİ 15 (gitan_15)
         if (rvol_curr_15 >= 1.0) and sart_wave_15 and (mfi_curr_15 > 55) and (plus_di_curr_15 > 25):
-          if kayit_guncelle(kural_tipi):
-            tetiklenen_str.append(label)
+          if kayit_guncelle("gitan_15"):
+            tetiklenen_str.append("DELİRDİ 15")
             toplam_puan += 35.0
+
+        # 2. Strateji: DİP HİBRİT (dip_hibrit)
+        konum_yuzde_1h_curr = check_wave_margins(df_1h, lookback=1)[1]
+        if (0.0 <= konum_yuzde_1h_curr <= 15.0) and (mfi_curr_15 > 60.0) and (plus_di_curr_15 > 30.0) and (cmf_curr_15 > 0.0):
+          if kayit_guncelle("dip_hibrit"):
+            tetiklenen_str.append("DİP HİBRİT")
+            toplam_puan += 30.0
 
         close_1h = df_1h["Close"]
         high_1h = df_1h["High"]
@@ -563,6 +570,7 @@ def run_scanner():
         rs_1h = gain_1h / (loss_1h + 1e-10)
         rsi_1h = 100 - (100 / (1 + rs_1h))
         rsi_curr_1h = rsi_1h.iloc[-1]
+        rsi_curr_1h_val = rsi_curr_1h
 
         tp_1h = (high_1h + low_1h + close_1h) / 3
         mf_1h = tp_1h * volume_1h
@@ -588,18 +596,29 @@ def run_scanner():
         fish_1h, trg_1h = calculate_fisher(df_1h, length=9)
         fish_curr_1h, trg_curr_1h = fish_1h.iloc[-1], trg_1h.iloc[-1]
 
-        kural_tipi = "1h_dalga_gorsel"
-        label = "1 Saat Yakala"
+        # 3. Strateji: 1 Saat Yakala (1h_dalga_gorsel)
         if (close_curr_1h > hma20_1h.iloc[-1]) and (rsi_curr_1h > 50) and (plus_di_curr_1h > 25) and wave_breakout_1h:
-          if kayit_guncelle(kural_tipi):
-            tetiklenen_str.append(label)
+          if kayit_guncelle("1h_dalga_gorsel"):
+            tetiklenen_str.append("1 Saat Yakala")
             toplam_puan += 25.0
+
+        # 4. Strateji: DELİRDİ 1 Saat (deli_gitan_1h)
+        if (close_curr_1h > hma20_1h.iloc[-1]) and (rvol_curr_1h >= 2.0) and wave_breakout_1h:
+          if kayit_guncelle("deli_gitan_1h"):
+            tetiklenen_str.append("DELİRDİ 1 Saat")
+            toplam_puan += 35.0
+
+        # 5. Strateji: ERKEN DELİRDİ (erken_hibrit_1h)
+        if (close_curr_1h > hma20_1h.iloc[-1]) and (rvol_curr_15 >= 2.0) and (75.0 <= konum_yuzde_15 <= 95.0) and sart_wave_15:
+          if kayit_guncelle("erken_hibrit_1h"):
+            tetiklenen_str.append("ERKEN DELİRDİ")
+            toplam_puan += 30.0
 
         if tetiklenen_str:
           if toplam_puan == 0:
             toplam_puan = 30.0
 
-          ilk_f = tum_hafiza["kayitlar"].get(kural_tipi, {}).get(clean_ticker, {}).get("ilk_fiyat", guncel_fiyat)
+          ilk_f = tum_hafiza["kayitlar"].get(tetiklenen_str[0], {}).get(clean_ticker, {}).get("ilk_fiyat", guncel_fiyat)
           kazanc_yuzde = ((guncel_fiyat - ilk_f) / ilk_f) * 100.0 if ilk_f > 0 else 0.0
 
           toplanan_sinyaller.append({
@@ -612,7 +631,7 @@ def run_scanner():
               "mfi": son_mfi,
               "rvol": son_rvol,
               "konum": son_konum,
-              "rsi": rsi_curr_1h
+              "rsi": rsi_curr_1h_val
           })
           hafiza_kaydet(tum_hafiza)
           print(f"  > {clean_ticker} inceleniyor... 🎯 Sinyal Yakalandı!")
@@ -624,7 +643,6 @@ def run_scanner():
         continue
 
   if toplanan_sinyaller:
-    # Puanlarına göre gruplara ayır (1 füzeli, 2 füzeli, 3 füzeli)
     tek_fuzeliler = [item for item in toplanan_sinyaller if item['puan'] <= 25.0]
     iki_fuzeliler = [item for item in toplanan_sinyaller if 25.0 < item['puan'] <= 30.0]
     uc_fuzeliler = [item for item in toplanan_sinyaller if item['puan'] > 30.0]
@@ -635,12 +653,10 @@ def run_scanner():
         ("🚀🚀🚀 ÜÇ FÜZELİ SİNYALLER", uc_fuzeliler)
     ]
 
-    # Sırayla gönder: Önce tek, sonra iki, en son üç füzeliler
     for grup_baslik, grup_liste in gruplar:
       if not grup_liste:
         continue
       
-      # 5'erli gruplar halinde mesajlaştır
       grup_boyutu = 5
       for i in range(0, len(grup_liste), grup_boyutu):
         alt_grup = grup_liste[i:i + grup_boyutu]
@@ -651,7 +667,7 @@ def run_scanner():
           mesaj_satirlari.append(f"📈 Sinyalden Beri Getiri: %{item['kazanc_yuzde']:+.2f}")
           
           for strat in item['stratejiler']:
-            if "DELİRDİ" in strat:
+            if "DELİRDİ" in strat or "DELİRDİ" in strat.upper():
               mesaj_satirlari.append(f"• 🔴 {strat} (RVOL:{item['rvol']:.2f}|MFI:{item['mfi']:.1f}|+DI:{item['d_plus']:.1f}|Konum:%{item['konum']:.1f})")
             else:
               mesaj_satirlari.append(f"• 🟣 {strat} (RSI:{item['rsi']:.1f}|+DI:{item['d_plus']:.1f})")
