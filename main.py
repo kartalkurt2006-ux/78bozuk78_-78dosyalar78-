@@ -336,7 +336,6 @@ def performans_raporu_gonder(rapor_turu="Gün Sonu"):
           if ilk > 0:
             getiri = ((son - ilk) / ilk) * 100.0
             
-            # Sinyalin kaç gün önce geldiğini hesapla
             sinyal_tarihi = datetime.fromtimestamp(zaman_epoch, TZ_TR).date()
             gun_farki = (bugun_tarih - sinyal_tarihi).days
             
@@ -355,7 +354,6 @@ def performans_raporu_gonder(rapor_turu="Gün Sonu"):
 
   sirali_hisseler = sorted(hisse_getirileri.items(), key=lambda x: x[1]["getiri"], reverse=True)
 
-  # 5'erli Kompakt Taslak (Kümülatif Takip Eklendi)
   mesaj_satirlari = [
       f"BIST {rapor_turu} Raporu",
       "",
@@ -456,7 +454,6 @@ def run_scanner():
         if isinstance(df_1h.columns, pd.MultiIndex):
           df_1h.columns = df_1h.columns.get_level_values(0)
 
-        # 15m Değişkenler
         close_15 = df_15m["Close"]
         high_15 = df_15m["High"]
         low_15 = df_15m["Low"]
@@ -521,7 +518,6 @@ def run_scanner():
                 son_zaman = 0
             return simdi_epoch - son_zaman > COOLDOWN_SECONDS
 
-        # 1. GİTAN 15 -> DELİRDİ formatı
         kural_tipi = "gitan_15"
         label = "DELİRDİ 15"
         if (rvol_curr_15 >= 1.0) and sart_wave_15 and (mfi_curr_15 > 55) and (plus_di_curr_15 > 25):
@@ -530,7 +526,6 @@ def run_scanner():
             tetiklenen_str.append(f"{label} [{tekrar_ed}x]")
             toplam_puan += 35.0
 
-        # 1h Değişkenler
         close_1h = df_1h["Close"]
         high_1h = df_1h["High"]
         low_1h = df_1h["Low"]
@@ -574,7 +569,6 @@ def run_scanner():
         fish_1h, trg_1h = calculate_fisher(df_1h, length=9)
         fish_curr_1h, trg_curr_1h = fish_1h.iloc[-1], trg_1h.iloc[-1]
 
-        # 3. DİP HİBRİT
         kural_tipi = "dip_hibrit"
         label = "DİP HİBRİT"
         donem_min_1h = low_1h.rolling(window=50).min()
@@ -592,7 +586,6 @@ def run_scanner():
             tetiklenen_str.append(f"{label} [{tekrar_ed}x]")
             toplam_puan += 25.0
 
-        # 5. 1 Saat Yakala
         kural_tipi = "1h_dalga_gorsel"
         label = "1 Saat Yakala"
         if (close_curr_1h > hma20_1h.iloc[-1]) and (rsi_curr_1h > 50) and (plus_di_curr_1h > 25) and wave_breakout_1h:
@@ -601,7 +594,6 @@ def run_scanner():
             tetiklenen_str.append(f"{label} [{tekrar_ed}x]")
             toplam_puan += 25.0
 
-        # 6. Deli Gitan 1 Saat
         kural_tipi = "deli_gitan_1h"
         label = "DELİRDİ 1 Saat"
         if (close_curr_1h > hma20_1h.iloc[-1]) and (rvol_curr_1h >= 2.0) and wave_breakout_1h:
@@ -610,7 +602,6 @@ def run_scanner():
             tetiklenen_str.append(f"{label} [{tekrar_ed}x]")
             toplam_puan += 35.0
 
-        # 8. Erken Hibrit 1 Saat
         kural_tipi = "erken_hibrit_1h"
         label = "ERKEN DELİRDİ"
         trend_1h_ok = (close_curr_1h > hma20_1h.iloc[-1])
@@ -647,7 +638,6 @@ def run_scanner():
         print(f"  > Hata oluştu ({clean_ticker}): {e}")
         continue
 
-  # --- STRATEJİ BAŞARI İSTATİSTİKLERİNİ HESAPLA ---
   istatistikler = strateji_basari_analizi_yap(tum_hafiza)
   en_iyi_strateji = "15M_KLASİK"
   en_yuksek_tutturma = 0.0
@@ -656,7 +646,6 @@ def run_scanner():
     en_iyi_strateji, en_iyi_veri = siralI_strat[0]
     en_yuksek_tutturma = en_iyi_veri["tutturma_orani"]
 
-  # --- BİLDİRİM GÖNDERİM MANTIĞI (TEK VE TOPLU ŞABLON) ---
   if toplanan_sinyaller:
     toplanan_sinyaller.sort(key=lambda x: x["puan"], reverse=True)
     zaman_str = datetime.now(TZ_TR).strftime('%d.%m.%Y %H:%M')
@@ -720,12 +709,14 @@ def run_scanner():
 
   print("\nTüm Hisseler 40'ar gruplar halinde tarandı ve süreç tamamlandı.")
 
-  # --- OTOMATİK SAAT 13:00 VE GÜN SONU PERFORMANS KONTROLÜ ---
+  # --- OTOMATİK VEYA MANUEL (FORCE_RUN) PERFORMANS KONTROLÜ ---
   simdi_kontrol = datetime.now(TZ_TR)
   saat = simdi_kontrol.hour
   dakika = simdi_kontrol.minute
   
-  if saat == 13 and 0 <= dakika <= 10:
+  if os.environ.get("FORCE_RUN", "false").lower() == "true":
+    performans_raporu_gonder("Manuel / Güncel")
+  elif saat == 13 and 0 <= dakika <= 10:
     performans_raporu_gonder("Öğle (13:00)")
     time.sleep(600)
   elif saat == 18 and 0 <= dakika <= 15:
