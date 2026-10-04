@@ -133,7 +133,7 @@ def calculate_fisher(df, length=9):
   return fish, trigger
 
 
-def check_wave_margins(df, lookback=3):
+def check_wave_margins(df, lookback=3, threshold_pct=0.80):
   try:
     close = df["Close"].values
     high = df["High"].values
@@ -152,7 +152,7 @@ def check_wave_margins(df, lookback=3):
     if margin_range == 0:
       return False, 0.0
 
-    upper_margin_threshold = recent_low + (margin_range * 0.80)
+    upper_margin_threshold = recent_low + (margin_range * threshold_pct)
     
     current_price = close[-1]
     konum_yuzde = ((current_price - recent_low) / margin_range) * 100.0
@@ -169,6 +169,15 @@ def check_wave_margins(df, lookback=3):
     return triggered, konum_yuzde
   except Exception:
     return False, 0.0
+
+
+def calculate_atr(df, period=14):
+  high = df["High"]
+  low = df["Low"]
+  close = df["Close"]
+  tr = pd.concat([high - low, (high - close.shift()).abs(), (low - close.shift()).abs()], axis=1).max(axis=1)
+  atr = tr.rolling(period).mean()
+  return atr
 
 
 def hafiza_yukle():
@@ -214,7 +223,7 @@ def piyasa_zaman_kontrolu():
     return False
 
   baslangic = simdi.replace(hour=9, minute=30, second=0, microsecond=0)
-  bitis = simdi.replace(hour=18, minute=10, second=0, microsecond=0)
+  bitis = simdi.replace(hour=18, minute=35, second=0, microsecond=0)
 
   if baslangic <= simdi <= bitis:
     return True
@@ -350,9 +359,11 @@ def performans_raporu_gonder(rapor_turu="Gün Sonu"):
         if isinstance(detay, dict):
           ilk = detay.get("ilk_fiyat", 0.0)
           son = detay.get("son_fiyat", ilk)
+          zaman_epoch = detay.get("zaman", time.time())
+          gecen_gun = max(1, int((time.time() - zaman_epoch) / (24 * 3600)))
           if ilk > 0:
             getiri = ((son - ilk) / ilk) * 100.0
-            hisse_getirileri[hisse] = {"getiri": getiri, "kural": kural}
+            hisse_getirileri[hisse] = {"getiri": getiri, "kural": kural, "gecen_gun": gecen_gun}
 
   sirali_hisseler = sorted(hisse_getirileri.items(), key=lambda x: x[1]["getiri"], reverse=True)
 
@@ -361,7 +372,6 @@ def performans_raporu_gonder(rapor_turu="Gün Sonu"):
     return
 
   if "Gün Sonu" in rapor_turu:
-    # Gün Sonu Ultra Sade Format
     mesaj_satirlari = ["🏆 **GÜN SONU ÖZETİ**"]
     for kural, istatistik in strat_istatistikleri.items():
       tutturma = istatistik["tutturma_orani"]
@@ -371,13 +381,12 @@ def performans_raporu_gonder(rapor_turu="Gün Sonu"):
       mesaj_satirlari.append(f"• {kural_adi} : **%{tutturma:.1f}** ({g_str})")
     
     mesaj_satirlari.append("----------------------------------------")
-    en_iyiler_str = " | ".join([f"{h.upper()} (%{v['getiri']:+.1f})" for h, v in sirali_hisseler[:3]])
+    en_iyiler_str = " | ".join([f"{h.upper()} (%{v['getiri']:+.1f}, {v['gecen_gun']}g)" for h, v in sirali_hisseler[:3]])
     mesaj_satirlari.append(f"📈 **En İyiler:** {en_iyiler_str}")
     
     final_mesaj = "\n".join(mesaj_satirlari)
     send_ntfy(final_mesaj, "BIST Gün Sonu Raporu")
   else:
-    # Canlı / Gün İçi 10'arlı Sade Format
     grup_boyutu = 10
     for i in range(0, len(sirali_hisseler), grup_boyutu):
       alt_grup = sirali_hisseler[i:i + grup_boyutu]
@@ -389,7 +398,7 @@ def performans_raporu_gonder(rapor_turu="Gün Sonu"):
         g = veri["getiri"]
         g_str = f"+%{g:.1f}" if g >= 0 else f"%{g:.1f}"
         strat_adi = veri["kural"].replace("_", " ").title()
-        mesaj_satirlari.append(f"• {hisse.upper()} : **{g_str}** ({strat_adi})")
+        mesaj_satirlari.append(f"• {hisse.upper()} : **{g_str}** (İlk Sinyal: {veri['gecen_gun']} gün önce) [{strat_adi}]")
 
       final_mesaj = "\n".join(mesaj_satirlari)
       send_ntfy(final_mesaj, f"BIST {rapor_turu} Raporu")
@@ -447,6 +456,10 @@ def run_scanner():
       son_rvol = 0.0
       son_konum = 0.0
       rsi_curr_1h_val = 0.0
+      gecen_gun_sayisi = 0
+      stop_seviyesi = 0.0
+      hedef_seviyesi = 0.0
+      atr_1h_val = 0.0
 
       try:
         df_15m = extract_ticker_df(df_15m_all, clean_ticker, chunk)
@@ -503,12 +516,15 @@ def run_scanner():
         son_rvol = rvol_curr_15
 
         hma20_15 = calculate_hma(close_15, 20)
-        sart_wave_15, konum_yuzde_15 = check_wave_margins(df_15m, lookback=5)
+        
+        # Standart dalga marjı (eski taramalar için %80)
+        sart_wave_15, konum_yuzde_15 = check_wave_margins(df_15m, lookback=5, threshold_pct=0.80)
         son_konum = konum_yuzde_15
         cmf_15 = calculate_cmf(df_15m, 20)
         cmf_curr_15 = cmf_15.iloc[-1]
 
         def kayit_guncelle(kural_adi):
+            nonlocal gecen_gun_sayisi
             if kural_adi not in tum_hafiza["kayitlar"]:
                 tum_hafiza["kayitlar"][kural_adi] = {}
             
@@ -517,6 +533,7 @@ def run_scanner():
                 mevcut_kayit["son_fiyat"] = guncel_fiyat
                 mevcut_kayit["tekrar_sayisi"] = mevcut_kayit.get("tekrar_sayisi", 1) + 1
                 son_zaman = mevcut_kayit.get("zaman", simdi_epoch)
+                gecen_gun_sayisi = max(1, int((simdi_epoch - son_zaman) / (24 * 3600)))
             else:
                 tum_hafiza["kayitlar"][kural_adi][clean_ticker] = {
                     "zaman": simdi_epoch,
@@ -524,20 +541,21 @@ def run_scanner():
                     "son_fiyat": guncel_fiyat,
                     "tekrar_sayisi": 1
                 }
-                son_zaman = 0
+                son_zaman = simdi_epoch
+                gecen_gun_sayisi = 0
             
             if is_manual_run:
                 return True
 
             return simdi_epoch - son_zaman > COOLDOWN_SECONDS
 
-        # 1. Strateji: DELİRDİ 15 (gitan_15)
+        # Strateji 1: DELİRDİ 15
         if (rvol_curr_15 >= 1.0) and sart_wave_15 and (mfi_curr_15 > 55) and (plus_di_curr_15 > 25):
           if kayit_guncelle("gitan_15"):
             tetiklenen_str.append("DELİRDİ 15")
             toplam_puan += 35.0
 
-        # 2. Strateji: DİP HİBRİT (dip_hibrit)
+        # Strateji 2: DİP HİBRİT
         konum_yuzde_1h_curr = check_wave_margins(df_1h, lookback=1)[1]
         if (0.0 <= konum_yuzde_1h_curr <= 15.0) and (mfi_curr_15 > 60.0) and (plus_di_curr_15 > 30.0) and (cmf_curr_15 > 0.0):
           if kayit_guncelle("dip_hibrit"):
@@ -584,27 +602,33 @@ def run_scanner():
         rvol_curr_1h = rvol_1h.iloc[-1]
 
         hma20_1h = calculate_hma(close_1h, 20)
-        wave_breakout_1h, _ = check_wave_margins(df_1h, lookback=3)
+        wave_breakout_1h, _ = check_wave_margins(df_1h, lookback=3, threshold_pct=0.80)
         fish_1h, trg_1h = calculate_fisher(df_1h, length=9)
         fish_curr_1h, trg_curr_1h = fish_1h.iloc[-1], trg_1h.iloc[-1]
 
-        # 3. Strateji: 1 Saat Yakala (1h_dalga_gorsel)
+        # 1 Saatlik ATR Hesaplaması (Risk Yönetimi İçin)
+        atr_1h_series = calculate_atr(df_1h, period=14)
+        atr_1h_val = atr_1h_series.iloc[-1] if not atr_1h_series.empty else 0.0
+
+        # Strateji 3: 1 Saat Yakala
         if (close_curr_1h > hma20_1h.iloc[-1]) and (rsi_curr_1h > 50) and (plus_di_curr_1h > 25) and wave_breakout_1h:
           if kayit_guncelle("1h_dalga_gorsel"):
             tetiklenen_str.append("1 Saat Yakala")
             toplam_puan += 25.0
 
-        # 4. Strateji: DELİRDİ 1 Saat (deli_gitan_1h)
+        # Strateji 4: DELİRDİ 1 Saat
         if (close_curr_1h > hma20_1h.iloc[-1]) and (rvol_curr_1h >= 2.0) and wave_breakout_1h:
           if kayit_guncelle("deli_gitan_1h"):
             tetiklenen_str.append("DELİRDİ 1 Saat")
             toplam_puan += 35.0
 
-        # 5. Strateji: ERKEN DELİRDİ (erken_hibrit_1h)
-        if (close_curr_1h > hma20_1h.iloc[-1]) and (rvol_curr_15 >= 2.0) and (75.0 <= konum_yuzde_15 <= 95.0) and sart_wave_15:
+        # Strateji 5: ERKEN DELİRDİ (Yeni Hibrit Mimari: 15m esnetilmiş dalga + MFI > 55 + +DI > 20 + 1h ATR Risk)
+        sart_wave_15_erken, konum_yuzde_15_erken = check_wave_margins(df_15m, lookback=3, threshold_pct=0.75)
+        if sart_wave_15_erken and (mfi_curr_15 > 55.0) and (plus_di_curr_15 > 20.0):
           if kayit_guncelle("erken_hibrit_1h"):
             tetiklenen_str.append("ERKEN DELİRDİ")
             toplam_puan += 30.0
+            son_konum = konum_yuzde_15_erken
 
         if tetiklenen_str:
           if toplam_puan == 0:
@@ -612,6 +636,14 @@ def run_scanner():
 
           ilk_f = tum_hafiza["kayitlar"].get(tetiklenen_str[0], {}).get(clean_ticker, {}).get("ilk_fiyat", guncel_fiyat)
           kazanc_yuzde = ((guncel_fiyat - ilk_f) / ilk_f) * 100.0 if ilk_f > 0 else 0.0
+
+          # 1h ATR tabanlı stop ve hedef hesaplaması (Çarpan: 2.0)
+          if atr_1h_val > 0:
+            stop_seviyesi = guncel_fiyat - (2.0 * atr_1h_val)
+            hedef_seviyesi = guncel_fiyat + (2.0 * atr_1h_val)
+          else:
+            stop_seviyesi = guncel_fiyat * 0.95
+            hedef_seviyesi = guncel_fiyat * 1.05
 
           toplanan_sinyaller.append({
               "temiz_isim": temiz_isim,
@@ -623,7 +655,11 @@ def run_scanner():
               "mfi": son_mfi,
               "rvol": son_rvol,
               "konum": son_konum,
-              "rsi": rsi_curr_1h_val
+              "rsi": rsi_curr_1h_val,
+              "gecen_gun": gecen_gun_sayisi,
+              "stop": stop_seviyesi,
+              "hedef": hedef_seviyesi,
+              "atr": atr_1h_val
           })
           hafiza_kaydet(tum_hafiza)
           print(f"  > {clean_ticker} inceleniyor... 🎯 Sinyal Yakalandı!")
@@ -656,12 +692,13 @@ def run_scanner():
 
         for item in alt_grup:
           mesaj_satirlari.append(f"📌 Hisse: 🟦 {item['temiz_isim']} 🟦 | Fiyat: ₺{item['fiyat']:.2f}")
-          mesaj_satirlari.append(f"📈 Sinyalden Beri Getiri: %{item['kazanc_yuzde']:+.2f}")
+          mesaj_satirlari.append(f"📈 Sinyalden Beri Getiri: %{item['kazanc_yuzde']:+.2f} (İlk Sinyal: {item['gecen_gun']} gün önce)")
           
           for strat in item['stratejiler']:
             strat_upper = strat.upper()
             if "ERKEN DELİRDİ" in strat_upper:
               mesaj_satirlari.append(f"• 🔥 {strat} (RVOL:{item['rvol']:.2f}|MFI:{item['mfi']:.1f}|+DI:{item['d_plus']:.1f}|Konum:%{item['konum']:.1f})")
+              mesaj_satirlari.append(f"📊 1S ATR: {item['atr']:.2f} | 🛑 Stop: ₺{item['stop']:.2f} | 🎯 Hedef: ₺{item['hedef']:.2f}")
             elif "DELİRDİ 1 SAAT" in strat_upper:
               mesaj_satirlari.append(f"• ⚠️ {strat} (RVOL:{item['rvol']:.2f}|MFI:{item['mfi']:.1f}|+DI:{item['d_plus']:.1f}|Konum:%{item['konum']:.1f})")
             elif "DELİRDİ" in strat_upper:
@@ -682,10 +719,10 @@ def run_scanner():
   
   if os.environ.get("FORCE_RUN", "false").lower() == "true":
     performans_raporu_gonder("Manuel / Güncel")
-  elif saat == 13 and 0 <= dakika <= 10:
+  elif saat == 13 and 0 <= dakika <= 30:
     performans_raporu_gonder("Öğle (13:00)")
     time.sleep(600)
-  elif saat == 18 and 0 <= dakika <= 15:
+  elif (saat == 18 and dakika >= 0) or (saat == 19 and dakika <= 30):
     performans_raporu_gonder("Gün Sonu")
     time.sleep(900)
 
