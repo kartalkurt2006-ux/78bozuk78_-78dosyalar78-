@@ -87,18 +87,6 @@ def calculate_hma(series, period=20):
   return hma
 
 
-def calculate_strend(df, period=10, multiplier=3):
-  hl2 = (df["High"] + df["Low"]) / 2
-  tr = pd.concat([
-      df["High"] - df["Low"],
-      (df["High"] - df["Close"].shift()).abs(),
-      (df["Low"] - df["Close"].shift()).abs()
-  ], axis=1).max(axis=1)
-  atr = tr.rolling(period).mean()
-  lowerband = hl2 - (multiplier * atr)
-  return lowerband
-
-
 def calculate_cmf(df, period=20):
   high = df["High"]
   low = df["Low"]
@@ -258,10 +246,6 @@ def download_with_retry(chunk, interval, period, max_retries=4):
 
 
 def strateji_basari_analizi_yap(tum_hafiza):
-  """
-  Geçmiş taramaların ve stratejilerin başarı oranlarını hesaplar.
-  Hangi stratejinin yüzde kaç kazandırdığını ve tutturma oranını bulur.
-  """
   kayitlar = tum_hafiza.get("kayitlar", {})
   strateji_istatistikleri = {}
 
@@ -296,6 +280,107 @@ def strateji_basari_analizi_yap(tum_hafiza):
     }
 
   return strateji_istatistikleri
+
+
+def performans_raporu_gonder(rapor_turu="Gün Sonu"):
+  print(f"[{datetime.now(TZ_TR).strftime('%Y-%m-%d %H:%M:%S')}] BIST {rapor_turu} Raporu hazırlanıyor...")
+  tum_hafiza = hafiza_yukle()
+  kayitlar = tum_hafiza.get("kayitlar", {})
+
+  if not kayitlar:
+    print("Hafızada raporlanacak sinyal bulunamadı.")
+    return
+
+  tum_hisseler = set()
+  for kural, hisseler in kayitlar.items():
+    if isinstance(hisseler, dict):
+      for hisse in hisseler.keys():
+        tum_hisseler.add(hisse + ".IS")
+
+  if tum_hisseler:
+    try:
+      df_guncel = download_with_retry(list(tum_hisseler), "15m", "5d")
+      for kural, hisseler in kayitlar.items():
+        if isinstance(hisseler, dict):
+          for hisse, detay in hisseler.items():
+            full_t = hisse + ".IS"
+            try:
+              if not df_guncel.empty and isinstance(df_guncel.columns, pd.MultiIndex) and full_t in df_guncel.columns.levels[0]:
+                s_close = df_guncel[full_t]["Close"].dropna()
+                if not s_close.empty:
+                  detay["son_fiyat"] = float(s_close.iloc[-1])
+              elif not df_guncel.empty and len(tum_hisseler) == 1:
+                s_close = df_guncel["Close"].dropna()
+                if not s_close.empty:
+                  detay["son_fiyat"] = float(s_close.iloc[-1])
+            except:
+              pass
+      hafiza_kaydet(tum_hafiza)
+    except Exception as e:
+      print(f"Performans raporu fiyat güncelleme hatası: {e}")
+
+  strat_istatistikleri = strateji_basari_analizi_yap(tum_hafiza)
+
+  simdi_tr = datetime.now(TZ_TR)
+  bugun_tarih = simdi_tr.date()
+
+  hisse_getirileri = {}
+  for kural, hisseler in kayitlar.items():
+    if isinstance(hisseler, dict):
+      for hisse, detay in hisseler.items():
+        if isinstance(detay, dict):
+          ilk = detay.get("ilk_fiyat", 0.0)
+          son = detay.get("son_fiyat", ilk)
+          zaman_epoch = detay.get("zaman", time.time())
+          
+          if ilk > 0:
+            getiri = ((son - ilk) / ilk) * 100.0
+            
+            # Sinyalin kaç gün önce geldiğini hesapla
+            sinyal_tarihi = datetime.fromtimestamp(zaman_epoch, TZ_TR).date()
+            gun_farki = (bugun_tarih - sinyal_tarihi).days
+            
+            if gun_farki == 0:
+              sure_str = "Bugün"
+            elif gun_farki == 1:
+              sure_str = "Dün"
+            else:
+              sure_str = f"{gun_farki} Gün Önce"
+
+            hisse_getirileri[hisse] = {
+                "getiri": getiri, 
+                "kural": kural, 
+                "sure": sure_str
+            }
+
+  sirali_hisseler = sorted(hisse_getirileri.items(), key=lambda x: x[1]["getiri"], reverse=True)
+
+  # 5'erli Kompakt Taslak (Kümülatif Takip Eklendi)
+  mesaj_satirlari = [
+      f"BIST {rapor_turu} Raporu",
+      "",
+      "En İyi 5 Sinyal (Kümülatif Takip):"
+  ]
+
+  for hisse, veri in sirali_hisseler[:5]:
+    g = veri["getiri"]
+    g_str = f"+%{g:.2f}" if g >= 0 else f"%{g:.2f}"
+    strat_adi = veri["kural"].upper()
+    sure = veri["sure"]
+    mesaj_satirlari.append(f"• {hisse.upper()}: {g_str} ({strat_adi} - {sure})")
+
+  mesaj_satirlari.append("")
+  mesaj_satirlari.append("Strateji Başarıları (Son 10 Gün):")
+  for strat, veri in strat_istatistikleri.items():
+    if veri["toplam_sinyal"] > 0:
+      tutturma = veri["tutturma_orani"]
+      ort_getiri = veri["ortalama_getiri"]
+      getiri_isaret = "+" if ort_getiri >= 0 else ""
+      mesaj_satirlari.append(f"• {strat.upper()}: %{int(tutturma)} | {getiri_isaret}%{ort_getiri:.2f}")
+
+  final_mesaj = "\n".join(mesaj_satirlari)
+  send_ntfy(final_mesaj, f"BIST {rapor_turu} Raporu")
+  print(f"BIST {rapor_turu} Raporu başarıyla gönderildi.")
 
 
 def run_scanner():
@@ -436,13 +521,13 @@ def run_scanner():
                 son_zaman = 0
             return simdi_epoch - son_zaman > COOLDOWN_SECONDS
 
-        # 1. GİTAN 15 -> DELİRDİ formatı (AKTİF)
+        # 1. GİTAN 15 -> DELİRDİ formatı
         kural_tipi = "gitan_15"
-        label = "DELİRDİ"
+        label = "DELİRDİ 15"
         if (rvol_curr_15 >= 1.0) and sart_wave_15 and (mfi_curr_15 > 55) and (plus_di_curr_15 > 25):
           if kayit_guncelle(kural_tipi):
             tekrar_ed = tum_hafiza["kayitlar"][kural_tipi][clean_ticker]["tekrar_sayisi"]
-            tetiklenen_str.append(f"• 🔴 {label} 15 [Tekrar: {tekrar_ed}x] (RVOL:{rvol_curr_15:.2f}|MFI:{mfi_curr_15:.1f}|+DI:{plus_di_curr_15:.1f})")
+            tetiklenen_str.append(f"{label} [{tekrar_ed}x]")
             toplam_puan += 35.0
 
         # 1h Değişkenler
@@ -504,7 +589,7 @@ def run_scanner():
         if dip_sarti_1h and momentum_sarti_15m:
           if kayit_guncelle(kural_tipi):
             tekrar_ed = tum_hafiza["kayitlar"][kural_tipi][clean_ticker]["tekrar_sayisi"]
-            tetiklenen_str.append(f"• 🟡 {label} [Tekrar: {tekrar_ed}x] (1H Konum:%{konum_yuzde_1h_curr:.1f}|MFI:{mfi_curr_15:.1f})")
+            tetiklenen_str.append(f"{label} [{tekrar_ed}x]")
             toplam_puan += 25.0
 
         # 5. 1 Saat Yakala
@@ -513,16 +598,16 @@ def run_scanner():
         if (close_curr_1h > hma20_1h.iloc[-1]) and (rsi_curr_1h > 50) and (plus_di_curr_1h > 25) and wave_breakout_1h:
           if kayit_guncelle(kural_tipi):
             tekrar_ed = tum_hafiza["kayitlar"][kural_tipi][clean_ticker]["tekrar_sayisi"]
-            tetiklenen_str.append(f"• 🟣 {label} [Tekrar: {tekrar_ed}x] (RSI:{rsi_curr_1h:.1f}|+DI:{plus_di_curr_1h:.1f})")
+            tetiklenen_str.append(f"{label} [{tekrar_ed}x]")
             toplam_puan += 25.0
 
         # 6. Deli Gitan 1 Saat
         kural_tipi = "deli_gitan_1h"
-        label = "DELİRDİ"
+        label = "DELİRDİ 1 Saat"
         if (close_curr_1h > hma20_1h.iloc[-1]) and (rvol_curr_1h >= 2.0) and wave_breakout_1h:
           if kayit_guncelle(kural_tipi):
             tekrar_ed = tum_hafiza["kayitlar"][kural_tipi][clean_ticker]["tekrar_sayisi"]
-            tetiklenen_str.append(f"• 🟠 {label} 1 Saat [Tekrar: {tekrar_ed}x] (RVOL:{rvol_curr_1h:.2f})")
+            tetiklenen_str.append(f"{label} [{tekrar_ed}x]")
             toplam_puan += 35.0
 
         # 8. Erken Hibrit 1 Saat
@@ -534,7 +619,7 @@ def run_scanner():
         if trend_1h_ok and erken_tetik_15m:
           if kayit_guncelle(kural_tipi):
             tekrar_ed = tum_hafiza["kayitlar"][kural_tipi][clean_ticker]["tekrar_sayisi"]
-            tetiklenen_str.append(f"• 🔥 {label} [Tekrar: {tekrar_ed}x] (RVOL:{rvol_curr_15:.2f}|Konum:%{konum_yuzde_15:.1f})")
+            tetiklenen_str.append(f"{label} [{tekrar_ed}x]")
             toplam_puan += 35.0
 
         if tetiklenen_str:
@@ -564,120 +649,90 @@ def run_scanner():
 
   # --- STRATEJİ BAŞARI İSTATİSTİKLERİNİ HESAPLA ---
   istatistikler = strateji_basari_analizi_yap(tum_hafiza)
-  en_iyi_strateji = "Veri Yok"
+  en_iyi_strateji = "15M_KLASİK"
   en_yuksek_tutturma = 0.0
   if istatistikler:
     siralI_strat = sorted(istatistikler.items(), key=lambda x: x[1]["tutturma_orani"], reverse=True)
     en_iyi_strateji, en_iyi_veri = siralI_strat[0]
     en_yuksek_tutturma = en_iyi_veri["tutturma_orani"]
 
-  # --- BİLDİRİM GÖNDERİM MANTIĞI ---
+  # --- BİLDİRİM GÖNDERİM MANTIĞI (TEK VE TOPLU ŞABLON) ---
   if toplanan_sinyaller:
     toplanan_sinyaller.sort(key=lambda x: x["puan"], reverse=True)
     zaman_str = datetime.now(TZ_TR).strftime('%d.%m.%Y %H:%M')
 
-    analiz_ozeti = (
-        f"📊 **PROFESYONEL TARAMA RAPORU & ANALİZ**\n"
-        f"🏆 En Başarılı Strateji: `{en_iyi_strateji.upper()}` (Tutturma: %{en_yuksek_tutturma:.1f})\n"
-        f"----------------------------------------"
-    )
-
-    yuksek_sinyaller = [s for s in toplanan_sinyaller if s["puan"] >= 40.0]
-    
-    for s in yuksek_sinyaller:
-      str_metni = "\n".join(s["stratejiler"])
-      hisse_adi_str = s['temiz_isim'].upper()
-      p = s['puan']
-      kz = s['kazanc_yuzde']
+    birlesmis_dict = {}
+    for item in toplanan_sinyaller:
+      hisse = item['temiz_isim']
+      if hisse not in birlesmis_dict:
+        birlesmis_dict[hisse] = {
+            'fiyat': item['fiyat'],
+            'kazanc_yuzde': item['kazanc_yuzde'],
+            'puan': item['puan'],
+            'mfi': item['mfi'],
+            'd_plus': item['d_plus'],
+            'stratejiler': []
+        }
       
-      if p >= 60.0:
-        baslik_tipi = f"🚀🚀🚀 TOP SİNYAL - {p:.1f} Puan"
+      for strat in item['stratejiler']:
+        if strat not in birlesmis_dict[hisse]['stratejiler']:
+          birlesmis_dict[hisse]['stratejiler'].append(strat)
+      
+      if item['puan'] > birlesmis_dict[hisse]['puan']:
+        birlesmis_dict[hisse]['puan'] = item['puan']
+
+    mesaj_satirlari = [
+        "📊 BİST TARAMA RAPORU",
+        f"⏱️ {zaman_str} | En İyi: {en_iyi_strateji.upper()} (%{en_yuksek_tutturma:.1f})",
+        "-" * 40
+    ]
+
+    toplam_hisse_sayisi = len(birlesmis_dict)
+    sirali_hisseler = sorted(birlesmis_dict.items(), key=lambda x: x[1]['puan'], reverse=True)
+
+    for hisse, veri in sirali_hisseler:
+      puan = veri['puan']
+      
+      if puan >= 50.0:
+        roketler = "🚀🚀🚀"
+      elif puan >= 35.0:
+        roketler = "🚀🚀"
       else:
-        baslik_tipi = f"🚀🚀 GÜÇLÜ SİNYAL - {p:.1f} Puan"
+        roketler = "🚀"
 
-      kart = (
-          f"{analiz_ozeti}\n"
-          f"{baslik_tipi}\n"
-          f"📌 Hisse: 🟦 {hisse_adi_str} 🟦 | Fiyat: ₺{s['fiyat']:.2f}\n"
-          f"📈 Sinyalden Beri Getiri: %{kz:+.2f}\n"
-          f"{str_metni}\n"
-          f"----------------------------------------"
-      )
-      send_ntfy(kart, "BIST Zirve Sinyaller")
-      time.sleep(1)
-
-    tek_fuzeliler = [s for s in toplanan_sinyaller if s["puan"] < 40.0]
-    
-    if tek_fuzeliler:
-      birlesmis_dict = {}
-      for item in tek_fuzeliler:
-        hisse = item['temiz_isim']
-        temiz_strat_isimleri = []
-        for st in item['stratejiler']:
-            temiz = st.replace("•", "").strip()
-            if temiz not in temiz_strat_isimleri:
-                temiz_strat_isimleri.append(temiz)
-
-        if hisse in birlesmis_dict:
-            for strat in temiz_strat_isimleri:
-                if strat not in birlesmis_dict[hisse]['stratejiler']:
-                    birlesmis_dict[hisse]['stratejiler'].append(strat)
-            if item['puan'] > birlesmis_dict[hisse]['puan']:
-                birlesmis_dict[hisse]['puan'] = item['puan']
-                birlesmis_dict[hisse]['d_plus'] = item['d_plus']
-                birlesmis_dict[hisse]['mfi'] = item['mfi']
-                birlesmis_dict[hisse]['fiyat'] = item['fiyat']
-                birlesmis_dict[hisse]['kazanc_yuzde'] = item['kazanc_yuzde']
-        else:
-            birlesmis_dict[hisse] = {
-                'fiyat': item['fiyat'],
-                'puan': item['puan'],
-                'kazanc_yuzde': item['kazanc_yuzde'],
-                'd_plus': item['d_plus'],
-                'mfi': item['mfi'],
-                'stratejiler': list(temiz_strat_isimleri)
-            }
-
-      unique_tek_listesi = [{'hisse': k, **v} for k, v in birlesmis_dict.items()]
+      kz = veri['kazanc_yuzde']
+      getiri_str = f"+%{kz:.2f}" if kz >= 0 else f"%{kz:.2f}"
       
-      batch_size = 3
-      total_items = len(unique_tek_listesi)
-      total_packages = math.ceil(total_items / batch_size)
+      satir_1 = f"{roketler} 🟦 **{hisse.upper()}** 🟦 | ₺{veri['fiyat']:.2f} ({getiri_str})"
+      satir_2 = f"• Puan: {puan:.1f} | MFI: {veri['mfi']:.1f} | +DI: {veri['d_plus']:.1f}"
+      taramalar_str = "• " + ", ".join(veri['stratejiler'])
 
-      for i in range(0, total_items, batch_size):
-        chunk = unique_tek_listesi[i:i + batch_size]
-        package_no = (i // batch_size) + 1
-        
-        icerik_listesi = [
-            f"📊 **PROFESYONEL ÖZET** (En İyi Strateji: `{en_iyi_strateji.upper()}` - %{en_yuksek_tutturma:.1f} Başarı)",
-            f"🚀 TEK FÜZELİLER RAPORU (Paket {package_no}/{total_packages}) [{zaman_str}]",
-            "----------------------------------------"
-        ]
-        
-        for item in chunk:
-            hisse = item['hisse'].upper()
-            fiyat = f"{item['fiyat']:.2f} TL"
-            puan = f"{item['puan']:.1f}"
-            kz = f"{item['kazanc_yuzde']:+.2f}%"
-            d_plus = f"{item['d_plus']:.2f}"
-            mfi = f"{item['mfi']:.1f}"
-            strats = ", ".join(item['stratejiler'])
-            
-            satir = (
-                f"🚀 🟦 {hisse} 🟦 : {fiyat} (Getiri: {kz})\n"
-                f"   • Taramalar: {strats}\n"
-                f"   • Puan: {puan} | D+: {d_plus} | MFI: {mfi}"
-            )
-            icerik_listesi.append(satir)
-            
-        icerik_listesi.append("----------------------------------------")
-        toplu_tek_mesaj = "\n".join(icerik_listesi)
-        send_ntfy(toplu_tek_mesaj, "BIST Tek Füze Sinyalleri")
-        time.sleep(1)
+      mesaj_satirlari.append(satir_1)
+      mesaj_satirlari.append(satir_2)
+      mesaj_satirlari.append(taramalar_str)
+      mesaj_satirlari.append("")
+
+    mesaj_satirlari.append("-" * 40)
+    mesaj_satirlari.append(f"*Toplam {toplam_hisse_sayisi} hisse sinyal üretti.*")
+
+    final_mesaj = "\n".join(mesaj_satirlari)
+    send_ntfy(final_mesaj, "BIST Zirve Sinyaller")
 
   print("\nTüm Hisseler 40'ar gruplar halinde tarandı ve süreç tamamlandı.")
 
+  # --- OTOMATİK SAAT 13:00 VE GÜN SONU PERFORMANS KONTROLÜ ---
+  simdi_kontrol = datetime.now(TZ_TR)
+  saat = simdi_kontrol.hour
+  dakika = simdi_kontrol.minute
+  
+  if saat == 13 and 0 <= dakika <= 10:
+    performans_raporu_gonder("Öğle (13:00)")
+    time.sleep(600)
+  elif saat == 18 and 0 <= dakika <= 15:
+    performans_raporu_gonder("Gün Sonu")
+    time.sleep(900)
+
 
 if __name__ == "__main__":
-  print("Tarama sistemi başlatıldı...")
+  print("Tarama ve Performans Takip Sistemi başlatıldı...")
   run_scanner()
