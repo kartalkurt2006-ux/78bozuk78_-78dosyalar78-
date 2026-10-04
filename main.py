@@ -329,7 +329,7 @@ def performans_raporu_gonder(rapor_turu="Gün Sonu"):
   for kural, hisseler in kayitlar.items():
     if isinstance(hisseler, dict):
       for hisse in hisseler.keys():
-        tum_hisseler.add(hisse + ".IS")
+        tum_hisseler.add(hisse if hisse.endswith(".IS") else hisse + ".IS")
 
   if tum_hisseler:
     try:
@@ -337,7 +337,7 @@ def performans_raporu_gonder(rapor_turu="Gün Sonu"):
       for kural, hisseler in kayitlar.items():
         if isinstance(hisseler, dict):
           for hisse, detay in hisseler.items():
-            full_t = hisse + ".IS"
+            full_t = hisse if hisse.endswith(".IS") else hisse + ".IS"
             try:
               sub_f = extract_ticker_df(df_guncel, full_t, list(tum_hisseler))
               if not sub_f.empty and "Close" in sub_f.columns:
@@ -389,13 +389,12 @@ def performans_raporu_gonder(rapor_turu="Gün Sonu"):
       mesaj_satirlari.append(f"• {kural_adi} : **%{tutturma:.1f}** ({g_str})")
     
     mesaj_satirlari.append("----------------------------------------")
-    en_iyiler_str = " | ".join([f"{h.upper()} (%{v['getiri']:+.1f}, {v['gecen_gun']}g)" for h, v in sirali_hisseler[:3]])
+    en_iyiler_str = " | ".join([f"{h.upper().replace('.IS', '')} (%{v['getiri']:+.1f}, {v['gecen_gun']}g)" for h, v in sirali_hisseler[:3]])
     mesaj_satirlari.append(f"📈 **En İyiler:** {en_iyiler_str}")
     
     final_mesaj = "\n".join(mesaj_satirlari)
     send_ntfy(final_mesaj, "BIST Gün Sonu Raporu")
   else:
-    # 4'lü gruplama tasarımı
     grup_boyutu = 4
     for i in range(0, len(sirali_hisseler), grup_boyutu):
       alt_grup = sirali_hisseler[i:i + grup_boyutu]
@@ -413,11 +412,11 @@ def performans_raporu_gonder(rapor_turu="Gün Sonu"):
         g = veri["getiri"]
         g_str = f"+%{g:.2f}" if g >= 0 else f"%{g:.2f}"
         strat_adi = veri["kural"].replace("_", " ").title()
+        temiz_h_adi = hisse.upper().replace(".IS", "")
         
-        # Dün / Son 4S ve strateji etiketleri kırılımı
         zaman_etiketi = "Son 4S" if veri["gecen_saniye"] <= 14400 else "Dün"
         
-        mesaj_satirlari.append(f"• {hisse.upper()}.IS : **{g_str}**")
+        mesaj_satirlari.append(f"• {temiz_h_adi} : **{g_str}**")
         mesaj_satirlari.append(f"  Dün: %0.00 | {zaman_etiketi}: {g_str}")
         mesaj_satirlari.append(f"  ↳ [{strat_adi}]")
         mesaj_satirlari.append("")
@@ -550,7 +549,7 @@ def run_scanner():
             if kural_adi not in tum_hafiza["kayitlar"]:
                 tum_hafiza["kayitlar"][kural_adi] = {}
             
-            mevcut_kayit = tum_hafiza["kayitlar"][kural_adi].get(clean_ticker)
+            mevcut_kayit = tum_hafiza["kayitlar"][kural_adi].get(temiz_isim)
             if mevcut_kayit:
                 mevcut_kayit["son_fiyat"] = guncel_fiyat
                 mevcut_kayit["tekrar_sayisi"] = mevcut_kayit.get("tekrar_sayisi", 1) + 1
@@ -558,7 +557,7 @@ def run_scanner():
                 gecen_saniye_degeri = simdi_epoch - son_zaman
                 gecen_gun_sayisi = max(1, int(gecen_saniye_degeri / (24 * 3600)))
             else:
-                tum_hafiza["kayitlar"][kural_adi][clean_ticker] = {
+                tum_hafiza["kayitlar"][kural_adi][temiz_isim] = {
                     "zaman": simdi_epoch,
                     "ilk_fiyat": guncel_fiyat,
                     "son_fiyat": guncel_fiyat,
@@ -649,7 +648,7 @@ def run_scanner():
         sart_wave_15_erken, konum_yuzde_15_erken = check_wave_margins(df_15m, lookback=3, threshold_pct=0.75)
         if sart_wave_15_erken and (mfi_curr_15 > 55.0) and (plus_di_curr_15 > 20.0):
           if kayit_guncelle("erken_hibrit_1h"):
-            tetiklenen_str.append("ERKEN DELİRDİ")
+            tetiklenen_str.append("Erken Hibrit")
             toplam_puan += 30.0
             son_konum = konum_yuzde_15_erken
 
@@ -657,7 +656,7 @@ def run_scanner():
           if toplam_puan == 0:
             toplam_puan = 30.0
 
-          ilk_f = tum_hafiza["kayitlar"].get(tetiklenen_str[0], {}).get(clean_ticker, {}).get("ilk_fiyat", guncel_fiyat)
+          ilk_f = tum_hafiza["kayitlar"].get(tetiklenen_str[0], {}).get(temiz_isim, {}).get("ilk_fiyat", guncel_fiyat)
           kazanc_yuzde = ((guncel_fiyat - ilk_f) / ilk_f) * 100.0 if ilk_f > 0 else 0.0
 
           if atr_1h_val > 0:
@@ -721,7 +720,7 @@ def run_scanner():
           
           for strat in item['stratejiler']:
             strat_upper = strat.upper()
-            if "ERKEN DELİRDİ" in strat_upper:
+            if "ERKEN HİBRİT" in strat_upper:
               mesaj_satirlari.append(f"• 🔥 {strat} (RVOL:{item['rvol']:.2f}|MFI:{item['mfi']:.1f}|+DI:{item['d_plus']:.1f}|Konum:%{item['konum']:.1f})")
               mesaj_satirlari.append(f"📊 1S ATR: {item['atr']:.2f} | 🛑 Stop: ₺{item['stop']:.2f} | 🎯 Hedef: ₺{item['hedef']:.2f}")
             elif "DELİRDİ 1 SAAT" in strat_upper:
