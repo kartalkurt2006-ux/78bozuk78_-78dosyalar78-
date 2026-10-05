@@ -3,6 +3,7 @@ import json
 import os
 import time
 import math
+import concurrent.futures
 import numpy as np
 import pandas as pd
 import pytz
@@ -241,20 +242,35 @@ def send_ntfy(message, baslik):
     print(f"Ntfy Mesaj Hatası: {e}")
 
 
-def extract_ticker_df(df_chunk, clean_ticker):
+def download_with_retry(chunk, interval, period, max_retries=4):
+  for attempt in range(1, max_retries + 1):
+    try:
+      df_all = yf.download(chunk, period=period, interval=interval, group_by='ticker', progress=False, threads=True)
+      if df_all is not None and not df_all.empty:
+        return df_all
+    except Exception as e:
+      print(f"  [Uyarı] İndirme hatası ({interval}, Deneme {attempt}/{max_retries}): {e}")
+      time.sleep(2 * attempt)
+  return pd.DataFrame()
+
+
+def extract_ticker_df(df_all, clean_ticker, chunk):
   try:
-    if df_chunk is None or df_chunk.empty:
+    if df_all is None or df_all.empty:
       return pd.DataFrame()
 
-    if isinstance(df_chunk.columns, pd.MultiIndex):
-      if clean_ticker in df_chunk.columns.levels[0]:
-        sub_df = df_chunk[clean_ticker].dropna(how="all")
+    if isinstance(df_all.columns, pd.MultiIndex):
+      if clean_ticker in df_all.columns.levels[0]:
+        sub_df = df_all[clean_ticker].dropna(how="all")
         if not sub_df.empty:
           return sub_df
 
-    cols = [col for col in df_chunk.columns if isinstance(col, tuple) and clean_ticker in col]
+    if len(chunk) == 1:
+      return df_all.copy()
+
+    cols = [col for col in df_all.columns if isinstance(col, tuple) and clean_ticker in col]
     if cols:
-      sub_df = df_chunk.xs(clean_ticker, level=0, axis=1).dropna(how="all")
+      sub_df = df_all.xs(clean_ticker, level=0, axis=1).dropna(how="all")
       if not sub_df.empty:
         return sub_df
 
@@ -317,25 +333,19 @@ def performans_raporu_gonder(rapor_turu="Gün Sonu"):
 
   if tum_hisseler:
     try:
-      hisse_listesi = list(tum_hisseler)
-      chunk_size = 40
-      for i in range(0, len(hisse_listesi), chunk_size):
-        chunk = hisse_listesi[i:i + chunk_size]
-        df_guncel = yf.download(chunk, period="5d", interval="15m", group_by='ticker', progress=False, threads=True)
-        for kural, hisseler in kayitlar.items():
-          if isinstance(hisseler, dict):
-            for hisse, detay in hisseler.items():
-              full_t = hisse if hisse.endswith(".IS") else hisse + ".IS"
-              if full_t in chunk:
-                try:
-                  sub_f = extract_ticker_df(df_guncel, full_t)
-                  if not sub_f.empty and "Close" in sub_f.columns:
-                    s_close = sub_f["Close"].dropna()
-                    if not s_close.empty:
-                      detay["son_fiyat"] = float(s_close.iloc[-1])
-                except:
-                  pass
-        time.sleep(0.5)
+      df_guncel = download_with_retry(list(tum_hisseler), "15m", "5d")
+      for kural, hisseler in kayitlar.items():
+        if isinstance(hisseler, dict):
+          for hisse, detay in hisseler.items():
+            full_t = hisse if hisse.endswith(".IS") else hisse + ".IS"
+            try:
+              sub_f = extract_ticker_df(df_guncel, full_t, list(tum_hisseler))
+              if not sub_f.empty and "Close" in sub_f.columns:
+                s_close = sub_f["Close"].dropna()
+                if not s_close.empty:
+                  detay["son_fiyat"] = float(s_close.iloc[-1])
+            except:
+              pass
       hafiza_kaydet(tum_hafiza)
     except Exception as e:
       print(f"Performans raporu fiyat güncelleme hatası: {e}")
@@ -387,7 +397,7 @@ def performans_raporu_gonder(rapor_turu="Gün Sonu"):
       elif kural == "1h_dalga_gorsel":
         kural_adi = "🔵 1 Saat Yakala"
       elif kural == "panik_avcisi_15":
-        kural_adi = "👑👑👑 PANİK AVCISI 15 👑👑👑"
+        kural_adi = "👑 PANİK AVCISI 15"
       else:
         kural_adi = kural.replace("_", " ").title()
         
@@ -409,7 +419,7 @@ def performans_raporu_gonder(rapor_turu="Gün Sonu"):
       elif hkural == "1h_dalga_gorsel":
         h_strat_adi = "🔵 1 Saat Yakala"
       elif hkural == "panik_avcisi_15":
-        h_strat_adi = "👑👑👑 PANİK AVCISI 15 👑👑👑"
+        h_strat_adi = "👑 PANİK AVCISI 15"
       else:
         h_strat_adi = hkural.replace("_", " ").title()
         
@@ -451,7 +461,7 @@ def performans_raporu_gonder(rapor_turu="Gün Sonu"):
         elif kural == "1h_dalga_gorsel":
           strat_adi = "🔵 1 Saat Yakala"
         elif kural == "panik_avcisi_15":
-          strat_adi = "👑👑👑 PANİK AVCISI 15 👑👑👑"
+          strat_adi = "👑 PANİK AVCISI 15"
         else:
           strat_adi = kural.replace("_", " ").title()
           
@@ -479,27 +489,36 @@ def run_scanner():
   is_manual_run = os.environ.get("FORCE_RUN", "false").lower() == "true"
   
   print(
-      f"[{datetime.now(TZ_TR).strftime('%Y-%m-%d %H:%M:%S')}] 40'ar Gruplar Halinde Güvenli"
-      f" Tarama Başlatıldı... (Manuel Mod: {is_manual_run})"
+      f"[{datetime.now(TZ_TR).strftime('%Y-%m-%d %H:%M:%S')}] 40'ar Hisselik Gruplar (Chunks) ile"
+      f" Merkez Tarama Başlatıldı... (Manuel Mod: {is_manual_run})"
   )
 
   tum_hafiza = hafiza_yukle()
   toplanan_sinyaller = []
 
   chunk_size = 40
-  for idx in range(0, len(STOCKS), chunk_size):
-    chunk_stocks = STOCKS[idx:idx + chunk_size]
-    print(f"Grup taranıyor ({idx+1} - {min(idx+size if 'size' in locals() else idx+chunk_size, len(STOCKS))}/{len(STOCKS)})...")
+  stock_chunks = [STOCKS[i:i + chunk_size] for i in range(0, len(STOCKS), chunk_size)]
 
-    try:
-      df_15m_chunk = yf.download(chunk_stocks, period="1mo", interval="15m", group_by='ticker', progress=False, threads=True)
-      df_1h_chunk = yf.download(chunk_stocks, period="2mo", interval="1h", group_by='ticker', progress=False, threads=True)
-    except Exception as e:
-      print(f"Grup veri indirme hatası: {e}")
-      time.sleep(2)
-      continue
+  def fetch_chunk_data(chunk_idx, chunk):
+    print(f"Grup {chunk_idx}/{len(stock_chunks)} indiriliyor ({len(chunk)} hisse)...")
+    df_15m_all = download_with_retry(chunk, "15m", "1mo")
+    time.sleep(0.2)
+    df_1h_all = download_with_retry(chunk, "1h", "2mo")
+    return chunk_idx, chunk, df_15m_all, df_1h_all
 
-    for clean_ticker in chunk_stocks:
+  chunk_results = []
+  with concurrent.futures.ThreadPoolExecutor(max_workers=4) as executor:
+    futures = [executor.submit(fetch_chunk_data, idx, ch) for idx, ch in enumerate(stock_chunks, 1)]
+    for future in concurrent.futures.as_completed(futures):
+      try:
+        chunk_results.append(future.result())
+      except Exception as exc:
+        print(f"Grup indirme sırasında hata: {exc}")
+
+  chunk_results.sort(key=lambda x: x[0])
+
+  for chunk_idx, chunk, df_15m_all, df_1h_all in chunk_results:
+    for clean_ticker in chunk:
       temiz_isim = clean_ticker.replace(".IS", "")
 
       tetiklenen_str = []
@@ -517,8 +536,8 @@ def run_scanner():
       atr_1h_val = 0.0
 
       try:
-        df_15m = extract_ticker_df(df_15m_chunk, clean_ticker)
-        df_1h = extract_ticker_df(df_1h_chunk, clean_ticker)
+        df_15m = extract_ticker_df(df_15m_all, clean_ticker, chunk)
+        df_1h = extract_ticker_df(df_1h_all, clean_ticker, chunk)
 
         if df_15m.empty or df_1h.empty or len(df_15m) < 40 or len(df_1h) < 40:
           continue
@@ -605,19 +624,20 @@ def run_scanner():
 
             return simdi_epoch - son_zaman > COOLDOWN_SECONDS
 
+        # 15 dakikalık Bollinger Bantları Hesaplaması (Periyot: 20, Std: 2)
+        sma_20_15 = close_15.rolling(window=20).mean()
+        std_20_15 = close_15.rolling(window=20).std()
+        upper_band_15 = sma_20_15 + (2 * std_20_15)
+
         # Strateji 1: DELİRDİ 15
         if (rvol_curr_15 >= 1.0) and sart_wave_15 and (mfi_curr_15 > 55) and (plus_di_curr_15 > 25):
           if kayit_guncelle("gitan_15"):
             tetiklenen_str.append("DELİRDİ 15")
             toplam_puan += 35.0
 
-        # Strateji 2: DİP HİBRİT
+        # Strateji 2: DİP HİBRİT (Bollinger Üst Kırılımı + Lookback Entegrasyonu)
         konum_yuzde_1h_curr = check_wave_margins(df_1h, lookback=1)[1]
         
-        sma_20_15 = close_15.rolling(window=20).mean()
-        std_20_15 = close_15.rolling(window=20).std()
-        upper_band_15 = sma_20_15 + (2 * std_20_15)
-
         breakout_detected_15 = False
         for i in range(1, 4):
           if len(close_15) >= i:
@@ -630,7 +650,7 @@ def run_scanner():
             tetiklenen_str.append("DİP HİBRİT")
             toplam_puan += 30.0
 
-        # --- PANİK AVCISI 15 👑👑👑 ---
+        # --- PANİK AVCISI 15 👑👑👑 (Son 4 Barda Orta-Üst Bant Taraması) ---
         atr_15m_series = calculate_atr(df_15m, period=14)
         atr_15m_val = atr_15m_series.iloc[-1] if not atr_15m_series.empty else 0.0
         
@@ -646,8 +666,9 @@ def run_scanner():
         wave_pos_15m_val = ((close_15 - low_15_window) / margin_range_15) * 100.0
         current_wave_15m = wave_pos_15m_val.iloc[-1]
 
+        # Son 4 barda (1 saat) orta bant ile üst bant arasında olma kontrolü
         orta_ust_bant_arasi = False
-        for i in range(1, 5):
+        for i in range(1, 5):  # Son 4 bar (1, 2, 3 ve 4. mumlar)
           if len(close_15) >= i and len(sma_20_15) >= i and len(upper_band_15) >= i:
             c_val = close_15.iloc[-i]
             s_val = sma_20_15.iloc[-i]
@@ -655,20 +676,12 @@ def run_scanner():
             if s_val <= c_val <= u_val:
               orta_ust_bant_arasi = True
               break
-        
-        cmf_prev_15 = cmf_15.iloc[-2] if len(cmf_15) >= 2 else 0.0
-        cmf_panik_cond = (cmf_curr_15 > 0.0) and (cmf_curr_15 > cmf_prev_15)
 
-        mfi_prev_15 = mfi_15.iloc[-2] if len(mfi_15) >= 2 else 0.0
-        mfi_panik_cond = (mfi_curr_15 > 30.0) and (mfi_curr_15 > mfi_prev_15)
-
-        rvol_panik_cond = rvol_curr_15 >= 1.2
-
-        if atr_panik_sart and (0.0 <= current_wave_15m <= 25.0) and orta_ust_bant_arasi and cmf_panik_cond and mfi_panik_cond and rvol_panik_cond:
+        if orta_ust_bant_arasi:
           if kayit_guncelle("panik_avcisi_15"):
-            tetiklenen_str.append("Panik Avcisi 15")
-            toplam_puan += 32.0
-        # -----------------------------
+            tetiklenen_str.append("PANİK AVCISI 15")
+            toplam_puan += 35.0
+            son_konum = current_wave_15m
 
         close_1h = df_1h["Close"]
         high_1h = df_1h["High"]
@@ -776,8 +789,6 @@ def run_scanner():
       except Exception as e:
         print(f"  > Hata oluştu ({clean_ticker}): {e}")
         continue
-        
-    time.sleep(0.5) # Gruplar arası kısa ve güvenli mola
 
   if toplanan_sinyaller:
     tek_fuzeliler = [item for item in toplanan_sinyaller if item['puan'] <= 25.0]
@@ -816,8 +827,8 @@ def run_scanner():
               mesaj_satirlari.append(f"• 💥 DELİRDİ 15 (RVOL:{item['rvol']:.2f}|MFI:{item['mfi']:.1f}|+DI:{item['d_plus']:.1f}|Konum:%{item['konum']:.1f})")
             elif "DİP HİBRİT" in strat_upper or strat == "DİP HİBRİT":
               mesaj_satirlari.append(f"• 🟢 DİP HİBRİT (RVOL:{item['rvol']:.2f}|MFI:{item['mfi']:.1f}|+DI:{item['d_plus']:.1f}|Konum:%{item['konum']:.1f})")
-            elif "PANİK AVCISI 15" in strat_upper or "PANİK" in strat_upper:
-              mesaj_satirlari.append(f"• 👑👑👑 PANİK AVCISI 15 👑👑👑 (RVOL:{item['rvol']:.2f}|MFI:{item['mfi']:.1f}|+DI:{item['d_plus']:.1f}|Konum:%{item['konum']:.1f})")
+            elif "PANİK AVCISI 15" in strat_upper or strat == "PANİK AVCISI 15":
+              mesaj_satirlari.append(f"• 👑 PANİK AVCISI 15 (RVOL:{item['rvol']:.2f}|MFI:{item['mfi']:.1f}|+DI:{item['d_plus']:.1f}|Konum:%{item['konum']:.1f})")
             elif "1 SAAT YAKALA" in strat_upper or strat == "1 Saat Yakala":
               mesaj_satirlari.append(f"• 🔵 1 Saat Yakala (RSI:{item['rsi']:.1f}|+DI:{item['d_plus']:.1f})")
             else:
