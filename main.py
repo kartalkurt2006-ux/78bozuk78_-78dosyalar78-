@@ -380,19 +380,19 @@ def performans_raporu_gonder(rapor_turu="Gün Sonu"):
     return
 
   if "Gün Sonu" in rapor_turu:
-    mesaj_satirlari = ["🏆 **GÜN SONU ÖZETİ**"]
+    mesaj_satirlari = ["🏆 GÜN SONU ÖZETİ"]
     for kural, istatistik in strat_istatistikleri.items():
       tutturma = istatistik["tutturma_orani"]
       ort_g = istatistik["ortalama_getiri"]
       g_str = f"+%{ort_g:.1f}" if ort_g >= 0 else f"%{ort_g:.1f}"
       
-      # Doğru strateji isimlendirme standartları
+      # Doğru strateji isimlendirme standartları (Markdown yıldızları kaldırıldı)
       if kural == "gitan_15":
         kural_adi = "💥 DELİRDİ 15"
       elif kural == "deli_gitan_1h":
         kural_adi = "🟣 DELİRDİ 1 Saat"
       elif kural == "erken_hibrit_1h":
-        kural_adi = "⚡ Erken Hibrit"
+        kural_adi = "⚡ Erken Delirdi"
       elif kural == "dip_hibrit":
         kural_adi = "🟢 DİP HİBRİT"
       elif kural == "1h_dalga_gorsel":
@@ -400,11 +400,31 @@ def performans_raporu_gonder(rapor_turu="Gün Sonu"):
       else:
         kural_adi = kural.replace("_", " ").title()
         
-      mesaj_satirlari.append(f"• {kural_adi} : **%{tutturma:.1f}** ({g_str})")
+      mesaj_satirlari.append(f"• {kural_adi} : %{tutturma:.1f} ({g_str})")
     
     mesaj_satirlari.append("----------------------------------------")
-    en_iyiler_str = " | ".join([f"{h.upper().replace('.IS', '')} (%{v['getiri']:+.1f}, {v['gecen_gun']}g)" for h, v in sirali_hisseler[:3]])
-    mesaj_satirlari.append(f"📈 **En İyiler:** {en_iyiler_str}")
+    
+    en_iyiler_detay = []
+    for h, v in sirali_hisseler[:3]:
+      hkural = v["kural"]
+      if hkural == "gitan_15":
+        h_strat_adi = "💥 DELİRDİ 15"
+      elif hkural == "deli_gitan_1h":
+        h_strat_adi = "🟣 DELİRDİ 1 Saat"
+      elif hkural == "erken_hibrit_1h":
+        h_strat_adi = "⚡ Erken Delirdi"
+      elif hkural == "dip_hibrit":
+        h_strat_adi = "🟢 DİP HİBRİT"
+      elif hkural == "1h_dalga_gorsel":
+        h_strat_adi = "🔵 1 Saat Yakala"
+      else:
+        h_strat_adi = hkural.replace("_", " ").title()
+        
+      temiz_h = h.upper().replace('.IS', '')
+      en_iyiler_detay.append(f"• {temiz_h} : %{v['getiri']:+.1f} ({v['gecen_gun']}g) ↳ [{h_strat_adi}]")
+
+    mesaj_satirlari.append("📈 En İyiler:")
+    mesaj_satirlari.extend(en_iyiler_detay)
     
     final_mesaj = "\n".join(mesaj_satirlari)
     send_ntfy(final_mesaj, "BIST Gün Sonu Raporu")
@@ -432,7 +452,7 @@ def performans_raporu_gonder(rapor_turu="Gün Sonu"):
         elif kural == "deli_gitan_1h":
           strat_adi = "🟣 DELİRDİ 1 Saat"
         elif kural == "erken_hibrit_1h":
-          strat_adi = "⚡ Erken Hibrit"
+          strat_adi = "⚡ Erken Delirdi"
         elif kural == "dip_hibrit":
           strat_adi = "🟢 DİP HİBRİT"
         elif kural == "1h_dalga_gorsel":
@@ -441,10 +461,9 @@ def performans_raporu_gonder(rapor_turu="Gün Sonu"):
           strat_adi = kural.replace("_", " ").title()
           
         temiz_h_adi = hisse.upper().replace(".IS", "")
-        
         zaman_etiketi = "Son 4S" if veri["gecen_saniye"] <= 14400 else "Dün"
         
-        mesaj_satirlari.append(f"• {temiz_h_adi} : **{g_str}**")
+        mesaj_satirlari.append(f"• {temiz_h_adi} : {g_str}")
         mesaj_satirlari.append(f"  Dün: %0.00 | {zaman_etiketi}: {g_str}")
         mesaj_satirlari.append(f"  ↳ [{strat_adi}]")
         mesaj_satirlari.append("")
@@ -676,7 +695,7 @@ def run_scanner():
         sart_wave_15_erken, konum_yuzde_15_erken = check_wave_margins(df_15m, lookback=3, threshold_pct=0.75)
         if sart_wave_15_erken and (mfi_curr_15 > 55.0) and (plus_di_curr_15 > 20.0):
           if kayit_guncelle("erken_hibrit_1h"):
-            tetiklenen_str.append("Erken Hibrit")
+            tetiklenen_str.append("Erken Delirdi")
             toplam_puan += 30.0
             son_konum = konum_yuzde_15_erken
 
@@ -748,8 +767,8 @@ def run_scanner():
           
           for strat in item['stratejiler']:
             strat_upper = strat.upper()
-            if "ERKEN HİBRİT" in strat_upper or strat == "Erken Hibrit":
-              mesaj_satirlari.append(f"• ⚡ Erken Hibrit (RVOL:{item['rvol']:.2f}|MFI:{item['mfi']:.1f}|+DI:{item['d_plus']:.1f}|Konum:%{item['konum']:.1f})")
+            if "ERKEN DELİRDİ" in strat_upper or strat == "Erken Delirdi":
+              mesaj_satirlari.append(f"• ⚡ Erken Delirdi (RVOL:{item['rvol']:.2f}|MFI:{item['mfi']:.1f}|+DI:{item['d_plus']:.1f}|Konum:%{item['konum']:.1f})")
               mesaj_satirlari.append(f"📊 1S ATR: {item['atr']:.2f} | 🛑 Stop: ₺{item['stop']:.2f} | 🎯 Hedef: ₺{item['hedef']:.2f}")
             elif "DELİRDİ 1 SAAT" in strat_upper or strat == "DELİRDİ 1 Saat":
               mesaj_satirlari.append(f"• 🟣 DELİRDİ 1 Saat (RVOL:{item['rvol']:.2f}|MFI:{item['mfi']:.1f}|+DI:{item['d_plus']:.1f}|Konum:%{item['konum']:.1f})")
