@@ -245,7 +245,8 @@ def send_ntfy(message, baslik):
 def download_with_retry(chunk, interval, period, max_retries=4):
   for attempt in range(1, max_retries + 1):
     try:
-      df_all = yf.download(chunk, period=period, interval=interval, group_by='ticker', progress=False, threads=True)
+      # threads=False yapılarak dış thread havuzuyla çakışması engellendi
+      df_all = yf.download(chunk, period=period, interval=interval, group_by='ticker', progress=False, threads=False)
       if df_all is not None and not df_all.empty:
         return df_all
     except Exception as e:
@@ -264,6 +265,10 @@ def extract_ticker_df(df_all, clean_ticker, chunk):
         sub_df = df_all[clean_ticker].dropna(how="all")
         if not sub_df.empty:
           return sub_df
+    else:
+      if clean_ticker in df_all.columns or not df_all.empty:
+        if len(chunk) == 1:
+          return df_all.copy()
 
     if len(chunk) == 1:
       return df_all.copy()
@@ -645,7 +650,7 @@ def run_scanner():
 
         # Son 4 barda (1 saat) orta bant ile üst bant arasında olma kontrolü
         orta_ust_bant_arasi = False
-        for i in range(1, 5):  # Son 4 bar (1, 2, 3 ve 4. mumlar)
+        for i in range(1, 5):  
           if len(close_15) >= i and len(sma_20_15) >= i and len(upper_band_15) >= i:
             c_val = close_15.iloc[-i]
             s_val = sma_20_15.iloc[-i]
