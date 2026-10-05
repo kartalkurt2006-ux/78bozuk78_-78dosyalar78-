@@ -3,7 +3,6 @@ import json
 import os
 import time
 import math
-import concurrent.futures
 import numpy as np
 import pandas as pd
 import pytz
@@ -242,37 +241,20 @@ def send_ntfy(message, baslik):
     print(f"Ntfy Mesaj Hatası: {e}")
 
 
-def download_batch_data(tickers, interval, period):
-  print(f"[{interval}] Tüm BIST hisseleri toplu olarak indiriliyor...")
+def extract_ticker_df(df_chunk, clean_ticker):
   try:
-    df_all = yf.download(
-        tickers, 
-        period=period, 
-        interval=interval, 
-        group_by='ticker', 
-        progress=False, 
-        threads=True
-    )
-    return df_all
-  except Exception as e:
-    print(f"Toplu indirme hatası ({interval}): {e}")
-    return pd.DataFrame()
-
-
-def extract_ticker_df(df_all, clean_ticker):
-  try:
-    if df_all is None or df_all.empty:
+    if df_chunk is None or df_chunk.empty:
       return pd.DataFrame()
 
-    if isinstance(df_all.columns, pd.MultiIndex):
-      if clean_ticker in df_all.columns.levels[0]:
-        sub_df = df_all[clean_ticker].dropna(how="all")
+    if isinstance(df_chunk.columns, pd.MultiIndex):
+      if clean_ticker in df_chunk.columns.levels[0]:
+        sub_df = df_chunk[clean_ticker].dropna(how="all")
         if not sub_df.empty:
           return sub_df
 
-    cols = [col for col in df_all.columns if isinstance(col, tuple) and clean_ticker in col]
+    cols = [col for col in df_chunk.columns if isinstance(col, tuple) and clean_ticker in col]
     if cols:
-      sub_df = df_all.xs(clean_ticker, level=0, axis=1).dropna(how="all")
+      sub_df = df_chunk.xs(clean_ticker, level=0, axis=1).dropna(how="all")
       if not sub_df.empty:
         return sub_df
 
@@ -335,19 +317,25 @@ def performans_raporu_gonder(rapor_turu="Gün Sonu"):
 
   if tum_hisseler:
     try:
-      df_guncel = download_batch_data(list(tum_hisseler), "15m", "5d")
-      for kural, hisseler in kayitlar.items():
-        if isinstance(hisseler, dict):
-          for hisse, detay in hisseler.items():
-            full_t = hisse if hisse.endswith(".IS") else hisse + ".IS"
-            try:
-              sub_f = extract_ticker_df(df_guncel, full_t)
-              if not sub_f.empty and "Close" in sub_f.columns:
-                s_close = sub_f["Close"].dropna()
-                if not s_close.empty:
-                  detay["son_fiyat"] = float(s_close.iloc[-1])
-            except:
-              pass
+      hisse_listesi = list(tum_hisseler)
+      chunk_size = 40
+      for i in range(0, len(hisse_listesi), chunk_size):
+        chunk = hisse_listesi[i:i + chunk_size]
+        df_guncel = yf.download(chunk, period="5d", interval="15m", group_by='ticker', progress=False, threads=True)
+        for kural, hisseler in kayitlar.items():
+          if isinstance(hisseler, dict):
+            for hisse, detay in hisseler.items():
+              full_t = hisse if hisse.endswith(".IS") else hisse + ".IS"
+              if full_t in chunk:
+                try:
+                  sub_f = extract_ticker_df(df_guncel, full_t)
+                  if not sub_f.empty and "Close" in sub_f.columns:
+                    s_close = sub_f["Close"].dropna()
+                    if not s_close.empty:
+                      detay["son_fiyat"] = float(s_close.iloc[-1])
+                except:
+                  pass
+        time.sleep(0.5)
       hafiza_kaydet(tum_hafiza)
     except Exception as e:
       print(f"Performans raporu fiyat güncelleme hatası: {e}")
@@ -491,299 +479,305 @@ def run_scanner():
   is_manual_run = os.environ.get("FORCE_RUN", "false").lower() == "true"
   
   print(
-      f"[{datetime.now(TZ_TR).strftime('%Y-%m-%d %H:%M:%S')}] Tüm BIST Hisseleri Toplu İndirilerek"
+      f"[{datetime.now(TZ_TR).strftime('%Y-%m-%d %H:%M:%S')}] 40'ar Gruplar Halinde Güvenli"
       f" Tarama Başlatıldı... (Manuel Mod: {is_manual_run})"
   )
 
   tum_hafiza = hafiza_yukle()
   toplanan_sinyaller = []
 
-  # Tüm verileri tek seferde toplu çek
-  df_15m_all = download_batch_data(STOCKS, "15m", "1mo")
-  df_1h_all = download_batch_data(STOCKS, "1h", "2mo")
-
-  if df_15m_all.empty or df_1h_all.empty:
-    print("[Hata] Toplu veri indirilemedi. Tarama iptal ediliyor.")
-    return
-
-  for clean_ticker in STOCKS:
-    temiz_isim = clean_ticker.replace(".IS", "")
-
-    tetiklenen_str = []
-    guncel_fiyat = 0.0
-    toplam_puan = 0.0
-    son_d_plus = 0.0
-    son_mfi = 0.0
-    son_rvol = 0.0
-    son_konum = 0.0
-    rsi_curr_1h_val = 0.0
-    gecen_gun_sayisi = 0
-    gecen_saniye_degeri = 0.0
-    stop_seviyesi = 0.0
-    hedef_seviyesi = 0.0
-    atr_1h_val = 0.0
+  chunk_size = 40
+  for idx in range(0, len(STOCKS), chunk_size):
+    chunk_stocks = STOCKS[idx:idx + chunk_size]
+    print(f"Grup taranıyor ({idx+1} - {min(idx+size if 'size' in locals() else idx+chunk_size, len(STOCKS))}/{len(STOCKS)})...")
 
     try:
-      df_15m = extract_ticker_df(df_15m_all, clean_ticker)
-      df_1h = extract_ticker_df(df_1h_all, clean_ticker)
-
-      if df_15m.empty or df_1h.empty or len(df_15m) < 40 or len(df_1h) < 40:
-        continue
-
-      if isinstance(df_15m.columns, pd.MultiIndex):
-        df_15m.columns = df_15m.columns.get_level_values(0)
-      if isinstance(df_1h.columns, pd.MultiIndex):
-        df_1h.columns = df_1h.columns.get_level_values(0)
-
-      close_15 = df_15m["Close"]
-      high_15 = df_15m["High"]
-      low_15 = df_15m["Low"]
-      volume_15 = df_15m["Volume"]
-      
-      if close_15.isna().iloc[-1] or volume_15.isna().iloc[-1]:
-        continue
-
-      close_curr_15 = close_15.iloc[-1]
-      guncel_fiyat = close_curr_15
-
-      delta_15 = close_15.diff()
-      gain_15 = (delta_15.where(delta_15 > 0, 0)).rolling(14).mean()
-      loss_15 = (-delta_15.where(delta_15 < 0, 0)).rolling(14).mean()
-      rs_15 = gain_15 / (loss_15 + 1e-10)
-      rsi_15 = 100 - (100 / (1 + rs_15))
-      rsi_curr_15 = rsi_15.iloc[-1]
-
-      tp_15 = (high_15 + low_15 + close_15) / 3
-      mf_15 = tp_15 * volume_15
-      pos_flow_15 = mf_15.where(tp_15 > tp_15.shift(1), 0).rolling(14).sum()
-      neg_flow_15 = mf_15.where(tp_15 < tp_15.shift(1), 0).rolling(14).sum()
-      mfi_15 = 100 - (100 / (1 + (pos_flow_15 / (neg_flow_15 + 1e-10))))
-      mfi_curr_15 = mfi_15.iloc[-1]
-      son_mfi = mfi_curr_15
-
-      up_move_15 = high_15.diff()
-      down_move_15 = -low_15.diff()
-      plus_dm_15 = up_move_15.where((up_move_15 > down_move_15) & (up_move_15 > 0), 0)
-      minus_dm_15 = down_move_15.where((down_move_15 > up_move_15) & (down_move_15 > 0), 0)
-      tr_15 = pd.concat([high_15 - low_15, (high_15 - close_15.shift()).abs(), (low_15 - close_15.shift()).abs()], axis=1).max(axis=1)
-      tr_smooth_15 = tr_15.rolling(14).sum()
-      plus_di_15 = 100 * (plus_dm_15.rolling(14).sum() / (tr_smooth_15 + 1e-10))
-      minus_di_15 = 100 * (minus_dm_15.rolling(14).sum() / (tr_smooth_15 + 1e-10))
-      plus_di_curr_15 = plus_di_15.iloc[-1]
-      minus_di_curr_15 = minus_di_15.iloc[-1]
-      son_d_plus = plus_di_curr_15
-
-      rvol_15 = volume_15 / volume_15.rolling(20).mean()
-      rvol_curr_15 = rvol_15.iloc[-1]
-      son_rvol = rvol_curr_15
-
-      hma20_15 = calculate_hma(close_15, 20)
-      
-      sart_wave_15, konum_yuzde_15 = check_wave_margins(df_15m, lookback=5, threshold_pct=0.80)
-      son_konum = konum_yuzde_15
-      cmf_15 = calculate_cmf(df_15m, 20)
-      cmf_curr_15 = cmf_15.iloc[-1]
-
-      def kayit_guncelle(kural_adi):
-          nonlocal gecen_gun_sayisi, gecen_saniye_degeri
-          if kural_adi not in tum_hafiza["kayitlar"]:
-              tum_hafiza["kayitlar"][kural_adi] = {}
-          
-          mevcut_kayit = tum_hafiza["kayitlar"][kural_adi].get(temiz_isim)
-          if mevcut_kayit:
-              mevcut_kayit["son_fiyat"] = guncel_fiyat
-              mevcut_kayit["tekrar_sayisi"] = mevcut_kayit.get("tekrar_sayisi", 1) + 1
-              son_zaman = mevcut_kayit.get("zaman", simdi_epoch)
-              gecen_saniye_degeri = simdi_epoch - son_zaman
-              gecen_gun_sayisi = max(1, int(gecen_saniye_degeri / (24 * 3600)))
-          else:
-              tum_hafiza["kayitlar"][kural_adi][temiz_isim] = {
-                  "zaman": simdi_epoch,
-                  "ilk_fiyat": guncel_fiyat,
-                  "son_fiyat": guncel_fiyat,
-                  "tekrar_sayisi": 1
-              }
-              son_zaman = simdi_epoch
-              gecen_saniye_degeri = 0.0
-              gecen_gun_sayisi = 0
-          
-          if is_manual_run:
-              return True
-
-          return simdi_epoch - son_zaman > COOLDOWN_SECONDS
-
-      # Strateji 1: DELİRDİ 15
-      if (rvol_curr_15 >= 1.0) and sart_wave_15 and (mfi_curr_15 > 55) and (plus_di_curr_15 > 25):
-        if kayit_guncelle("gitan_15"):
-          tetiklenen_str.append("DELİRDİ 15")
-          toplam_puan += 35.0
-
-      # Strateji 2: DİP HİBRİT (Bollinger Üst Kırılımı + Lookback Entegrasyonu)
-      konum_yuzde_1h_curr = check_wave_margins(df_1h, lookback=1)[1]
-      
-      sma_20_15 = close_15.rolling(window=20).mean()
-      std_20_15 = close_15.rolling(window=20).std()
-      upper_band_15 = sma_20_15 + (2 * std_20_15)
-
-      breakout_detected_15 = False
-      for i in range(1, 4):
-        if len(close_15) >= i:
-          if close_15.iloc[-i] > upper_band_15.iloc[-i]:
-            breakout_detected_15 = True
-            break
-
-      if (0.0 <= konum_yuzde_1h_curr <= 15.0) and (mfi_curr_15 > 60.0) and (plus_di_curr_15 > 30.0) and (cmf_curr_15 > 0.0) and breakout_detected_15:
-        if kayit_guncelle("dip_hibrit"):
-          tetiklenen_str.append("DİP HİBRİT")
-          toplam_puan += 30.0
-
-      # --- PANİK AVCISI 15 👑👑👑 (Son 4 Barda Orta-Üst Bant Taraması) ---
-      atr_15m_series = calculate_atr(df_15m, period=14)
-      atr_15m_val = atr_15m_series.iloc[-1] if not atr_15m_series.empty else 0.0
-      
-      sma_20_15_val = sma_20_15.iloc[-1] if not sma_20_15.empty else close_15.iloc[-1]
-      upper_band_15_val = upper_band_15.iloc[-1] if not upper_band_15.empty else close_15.iloc[-1]
-      
-      atr_panik_sart = (close_15.iloc[-1] <= (sma_20_15_val - (1.5 * atr_15m_val))) or (close_15.iloc[-1] < close_15.iloc[-5])
-      
-      high_15m_window = high_15.rolling(window=40).max()
-      low_15m_window = low_15.rolling(window=40).min()
-      margin_range_15 = high_15m_window - low_15m_window
-      margin_range_15 = margin_range_15.replace(0, 1e-10)
-      wave_pos_15m_val = ((close_15 - low_15_window) / margin_range_15) * 100.0
-      current_wave_15m = wave_pos_15m_val.iloc[-1]
-
-      # Son 4 barda (1 saat) orta bant ile üst bant arasında olma kontrolü
-      orta_ust_bant_arasi = False
-      for i in range(1, 5):  # Son 4 bar (1, 2, 3 ve 4. mumlar)
-        if len(close_15) >= i and len(sma_20_15) >= i and len(upper_band_15) >= i:
-          c_val = close_15.iloc[-i]
-          s_val = sma_20_15.iloc[-i]
-          u_val = upper_band_15.iloc[-i]
-          if s_val <= c_val <= u_val:
-            orta_ust_bant_arasi = True
-            break
-      
-      cmf_prev_15 = cmf_15.iloc[-2] if len(cmf_15) >= 2 else 0.0
-      cmf_panik_cond = (cmf_curr_15 > 0.0) and (cmf_curr_15 > cmf_prev_15)
-
-      mfi_prev_15 = mfi_15.iloc[-2] if len(mfi_15) >= 2 else 0.0
-      mfi_panik_cond = (mfi_curr_15 > 30.0) and (mfi_curr_15 > mfi_prev_15)
-
-      rvol_panik_cond = rvol_curr_15 >= 1.2
-
-      if atr_panik_sart and (0.0 <= current_wave_15m <= 25.0) and orta_ust_bant_arasi and cmf_panik_cond and mfi_panik_cond and rvol_panik_cond:
-        if kayit_guncelle("panik_avcisi_15"):
-          tetiklenen_str.append("Panik Avcisi 15")
-          toplam_puan += 32.0
-      # ----------------------------------------------------------------------------------
-
-      close_1h = df_1h["Close"]
-      high_1h = df_1h["High"]
-      low_1h = df_1h["Low"]
-      volume_1h = df_1h["Volume"]
-      
-      if close_1h.isna().iloc[-1] or volume_1h.isna().iloc[-1]:
-        continue
-
-      close_curr_1h = close_1h.iloc[-1]
-      if guncel_fiyat == 0.0:
-        guncel_fiyat = close_curr_1h
-
-      delta_1h = close_1h.diff()
-      gain_1h = (delta_1h.where(delta_1h > 0, 0)).rolling(14).mean()
-      loss_1h = (-delta_1h.where(delta_1h < 0, 0)).rolling(14).mean()
-      rs_1h = gain_1h / (loss_1h + 1e-10)
-      rsi_1h = 100 - (100 / (1 + rs_1h))
-      rsi_curr_1h = rsi_1h.iloc[-1]
-      rsi_curr_1h_val = rsi_curr_1h
-
-      tp_1h = (high_1h + low_1h + close_1h) / 3
-      mf_1h = tp_1h * volume_1h
-      pos_flow_1h = mf_1h.where(tp_1h > tp_1h.shift(1), 0).rolling(14).sum()
-      neg_flow_1h = mf_1h.where(tp_1h < tp_1h.shift(1), 0).rolling(14).sum()
-      mfi_1h = 100 - (100 / (1 + (pos_flow_1h / (neg_flow_1h + 1e-10))))
-      mfi_curr_1h = mfi_1h.iloc[-1]
-
-      up_move_1h = high_1h.diff()
-      down_move_1h = -low_1h.diff()
-      plus_dm_1h = up_move_1h.where((up_move_1h > down_move_1h) & (up_move_1h > 0), 0)
-      minus_dm_1h = down_move_1h.where((down_move_1h > up_move_1h) & (down_move_1h > 0), 0)
-      tr_1h = pd.concat([high_1h - low_1h, (high_1h - close_1h.shift()).abs(), (low_1h - close_1h.shift()).abs()], axis=1).max(axis=1)
-      tr_smooth_1h = tr_1h.rolling(14).sum()
-      plus_di_1h = 100 * (plus_dm_1h.rolling(14).sum() / (tr_smooth_1h + 1e-10))
-      plus_di_curr_1h = plus_di_1h.iloc[-1]
-
-      rvol_1h = volume_1h / volume_1h.rolling(20).mean()
-      rvol_curr_1h = rvol_1h.iloc[-1]
-
-      hma20_1h = calculate_hma(close_1h, 20)
-      wave_breakout_1h, _ = check_wave_margins(df_1h, lookback=3, threshold_pct=0.80)
-      fish_1h, trg_1h = calculate_fisher(df_1h, length=9)
-      fish_curr_1h, trg_curr_1h = fish_1h.iloc[-1], trg_1h.iloc[-1]
-
-      atr_1h_series = calculate_atr(df_1h, period=14)
-      atr_1h_val = atr_1h_series.iloc[-1] if not atr_1h_series.empty else 0.0
-
-      # Strateji 3: 1 Saat Yakala
-      if (close_curr_1h > hma20_1h.iloc[-1]) and (rsi_curr_1h > 50) and (plus_di_curr_1h > 25) and wave_breakout_1h:
-        if kayit_guncelle("1h_dalga_gorsel"):
-          tetiklenen_str.append("1 Saat Yakala")
-          toplam_puan += 25.0
-
-      # Strateji 4: DELİRDİ 1 Saat
-      if (close_curr_1h > hma20_1h.iloc[-1]) and (rvol_curr_1h >= 2.0) and wave_breakout_1h:
-        if kayit_guncelle("deli_gitan_1h"):
-          tetiklenen_str.append("DELİRDİ 1 Saat")
-          toplam_puan += 35.0
-
-      # Strateji 5: ERKEN DELİRDİ
-      sart_wave_15_erken, konum_yuzde_15_erken = check_wave_margins(df_15m, lookback=3, threshold_pct=0.75)
-      if sart_wave_15_erken and (mfi_curr_15 > 55.0) and (plus_di_curr_15 > 20.0):
-        if kayit_guncelle("erken_hibrit_1h"):
-          tetiklenen_str.append("Erken Delirdi")
-          toplam_puan += 30.0
-          son_konum = konum_yuzde_15_erken
-
-      if tetiklenen_str:
-        if toplam_puan == 0:
-          toplam_puan = 30.0
-
-        ilk_f = tum_hafiza["kayitlar"].get(tetiklenen_str[0], {}).get(temiz_isim, {}).get("ilk_fiyat", guncel_fiyat)
-        kazanc_yuzde = ((guncel_fiyat - ilk_f) / ilk_f) * 100.0 if ilk_f > 0 else 0.0
-
-        if atr_1h_val > 0:
-          stop_seviyesi = guncel_fiyat - (2.0 * atr_1h_val)
-          hedef_seviyesi = guncel_fiyat + (2.0 * atr_1h_val)
-        else:
-          stop_seviyesi = guncel_fiyat * 0.95
-          hedef_seviyesi = guncel_fiyat * 1.05
-
-        toplanan_sinyaller.append({
-            "temiz_isim": temiz_isim,
-            "fiyat": guncel_fiyat,
-            "kazanc_yuzde": kazanc_yuzde,
-            "puan": toplam_puan,
-            "stratejiler": tetiklenen_str,
-            "d_plus": son_d_plus,
-            "mfi": son_mfi,
-            "rvol": son_rvol,
-            "konum": son_konum,
-            "rsi": rsi_curr_1h_val,
-            "gecen_gun": gecen_gun_sayisi,
-            "gecen_saniye": gecen_saniye_degeri,
-            "stop": stop_seviyesi,
-            "hedef": hedef_seviyesi,
-            "atr": atr_1h_val
-        })
-        hafiza_kaydet(tum_hafiza)
-        print(f"  > {clean_ticker} inceleniyor... 🎯 Sinyal Yakalandı!")
-      else:
-        print(f"  > {clean_ticker} inceleniyor... [Temiz]")
-
+      df_15m_chunk = yf.download(chunk_stocks, period="1mo", interval="15m", group_by='ticker', progress=False, threads=True)
+      df_1h_chunk = yf.download(chunk_stocks, period="2mo", interval="1h", group_by='ticker', progress=False, threads=True)
     except Exception as e:
-      print(f"  > Hata oluştu ({clean_ticker}): {e}")
+      print(f"Grup veri indirme hatası: {e}")
+      time.sleep(2)
       continue
+
+    for clean_ticker in chunk_stocks:
+      temiz_isim = clean_ticker.replace(".IS", "")
+
+      tetiklenen_str = []
+      guncel_fiyat = 0.0
+      toplam_puan = 0.0
+      son_d_plus = 0.0
+      son_mfi = 0.0
+      son_rvol = 0.0
+      son_konum = 0.0
+      rsi_curr_1h_val = 0.0
+      gecen_gun_sayisi = 0
+      gecen_saniye_degeri = 0.0
+      stop_seviyesi = 0.0
+      hedef_seviyesi = 0.0
+      atr_1h_val = 0.0
+
+      try:
+        df_15m = extract_ticker_df(df_15m_chunk, clean_ticker)
+        df_1h = extract_ticker_df(df_1h_chunk, clean_ticker)
+
+        if df_15m.empty or df_1h.empty or len(df_15m) < 40 or len(df_1h) < 40:
+          continue
+
+        if isinstance(df_15m.columns, pd.MultiIndex):
+          df_15m.columns = df_15m.columns.get_level_values(0)
+        if isinstance(df_1h.columns, pd.MultiIndex):
+          df_1h.columns = df_1h.columns.get_level_values(0)
+
+        close_15 = df_15m["Close"]
+        high_15 = df_15m["High"]
+        low_15 = df_15m["Low"]
+        volume_15 = df_15m["Volume"]
+        
+        if close_15.isna().iloc[-1] or volume_15.isna().iloc[-1]:
+          continue
+
+        close_curr_15 = close_15.iloc[-1]
+        guncel_fiyat = close_curr_15
+
+        delta_15 = close_15.diff()
+        gain_15 = (delta_15.where(delta_15 > 0, 0)).rolling(14).mean()
+        loss_15 = (-delta_15.where(delta_15 < 0, 0)).rolling(14).mean()
+        rs_15 = gain_15 / (loss_15 + 1e-10)
+        rsi_15 = 100 - (100 / (1 + rs_15))
+        rsi_curr_15 = rsi_15.iloc[-1]
+
+        tp_15 = (high_15 + low_15 + close_15) / 3
+        mf_15 = tp_15 * volume_15
+        pos_flow_15 = mf_15.where(tp_15 > tp_15.shift(1), 0).rolling(14).sum()
+        neg_flow_15 = mf_15.where(tp_15 < tp_15.shift(1), 0).rolling(14).sum()
+        mfi_15 = 100 - (100 / (1 + (pos_flow_15 / (neg_flow_15 + 1e-10))))
+        mfi_curr_15 = mfi_15.iloc[-1]
+        son_mfi = mfi_curr_15
+
+        up_move_15 = high_15.diff()
+        down_move_15 = -low_15.diff()
+        plus_dm_15 = up_move_15.where((up_move_15 > down_move_15) & (up_move_15 > 0), 0)
+        minus_dm_15 = down_move_15.where((down_move_15 > up_move_15) & (down_move_15 > 0), 0)
+        tr_15 = pd.concat([high_15 - low_15, (high_15 - close_15.shift()).abs(), (low_15 - close_15.shift()).abs()], axis=1).max(axis=1)
+        tr_smooth_15 = tr_15.rolling(14).sum()
+        plus_di_15 = 100 * (plus_dm_15.rolling(14).sum() / (tr_smooth_15 + 1e-10))
+        minus_di_15 = 100 * (minus_dm_15.rolling(14).sum() / (tr_smooth_15 + 1e-10))
+        plus_di_curr_15 = plus_di_15.iloc[-1]
+        minus_di_curr_15 = minus_di_15.iloc[-1]
+        son_d_plus = plus_di_curr_15
+
+        rvol_15 = volume_15 / volume_15.rolling(20).mean()
+        rvol_curr_15 = rvol_15.iloc[-1]
+        son_rvol = rvol_curr_15
+
+        hma20_15 = calculate_hma(close_15, 20)
+        
+        sart_wave_15, konum_yuzde_15 = check_wave_margins(df_15m, lookback=5, threshold_pct=0.80)
+        son_konum = konum_yuzde_15
+        cmf_15 = calculate_cmf(df_15m, 20)
+        cmf_curr_15 = cmf_15.iloc[-1]
+
+        def kayit_guncelle(kural_adi):
+            nonlocal gecen_gun_sayisi, gecen_saniye_degeri
+            if kural_adi not in tum_hafiza["kayitlar"]:
+                tum_hafiza["kayitlar"][kural_adi] = {}
+            
+            mevcut_kayit = tum_hafiza["kayitlar"][kural_adi].get(temiz_isim)
+            if mevcut_kayit:
+                mevcut_kayit["son_fiyat"] = guncel_fiyat
+                mevcut_kayit["tekrar_sayisi"] = mevcut_kayit.get("tekrar_sayisi", 1) + 1
+                son_zaman = mevcut_kayit.get("zaman", simdi_epoch)
+                gecen_saniye_degeri = simdi_epoch - son_zaman
+                gecen_gun_sayisi = max(1, int(gecen_saniye_degeri / (24 * 3600)))
+            else:
+                tum_hafiza["kayitlar"][kural_adi][temiz_isim] = {
+                    "zaman": simdi_epoch,
+                    "ilk_fiyat": guncel_fiyat,
+                    "son_fiyat": guncel_fiyat,
+                    "tekrar_sayisi": 1
+                }
+                son_zaman = simdi_epoch
+                gecen_saniye_degeri = 0.0
+                gecen_gun_sayisi = 0
+            
+            if is_manual_run:
+                return True
+
+            return simdi_epoch - son_zaman > COOLDOWN_SECONDS
+
+        # Strateji 1: DELİRDİ 15
+        if (rvol_curr_15 >= 1.0) and sart_wave_15 and (mfi_curr_15 > 55) and (plus_di_curr_15 > 25):
+          if kayit_guncelle("gitan_15"):
+            tetiklenen_str.append("DELİRDİ 15")
+            toplam_puan += 35.0
+
+        # Strateji 2: DİP HİBRİT
+        konum_yuzde_1h_curr = check_wave_margins(df_1h, lookback=1)[1]
+        
+        sma_20_15 = close_15.rolling(window=20).mean()
+        std_20_15 = close_15.rolling(window=20).std()
+        upper_band_15 = sma_20_15 + (2 * std_20_15)
+
+        breakout_detected_15 = False
+        for i in range(1, 4):
+          if len(close_15) >= i:
+            if close_15.iloc[-i] > upper_band_15.iloc[-i]:
+              breakout_detected_15 = True
+              break
+
+        if (0.0 <= konum_yuzde_1h_curr <= 15.0) and (mfi_curr_15 > 60.0) and (plus_di_curr_15 > 30.0) and (cmf_curr_15 > 0.0) and breakout_detected_15:
+          if kayit_guncelle("dip_hibrit"):
+            tetiklenen_str.append("DİP HİBRİT")
+            toplam_puan += 30.0
+
+        # --- PANİK AVCISI 15 👑👑👑 ---
+        atr_15m_series = calculate_atr(df_15m, period=14)
+        atr_15m_val = atr_15m_series.iloc[-1] if not atr_15m_series.empty else 0.0
+        
+        sma_20_15_val = sma_20_15.iloc[-1] if not sma_20_15.empty else close_15.iloc[-1]
+        upper_band_15_val = upper_band_15.iloc[-1] if not upper_band_15.empty else close_15.iloc[-1]
+        
+        atr_panik_sart = (close_15.iloc[-1] <= (sma_20_15_val - (1.5 * atr_15m_val))) or (close_15.iloc[-1] < close_15.iloc[-5])
+        
+        high_15m_window = high_15.rolling(window=40).max()
+        low_15m_window = low_15.rolling(window=40).min()
+        margin_range_15 = high_15m_window - low_15m_window
+        margin_range_15 = margin_range_15.replace(0, 1e-10)
+        wave_pos_15m_val = ((close_15 - low_15_window) / margin_range_15) * 100.0
+        current_wave_15m = wave_pos_15m_val.iloc[-1]
+
+        orta_ust_bant_arasi = False
+        for i in range(1, 5):
+          if len(close_15) >= i and len(sma_20_15) >= i and len(upper_band_15) >= i:
+            c_val = close_15.iloc[-i]
+            s_val = sma_20_15.iloc[-i]
+            u_val = upper_band_15.iloc[-i]
+            if s_val <= c_val <= u_val:
+              orta_ust_bant_arasi = True
+              break
+        
+        cmf_prev_15 = cmf_15.iloc[-2] if len(cmf_15) >= 2 else 0.0
+        cmf_panik_cond = (cmf_curr_15 > 0.0) and (cmf_curr_15 > cmf_prev_15)
+
+        mfi_prev_15 = mfi_15.iloc[-2] if len(mfi_15) >= 2 else 0.0
+        mfi_panik_cond = (mfi_curr_15 > 30.0) and (mfi_curr_15 > mfi_prev_15)
+
+        rvol_panik_cond = rvol_curr_15 >= 1.2
+
+        if atr_panik_sart and (0.0 <= current_wave_15m <= 25.0) and orta_ust_bant_arasi and cmf_panik_cond and mfi_panik_cond and rvol_panik_cond:
+          if kayit_guncelle("panik_avcisi_15"):
+            tetiklenen_str.append("Panik Avcisi 15")
+            toplam_puan += 32.0
+        # -----------------------------
+
+        close_1h = df_1h["Close"]
+        high_1h = df_1h["High"]
+        low_1h = df_1h["Low"]
+        volume_1h = df_1h["Volume"]
+        
+        if close_1h.isna().iloc[-1] or volume_1h.isna().iloc[-1]:
+          continue
+
+        close_curr_1h = close_1h.iloc[-1]
+        if guncel_fiyat == 0.0:
+          guncel_fiyat = close_curr_1h
+
+        delta_1h = close_1h.diff()
+        gain_1h = (delta_1h.where(delta_1h > 0, 0)).rolling(14).mean()
+        loss_1h = (-delta_1h.where(delta_1h < 0, 0)).rolling(14).mean()
+        rs_1h = gain_1h / (loss_1h + 1e-10)
+        rsi_1h = 100 - (100 / (1 + rs_1h))
+        rsi_curr_1h = rsi_1h.iloc[-1]
+        rsi_curr_1h_val = rsi_curr_1h
+
+        tp_1h = (high_1h + low_1h + close_1h) / 3
+        mf_1h = tp_1h * volume_1h
+        pos_flow_1h = mf_1h.where(tp_1h > tp_1h.shift(1), 0).rolling(14).sum()
+        neg_flow_1h = mf_1h.where(tp_1h < tp_1h.shift(1), 0).rolling(14).sum()
+        mfi_1h = 100 - (100 / (1 + (pos_flow_1h / (neg_flow_1h + 1e-10))))
+        mfi_curr_1h = mfi_1h.iloc[-1]
+
+        up_move_1h = high_1h.diff()
+        down_move_1h = -low_1h.diff()
+        plus_dm_1h = up_move_1h.where((up_move_1h > down_move_1h) & (up_move_1h > 0), 0)
+        minus_dm_1h = down_move_1h.where((down_move_1h > up_move_1h) & (down_move_1h > 0), 0)
+        tr_1h = pd.concat([high_1h - low_1h, (high_1h - close_1h.shift()).abs(), (low_1h - close_1h.shift()).abs()], axis=1).max(axis=1)
+        tr_smooth_1h = tr_1h.rolling(14).sum()
+        plus_di_1h = 100 * (plus_dm_1h.rolling(14).sum() / (tr_smooth_1h + 1e-10))
+        plus_di_curr_1h = plus_di_1h.iloc[-1]
+
+        rvol_1h = volume_1h / volume_1h.rolling(20).mean()
+        rvol_curr_1h = rvol_1h.iloc[-1]
+
+        hma20_1h = calculate_hma(close_1h, 20)
+        wave_breakout_1h, _ = check_wave_margins(df_1h, lookback=3, threshold_pct=0.80)
+        fish_1h, trg_1h = calculate_fisher(df_1h, length=9)
+        fish_curr_1h, trg_curr_1h = fish_1h.iloc[-1], trg_1h.iloc[-1]
+
+        atr_1h_series = calculate_atr(df_1h, period=14)
+        atr_1h_val = atr_1h_series.iloc[-1] if not atr_1h_series.empty else 0.0
+
+        # Strateji 3: 1 Saat Yakala
+        if (close_curr_1h > hma20_1h.iloc[-1]) and (rsi_curr_1h > 50) and (plus_di_curr_1h > 25) and wave_breakout_1h:
+          if kayit_guncelle("1h_dalga_gorsel"):
+            tetiklenen_str.append("1 Saat Yakala")
+            toplam_puan += 25.0
+
+        # Strateji 4: DELİRDİ 1 Saat
+        if (close_curr_1h > hma20_1h.iloc[-1]) and (rvol_curr_1h >= 2.0) and wave_breakout_1h:
+          if kayit_guncelle("deli_gitan_1h"):
+            tetiklenen_str.append("DELİRDİ 1 Saat")
+            toplam_puan += 35.0
+
+        # Strateji 5: ERKEN DELİRDİ
+        sart_wave_15_erken, konum_yuzde_15_erken = check_wave_margins(df_15m, lookback=3, threshold_pct=0.75)
+        if sart_wave_15_erken and (mfi_curr_15 > 55.0) and (plus_di_curr_15 > 20.0):
+          if kayit_guncelle("erken_hibrit_1h"):
+            tetiklenen_str.append("Erken Delirdi")
+            toplam_puan += 30.0
+            son_konum = konum_yuzde_15_erken
+
+        if tetiklenen_str:
+          if toplam_puan == 0:
+            toplam_puan = 30.0
+
+          ilk_f = tum_hafiza["kayitlar"].get(tetiklenen_str[0], {}).get(temiz_isim, {}).get("ilk_fiyat", guncel_fiyat)
+          kazanc_yuzde = ((guncel_fiyat - ilk_f) / ilk_f) * 100.0 if ilk_f > 0 else 0.0
+
+          if atr_1h_val > 0:
+            stop_seviyesi = guncel_fiyat - (2.0 * atr_1h_val)
+            hedef_seviyesi = guncel_fiyat + (2.0 * atr_1h_val)
+          else:
+            stop_seviyesi = guncel_fiyat * 0.95
+            hedef_seviyesi = guncel_fiyat * 1.05
+
+          toplanan_sinyaller.append({
+              "temiz_isim": temiz_isim,
+              "fiyat": guncel_fiyat,
+              "kazanc_yuzde": kazanc_yuzde,
+              "puan": toplam_puan,
+              "stratejiler": tetiklenen_str,
+              "d_plus": son_d_plus,
+              "mfi": son_mfi,
+              "rvol": son_rvol,
+              "konum": son_konum,
+              "rsi": rsi_curr_1h_val,
+              "gecen_gun": gecen_gun_sayisi,
+              "gecen_saniye": gecen_saniye_degeri,
+              "stop": stop_seviyesi,
+              "hedef": hedef_seviyesi,
+              "atr": atr_1h_val
+          })
+          hafiza_kaydet(tum_hafiza)
+          print(f"  > {clean_ticker} inceleniyor... 🎯 Sinyal Yakalandı!")
+        else:
+          print(f"  > {clean_ticker} inceleniyor... [Temiz]")
+
+      except Exception as e:
+        print(f"  > Hata oluştu ({clean_ticker}): {e}")
+        continue
+        
+    time.sleep(0.5) # Gruplar arası kısa ve güvenli mola
 
   if toplanan_sinyaller:
     tek_fuzeliler = [item for item in toplanan_sinyaller if item['puan'] <= 25.0]
