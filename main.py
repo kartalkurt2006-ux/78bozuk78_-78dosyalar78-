@@ -386,7 +386,6 @@ def performans_raporu_gonder(rapor_turu="Gün Sonu"):
       ort_g = istatistik["ortalama_getiri"]
       g_str = f"+%{ort_g:.1f}" if ort_g >= 0 else f"%{ort_g:.1f}"
       
-      # Doğru strateji isimlendirme standartları (Markdown yıldızları kaldırıldı)
       if kural == "gitan_15":
         kural_adi = "💥 DELİRDİ 15"
       elif kural == "deli_gitan_1h":
@@ -625,9 +624,23 @@ def run_scanner():
             tetiklenen_str.append("DELİRDİ 15")
             toplam_puan += 35.0
 
-        # Strateji 2: DİP HİBRİT
+        # Strateji 2: DİP HİBRİT (Bollinger Üst Kırılımı + Lookback Entegrasyonu)
         konum_yuzde_1h_curr = check_wave_margins(df_1h, lookback=1)[1]
-        if (0.0 <= konum_yuzde_1h_curr <= 15.0) and (mfi_curr_15 > 60.0) and (plus_di_curr_15 > 30.0) and (cmf_curr_15 > 0.0):
+        
+        # 15 dakikalık Bollinger Bantları Hesaplaması (Periyot: 20, Std: 2)
+        sma_20_15 = close_15.rolling(window=20).mean()
+        std_20_15 = close_15.rolling(window=20).std()
+        upper_band_15 = sma_20_15 + (2 * std_20_15)
+
+        # Son 3 mum içerisinde (iloc[-1], iloc[-2], iloc[-3]) kapanışla üst bant kırılımı (breakout) kontrolü
+        breakout_detected_15 = False
+        for i in range(1, 4):
+          if len(close_15) >= i:
+            if close_15.iloc[-i] > upper_band_15.iloc[-i]:
+              breakout_detected_15 = True
+              break
+
+        if (0.0 <= konum_yuzde_1h_curr <= 15.0) and (mfi_curr_15 > 60.0) and (plus_di_curr_15 > 30.0) and (cmf_curr_15 > 0.0) and breakout_detected_15:
           if kayit_guncelle("dip_hibrit"):
             tetiklenen_str.append("DİP HİBRİT")
             toplam_puan += 30.0
