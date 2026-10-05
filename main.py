@@ -548,6 +548,13 @@ def run_scanner():
             tetiklenen_str.append("DİP HİBRİT")
             toplam_puan += 30.0
 
+        # Strateji 6: PANİK AVCISI 15 (Yeni Entegrasyon)
+        # Şartlar: 15 dakikalık grafikte dip bölgeler veya ani dökülme sonrası toparlanma ve hacim artışı
+        if (0.0 <= konum_yuzde_15 <= 20.0) and (rvol_curr_15 >= 1.5) and (mfi_curr_15 < 40.0) and (plus_di_curr_15 > 20.0):
+          if kayit_guncelle("panik_avcisi_15"):
+            tetiklenen_str.append("PANİK AVCISI 15")
+            toplam_puan += 32.0
+
         close_1h = df_1h["Close"]
         high_1h = df_1h["High"]
         low_1h = df_1h["Low"]
@@ -665,7 +672,9 @@ def run_scanner():
           
           for strat in item['stratejiler']:
             strat_upper = strat.upper()
-            if "ERKEN DELİRDİ" in strat_upper:
+            if "PANİK AVCISI 15" in strat_upper:
+              mesaj_satirlari.append(f"• 🛡️ {strat} (RVOL:{item['rvol']:.2f}|MFI:{item['mfi']:.1f}|+DI:{item['d_plus']:.1f}|Konum:%{item['konum']:.1f})")
+            elif "ERKEN DELİRDİ" in strat_upper:
               mesaj_satirlari.append(f"• 🔥 {strat} (RVOL:{item['rvol']:.2f}|MFI:{item['mfi']:.1f}|+DI:{item['d_plus']:.1f}|Konum:%{item['konum']:.1f})")
             elif "DELİRDİ 1 SAAT" in strat_upper:
               mesaj_satirlari.append(f"• ⚠️ {strat} (RVOL:{item['rvol']:.2f}|MFI:{item['mfi']:.1f}|+DI:{item['d_plus']:.1f}|Konum:%{item['konum']:.1f})")
