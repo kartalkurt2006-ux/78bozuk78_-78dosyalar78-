@@ -649,22 +649,24 @@ def run_scanner():
             tetiklenen_str.append("DİP HİBRİT")
             toplam_puan += 30.0
 
-        # --- PANİK AVCISI 15 👑👑👑 (ATR 1.5 & RVOL 1.2 Tabanlı) ---
+        # --- PANİK AVCISI 15 👑👑👑 (Orta Bant - Üst Bant Arası Esnetilmiş Yapı) ---
         atr_15m_series = calculate_atr(df_15m, period=14)
         atr_15m_val = atr_15m_series.iloc[-1] if not atr_15m_series.empty else 0.0
         
         sma_20_15_val = sma_20_15.iloc[-1] if not sma_20_15.empty else close_15.iloc[-1]
+        upper_band_15_val = upper_band_15.iloc[-1] if not upper_band_15.empty else close_15.iloc[-1]
         
         atr_panik_sart = (close_15.iloc[-1] <= (sma_20_15_val - (1.5 * atr_15m_val))) or (close_15.iloc[-1] < close_15.iloc[-5])
         
         high_15m_window = high_15.rolling(window=40).max()
         low_15m_window = low_15.rolling(window=40).min()
-        margin_range_15 = high_15_window - low_15_window
+        margin_range_15 = high_15m_window - low_15m_window
         margin_range_15 = margin_range_15.replace(0, 1e-10)
         wave_pos_15m_val = ((close_15 - low_15_window) / margin_range_15) * 100.0
         current_wave_15m = wave_pos_15m_val.iloc[-1]
 
-        bb_breakout_panik = (close_15.iloc[-1] > upper_band_15.iloc[-1]) and (close_15.iloc[-2] <= upper_band_15.iloc[-2])
+        # Esnetilmiş Koşul: Fiyat Orta Bant (SMA 20) ile Üst Bant arasında olmalı
+        orta_ust_bant_arasi = (close_15.iloc[-1] >= sma_20_15_val) and (close_15.iloc[-1] <= upper_band_15_val)
         
         cmf_prev_15 = cmf_15.iloc[-2] if len(cmf_15) >= 2 else 0.0
         cmf_panik_cond = (cmf_curr_15 > 0.0) and (cmf_curr_15 > cmf_prev_15)
@@ -674,7 +676,7 @@ def run_scanner():
 
         rvol_panik_cond = rvol_curr_15 >= 1.2
 
-        if atr_panik_sart and (0.0 <= current_wave_15m <= 25.0) and bb_breakout_panik and cmf_panik_cond and mfi_panik_cond and rvol_panik_cond:
+        if atr_panik_sart and (0.0 <= current_wave_15m <= 25.0) and orta_ust_bant_arasi and cmf_panik_cond and mfi_panik_cond and rvol_panik_cond:
           if kayit_guncelle("panik_avcisi_15"):
             tetiklenen_str.append("Panik Avcisi 15")
             toplam_puan += 32.0
