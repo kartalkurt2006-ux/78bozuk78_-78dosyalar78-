@@ -379,28 +379,25 @@ def performans_raporu_gonder(rapor_turu="Gün Sonu"):
     print("Rapor oluşturuldu ancak listelenecek aktif sinyal/getiri verisi bulunamadı.")
     return
 
+  def kural_adi_cevir(kural):
+    mapping = {
+        "gitan_15": "💥 DELİRDİ 15",
+        "deli_gitan_1h": "🟣 DELİRDİ 1 Saat",
+        "erken_hibrit_1h": "⚡ Erken Delirdi",
+        "dip_hibrit": "🟢 DİP HİBRİT",
+        "1h_dalga_gorsel": "🔵 1 Saat Yakala",
+        "panik_avcisi_15": "👑 PANİK AVCISI 15",
+        "hacimli_dip_avcisi_15": "🔥 HACİMLİ DİP AVCISI 15"
+    }
+    return mapping.get(kural, kural.replace("_", " ").title())
+
   if "Gün Sonu" in rapor_turu:
     mesaj_satirlari = ["🏆 GÜN SONU ÖZETİ"]
     for kural, istatistik in strat_istatistikleri.items():
       tutturma = istatistik["tutturma_orani"]
       ort_g = istatistik["ortalama_getiri"]
       g_str = f"+%{ort_g:.1f}" if ort_g >= 0 else f"%{ort_g:.1f}"
-      
-      if kural == "gitan_15":
-        kural_adi = "💥 DELİRDİ 15"
-      elif kural == "deli_gitan_1h":
-        kural_adi = "🟣 DELİRDİ 1 Saat"
-      elif kural == "erken_hibrit_1h":
-        kural_adi = "⚡ Erken Delirdi"
-      elif kural == "dip_hibrit":
-        kural_adi = "🟢 DİP HİBRİT"
-      elif kural == "1h_dalga_gorsel":
-        kural_adi = "🔵 1 Saat Yakala"
-      elif kural == "panik_avcisi_15":
-        kural_adi = "👑 PANİK AVCISI 15"
-      else:
-        kural_adi = kural.replace("_", " ").title()
-        
+      kural_adi = kural_adi_cevir(kural)
       mesaj_satirlari.append(f"• {kural_adi} : %{tutturma:.1f} ({g_str})")
     
     mesaj_satirlari.append("----------------------------------------")
@@ -408,21 +405,7 @@ def performans_raporu_gonder(rapor_turu="Gün Sonu"):
     en_iyiler_detay = []
     for h, v in sirali_hisseler[:3]:
       hkural = v["kural"]
-      if hkural == "gitan_15":
-        h_strat_adi = "💥 DELİRDİ 15"
-      elif hkural == "deli_gitan_1h":
-        h_strat_adi = "🟣 DELİRDİ 1 Saat"
-      elif hkural == "erken_hibrit_1h":
-        h_strat_adi = "⚡ Erken Delirdi"
-      elif hkural == "dip_hibrit":
-        h_strat_adi = "🟢 DİP HİBRİT"
-      elif hkural == "1h_dalga_gorsel":
-        h_strat_adi = "🔵 1 Saat Yakala"
-      elif hkural == "panik_avcisi_15":
-        h_strat_adi = "👑 PANİK AVCISI 15"
-      else:
-        h_strat_adi = hkural.replace("_", " ").title()
-        
+      h_strat_adi = kural_adi_cevir(hkural)
       temiz_h = h.upper().replace('.IS', '')
       en_iyiler_detay.append(f"• {temiz_h} : %{v['getiri']:+.1f} ({v['gecen_gun']}g) ↳ [{h_strat_adi}]")
 
@@ -450,20 +433,7 @@ def performans_raporu_gonder(rapor_turu="Gün Sonu"):
         g_str = f"+%{g:.2f}" if g >= 0 else f"%{g:.2f}"
         
         kural = veri["kural"]
-        if kural == "gitan_15":
-          strat_adi = "💥 DELİRDİ 15"
-        elif kural == "deli_gitan_1h":
-          strat_adi = "🟣 DELİRDİ 1 Saat"
-        elif kural == "erken_hibrit_1h":
-          strat_adi = "⚡ Erken Delirdi"
-        elif kural == "dip_hibrit":
-          strat_adi = "🟢 DİP HİBRİT"
-        elif kural == "1h_dalga_gorsel":
-          strat_adi = "🔵 1 Saat Yakala"
-        elif kural == "panik_avcisi_15":
-          strat_adi = "👑 PANİK AVCISI 15"
-        else:
-          strat_adi = kural.replace("_", " ").title()
+        strat_adi = kural_adi_cevir(kural)
           
         temiz_h_adi = hisse.upper().replace(".IS", "")
         zaman_etiketi = "Son 4S" if veri["gecen_saniye"] <= 14400 else "Dün"
@@ -650,6 +620,20 @@ def run_scanner():
             tetiklenen_str.append("DİP HİBRİT")
             toplam_puan += 30.0
 
+        # --- YENİ STRATEJİ: HACİMLİ DİP AVCISI 15 ---
+        high_15m_window = high_15.rolling(window=40).max()
+        low_15m_window = low_15.rolling(window=40).min()
+        margin_range_15 = high_15m_window - low_15m_window
+        margin_range_15 = margin_range_15.replace(0, 1e-10)
+        wave_pos_15m_val = ((close_15 - low_15_window) / margin_range_15) * 100.0
+        current_wave_15m = wave_pos_15m_val.iloc[-1]
+
+        if (current_wave_15m <= 15.0) and (rvol_curr_15 >= 1.5) and (mfi_curr_15 > 45.0) and (plus_di_curr_15 > 20.0):
+          if kayit_guncelle("hacimli_dip_avcisi_15"):
+            tetiklenen_str.append("HACİMLİ DİP AVCISI 15")
+            toplam_puan += 35.0
+            son_konum = current_wave_15m
+
         # --- PANİK AVCISI 15 👑👑👑 (Son 4 Barda Orta-Üst Bant Taraması) ---
         atr_15m_series = calculate_atr(df_15m, period=14)
         atr_15m_val = atr_15m_series.iloc[-1] if not atr_15m_series.empty else 0.0
@@ -658,13 +642,6 @@ def run_scanner():
         upper_band_15_val = upper_band_15.iloc[-1] if not upper_band_15.empty else close_15.iloc[-1]
         
         atr_panik_sart = (close_15.iloc[-1] <= (sma_20_15_val - (1.5 * atr_15m_val))) or (close_15.iloc[-1] < close_15.iloc[-5])
-        
-        high_15m_window = high_15.rolling(window=40).max()
-        low_15m_window = low_15.rolling(window=40).min()
-        margin_range_15 = high_15m_window - low_15m_window
-        margin_range_15 = margin_range_15.replace(0, 1e-10)
-        wave_pos_15m_val = ((close_15 - low_15_window) / margin_range_15) * 100.0
-        current_wave_15m = wave_pos_15m_val.iloc[-1]
 
         # Son 4 barda (1 saat) orta bant ile üst bant arasında olma kontrolü
         orta_ust_bant_arasi = False
@@ -827,6 +804,8 @@ def run_scanner():
               mesaj_satirlari.append(f"• 💥 DELİRDİ 15 (RVOL:{item['rvol']:.2f}|MFI:{item['mfi']:.1f}|+DI:{item['d_plus']:.1f}|Konum:%{item['konum']:.1f})")
             elif "DİP HİBRİT" in strat_upper or strat == "DİP HİBRİT":
               mesaj_satirlari.append(f"• 🟢 DİP HİBRİT (RVOL:{item['rvol']:.2f}|MFI:{item['mfi']:.1f}|+DI:{item['d_plus']:.1f}|Konum:%{item['konum']:.1f})")
+            elif "HACİMLİ DİP AVCISI 15" in strat_upper or strat == "HACİMLİ DİP AVCISI 15":
+              mesaj_satirlari.append(f"• 🔥 HACİMLİ DİP AVCISI 15 (RVOL:{item['rvol']:.2f}|MFI:{item['mfi']:.1f}|+DI:{item['d_plus']:.1f}|Konum:%{item['konum']:.1f})")
             elif "PANİK AVCISI 15" in strat_upper or strat == "PANİK AVCISI 15":
               mesaj_satirlari.append(f"• 👑 PANİK AVCISI 15 (RVOL:{item['rvol']:.2f}|MFI:{item['mfi']:.1f}|+DI:{item['d_plus']:.1f}|Konum:%{item['konum']:.1f})")
             elif "1 SAAT YAKALA" in strat_upper or strat == "1 Saat Yakala":
