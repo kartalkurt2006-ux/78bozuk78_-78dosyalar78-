@@ -443,6 +443,7 @@ def run_scanner():
       guncel_fiyat = 0.0
       toplam_puan = 0.0
       son_d_plus = 0.0
+      son_d_minus = 0.0
       son_mfi = 0.0
       son_rvol = 0.0
       son_konum = 0.0
@@ -498,6 +499,7 @@ def run_scanner():
         plus_di_curr_15 = plus_di_15.iloc[-1]
         minus_di_curr_15 = minus_di_15.iloc[-1]
         son_d_plus = plus_di_curr_15
+        son_d_minus = minus_di_curr_15
 
         rvol_15 = volume_15 / volume_15.rolling(20).mean()
         rvol_curr_15 = rvol_15.iloc[-1]
@@ -508,6 +510,23 @@ def run_scanner():
         son_konum = konum_yuzde_15
         cmf_15 = calculate_cmf(df_15m, 20)
         cmf_curr_15 = cmf_15.iloc[-1]
+
+        # --- BOLLINGER BANTLARI HESAPLAMASI (Panik Avcısı ve Dip Hibrit İçin) ---
+        bb_window = 20
+        bb_std = 2.0
+        bb_middle_15 = close_15.rolling(window=bb_window).mean()
+        rolling_std_15 = close_15.rolling(window=bb_window).std()
+        bb_upper_15 = bb_middle_15 + (rolling_std_15 * bb_std)
+        bb_lower_15 = bb_middle_15 - (rolling_std_15 * bb_std)
+        
+        # Band Genişliği ve Sıkışma / Orta Band Kontrolü
+        bb_width_15 = (bb_upper_15 - bb_lower_15) / bb_middle_15
+        width_threshold = 0.06  # Daralma eşiği
+        is_squeezed_15 = bb_width_15.shift(1) <= width_threshold
+        above_middle_15 = close_curr_15 > bb_middle_15.iloc[-1]
+        breakout_15 = (close_curr_15 >= bb_upper_15.iloc[-1]) and (close_15.iloc[-2] < bb_upper_15.iloc[-2])
+        
+        bollinger_squeeze_breakout = is_squeezed_15 and above_middle_15 and breakout_15
 
         def kayit_guncelle(kural_adi):
             nonlocal gecen_gun_sayisi
@@ -541,16 +560,18 @@ def run_scanner():
             tetiklenen_str.append("DELİRDİ 15")
             toplam_puan += 35.0
 
-        # Strateji 2: DİP HİBRİT
+        # Strateji 2: DİP HİBRİT (Güncellendi: Bollinger Daralması + Orta Band Üstü Patlama Şartı Eklendi)
         konum_yuzde_1h_curr = check_wave_margins(df_1h, lookback=1)[1]
-        if (0.0 <= konum_yuzde_1h_curr <= 15.0) and (mfi_curr_15 > 60.0) and (plus_di_curr_15 > 30.0) and (cmf_curr_15 > 0.0):
+        if (0.0 <= konum_yuzde_1h_curr <= 15.0) and (mfi_curr_15 > 60.0) and (plus_di_curr_15 > 30.0) and (cmf_curr_15 > 0.0) and bollinger_squeeze_breakout:
           if kayit_guncelle("dip_hibrit"):
             tetiklenen_str.append("DİP HİBRİT")
             toplam_puan += 30.0
 
-        # Strateji 6: PANİK AVCISI 15 (Yeni Entegrasyon)
-        # Şartlar: 15 dakikalık grafikte dip bölgeler veya ani dökülme sonrası toparlanma ve hacim artışı
-        if (0.0 <= konum_yuzde_15 <= 20.0) and (rvol_curr_15 >= 1.5) and (mfi_curr_15 < 40.0) and (plus_di_curr_15 > 20.0):
+        # Strateji 6: PANİK AVCISI 15 (Bollinger Daralması + Orta Band Üstü Patlama Şartı)
+        di_kesisim_veya_ustunde = (plus_di_curr_15 >= minus_di_curr_15) or ((plus_di_15.iloc[-2] <= minus_di_15.iloc[-2]) and (plus_di_curr_15 > minus_di_curr_15))
+        hma_kesisim_veya_ustunde = (close_curr_15 >= hma20_15.iloc[-1]) or ((close_15.iloc[-2] <= hma20_15.iloc[-2]) and (close_curr_15 > hma20_15.iloc[-1]))
+        
+        if (0.0 <= konum_yuzde_15 <= 20.0) and (rvol_curr_15 >= 1.5) and (mfi_curr_15 < 40.0) and di_kesisim_veya_ustunde and hma_kesisim_veya_ustunde and bollinger_squeeze_breakout:
           if kayit_guncelle("panik_avcisi_15"):
             tetiklenen_str.append("PANİK AVCISI 15")
             toplam_puan += 32.0
@@ -631,6 +652,7 @@ def run_scanner():
               "puan": toplam_puan,
               "stratejiler": tetiklenen_str,
               "d_plus": son_d_plus,
+              "d_minus": son_d_minus,
               "mfi": son_mfi,
               "rvol": son_rvol,
               "konum": son_konum,
@@ -673,7 +695,9 @@ def run_scanner():
           for strat in item['stratejiler']:
             strat_upper = strat.upper()
             if "PANİK AVCISI 15" in strat_upper:
-              mesaj_satirlari.append(f"• 🛡️ {strat} (RVOL:{item['rvol']:.2f}|MFI:{item['mfi']:.1f}|+DI:{item['d_plus']:.1f}|Konum:%{item['konum']:.1f})")
+              mesaj_satirlari.append(f"• 🛡️ {strat} (RVOL:{item['rvol']:.2f}|MFI:{item['mfi']:.1f}|+DI:{item['d_plus']:.1f}|-DI:{item['d_minus']:.1f}|Konum:%{item['konum']:.1f})")
+            elif "DİP HİBRİT" in strat_upper:
+              mesaj_satirlari.append(f"• ⚓ {strat} (RVOL:{item['rvol']:.2f}|MFI:{item['mfi']:.1f}|+DI:{item['d_plus']:.1f}|Konum:%{item['konum']:.1f})")
             elif "ERKEN DELİRDİ" in strat_upper:
               mesaj_satirlari.append(f"• 🔥 {strat} (RVOL:{item['rvol']:.2f}|MFI:{item['mfi']:.1f}|+DI:{item['d_plus']:.1f}|Konum:%{item['konum']:.1f})")
             elif "DELİRDİ 1 SAAT" in strat_upper:
