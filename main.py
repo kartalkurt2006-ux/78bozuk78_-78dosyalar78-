@@ -245,7 +245,6 @@ def send_ntfy(message, baslik):
 def download_with_retry(chunk, interval, period, max_retries=4):
   for attempt in range(1, max_retries + 1):
     try:
-      # threads=False yapılarak dış thread havuzuyla çakışması engellendi
       df_all = yf.download(chunk, period=period, interval=interval, group_by='ticker', progress=False, threads=False)
       if df_all is not None and not df_all.empty:
         return df_all
@@ -841,5 +840,5 @@ def run_scanner():
 
 
 if __name__ == "__main__":
-  print("Tarama ve Performans Takip Sistemi başlatıldı...")
+  print("Tarama and Performans Takip Sistemi başlatıldı...")
   run_scanner()
