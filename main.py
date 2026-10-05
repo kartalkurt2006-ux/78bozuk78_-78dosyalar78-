@@ -649,7 +649,7 @@ def run_scanner():
             tetiklenen_str.append("DİP HİBRİT")
             toplam_puan += 30.0
 
-        # --- PANİK AVCISI 15 👑👑👑 (Orta Bant - Üst Bant Arası Esnetilmiş Yapı) ---
+        # --- PANİK AVCISI 15 👑👑👑 (Son 4 Barda Orta-Üst Bant Taraması) ---
         atr_15m_series = calculate_atr(df_15m, period=14)
         atr_15m_val = atr_15m_series.iloc[-1] if not atr_15m_series.empty else 0.0
         
@@ -665,8 +665,16 @@ def run_scanner():
         wave_pos_15m_val = ((close_15 - low_15_window) / margin_range_15) * 100.0
         current_wave_15m = wave_pos_15m_val.iloc[-1]
 
-        # Esnetilmiş Koşul: Fiyat Orta Bant (SMA 20) ile Üst Bant arasında olmalı
-        orta_ust_bant_arasi = (close_15.iloc[-1] >= sma_20_15_val) and (close_15.iloc[-1] <= upper_band_15_val)
+        # Son 4 barda (1 saat) orta bant ile üst bant arasında olma kontrolü
+        orta_ust_bant_arasi = False
+        for i in range(1, 5):  # Son 4 bar (1, 2, 3 ve 4. mumlar)
+          if len(close_15) >= i and len(sma_20_15) >= i and len(upper_band_15) >= i:
+            c_val = close_15.iloc[-i]
+            s_val = sma_20_15.iloc[-i]
+            u_val = upper_band_15.iloc[-i]
+            if s_val <= c_val <= u_val:
+              orta_ust_bant_arasi = True
+              break
         
         cmf_prev_15 = cmf_15.iloc[-2] if len(cmf_15) >= 2 else 0.0
         cmf_panik_cond = (cmf_curr_15 > 0.0) and (cmf_curr_15 > cmf_prev_15)
