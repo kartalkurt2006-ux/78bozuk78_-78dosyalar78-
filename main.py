@@ -484,7 +484,15 @@ def run_scanner():
       mesaj_satirlari = ["----------------------------------------"]
 
       for item in alt_grup:
-        prefix = "🚀🚀🚀 Hisse:" if len(item['stratejiler']) >= 3 else "📌 Hisse:"
+        strats_upper = [s.upper() for s in item['stratejiler']]
+        has_both_1h = ("1 SAAT YAKALA" in strats_upper) and ("DELİRDİ 1 SAAT" in strats_upper)
+
+        if has_both_1h:
+          prefix = "👑🚨 DİKKAT: 1S ÇİFTE ALARM 🚨👑"
+        elif len(item['stratejiler']) >= 3:
+          prefix = "🚀🚀🚀 Hisse:"
+        else:
+          prefix = "📌 Hisse:"
         
         mesaj_satirlari.append(f"{prefix} 🟦 {item['temiz_isim']} 🟦 | Fiyat: ₺{item['fiyat']:.2f}")
         
