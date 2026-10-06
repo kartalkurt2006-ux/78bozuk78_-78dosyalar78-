@@ -263,8 +263,7 @@ def run_scanner():
   is_manual_run = os.environ.get("FORCE_RUN", "false").lower() == "true"
   
   print(
-      f"[{datetime.now(TZ_TR).strftime('%Y-%m-%d %H:%M:%S')}] 40'ar Hisselik Gruplar ile"
-      f" Çoklu Zaman Dilimli Strateji Taraması Başlatıldı... (Manuel Mod: {is_manual_run})"
+      f"[{datetime.now(TZ_TR).strftime('%Y-%m-%d %H:%M:%S')}] Mevcut Hibrit Tarama ve Bollinger Cross 'SÜPER 15' Modülü Başlatıldı... (Manuel Mod: {is_manual_run})"
   )
 
   tum_hafiza = hafiza_yukle()
@@ -325,7 +324,9 @@ def run_scanner():
                 return True
             return simdi_epoch - son_zaman > COOLDOWN_SECONDS
 
-        # --- 1 SAATLİK VERİ ANALİZİ (Eski katı eşik: 0.80) ---
+        # ==========================================
+        # 1. MEVCUT 1 SAATLİK VERİ ANALİZİ (0.80 Eşiği)
+        # ==========================================
         df_1h = extract_ticker_df(df_1h_all, clean_ticker, chunk)
         if not df_1h.empty and len(df_1h) >= 40:
           if isinstance(df_1h.columns, pd.MultiIndex):
@@ -367,23 +368,24 @@ def run_scanner():
             # Konum (%)
             son_konum = get_wave_position(df_1h)
 
-            # HMA ve Dalga Marjı (1h için standart eşik: 0.80)
             hma20_1h = calculate_hma(close_1h, 20)
             wave_breakout_1h = check_wave_margins(df_1h, lookback=3, threshold_multiplier=0.80)
 
-            # Strateji 1: 1 Saat Yakala
+            # Strateji: 1 Saat Yakala
             if (close_curr_1h > hma20_1h.iloc[-1]) and (rsi_curr_1h > 50) and (plus_di_curr_1h > 25) and wave_breakout_1h:
               if kayit_guncelle("1h_dalga_gorsel"):
                 tetiklenen_str.append("1 Saat Yakala")
                 toplam_puan += 25.0
 
-            # Strateji 2: DELİRDİ 1 Saat
+            # Strateji: DELİRDİ 1 Saat
             if (close_curr_1h > hma20_1h.iloc[-1]) and (rvol_curr_1h >= 2.0) and wave_breakout_1h:
               if kayit_guncelle("deli_gitan_1h"):
                 tetiklenen_str.append("DELİRDİ 1 Saat")
                 toplam_puan += 35.0
 
-        # --- 15 DAKİKALIK VERİ ANALİZİ (Esnetilmiş toleranslı eşik: 0.78) ---
+        # ==========================================
+        # 2. MEVCUT 15 DAKİKALIK HİBRİT VERİ ANALİZİ (0.78 Eşiği)
+        # ==========================================
         df_15m = extract_ticker_df(df_15m_all, clean_ticker, chunk)
         if not df_15m.empty and len(df_15m) >= 40:
           if isinstance(df_15m.columns, pd.MultiIndex):
@@ -398,11 +400,9 @@ def run_scanner():
             if guncel_fiyat == 0.0:
               guncel_fiyat = close_15m.iloc[-1]
 
-            # HMA ve Dalga Marjı (15m için esnetilmiş toleranslı eşik: 0.78)
             hma20_15m = calculate_hma(close_15m, 20)
             wave_breakout_15m = check_wave_margins(df_15m, lookback=3, threshold_multiplier=0.78)
 
-            # RSI (14) (15m)
             delta_15m = close_15m.diff()
             gain_15m = (delta_15m.where(delta_15m > 0, 0)).rolling(14).mean()
             loss_15m = (-delta_15m.where(delta_15m < 0, 0)).rolling(14).mean()
@@ -410,11 +410,9 @@ def run_scanner():
             rsi_curr_15m = (100 - (100 / (1 + rs_15m))).iloc[-1]
             son_rsi = max(son_rsi, rsi_curr_15m)
 
-            # MFI (15m)
             mfi_15m = calculate_mfi(high_15m, low_15m, close_15m, volume_15m, 14)
             son_mfi = max(son_mfi, mfi_15m.iloc[-1])
 
-            # +DI (14) (15m)
             up_move_15m = high_15m.diff()
             down_move_15m = -low_15m.diff()
             plus_dm_15m = up_move_15m.where((up_move_15m > down_move_15m) & (up_move_15m > 0), 0)
@@ -424,32 +422,66 @@ def run_scanner():
 
             son_konum = get_wave_position(df_15m)
 
-            # Strateji 3: 15m Yakala
+            # Strateji: 15m Yakala
             if (close_15m.iloc[-1] > hma20_15m.iloc[-1]) and (rsi_curr_15m > 50) and (plus_di_curr_15m > 25) and wave_breakout_15m:
               if kayit_guncelle("15m_yakala"):
                 tetiklenen_str.append("15m Yakala")
                 toplam_puan += 25.0
 
-            # Bollinger (22, 2) Hesaplama (15m)
+            # Bollinger (22, 2)
             bb_middle = close_15m.rolling(22).mean()
             bb_std = close_15m.rolling(22).std()
             bb_upper = bb_middle + (2 * bb_std)
             bb_lower = bb_middle - (2 * bb_std)
-
-            # Daralan Bant (Squeeze) Kontrolü
             bb_width = (bb_upper - bb_lower) / bb_middle
             bb_width_mean = bb_width.rolling(20).mean()
             is_squeezed = bb_width.iloc[-1] < bb_width_mean.iloc[-1]
 
-            # RVOL (15m)
             rvol_15m = (volume_15m / volume_15m.rolling(20).mean()).iloc[-1]
             son_rvol = max(son_rvol, rvol_15m)
 
-            # Strateji 4: DELİRDİ 15 (Daralan Bant + RVOL >= 2.0 + Üst Bandı Zorlama)
+            # Strateji: DELİRDİ 15
             if is_squeezed and (rvol_15m >= 2.0) and (close_15m.iloc[-1] >= bb_upper.iloc[-1] * 0.995):
               if kayit_guncelle("deli_gitan_15m"):
                 tetiklenen_str.append("DELİRDİ 15")
                 toplam_puan += 30.0
+
+        # ==========================================
+        # 3. GÜNCELLENEN SÜPER 15 MODÜLÜ (22.2 Bollinger Cross + MFI > 60)
+        # ==========================================
+        if not df_15m.empty and len(df_15m) >= 40:
+          close_s15 = df_15m["Close"]
+          high_s15 = df_15m["High"]
+          low_s15 = df_15m["Low"]
+          volume_s15 = df_15m["Volume"]
+
+          if not close_s15.isna().iloc[-1] and not volume_s15.isna().iloc[-1]:
+            if guncel_fiyat == 0.0:
+              guncel_fiyat = close_s15.iloc[-1]
+
+            # 22 periyotluk Bollinger Bantları (22, 2)
+            bb_middle_s15 = close_s15.rolling(22).mean()
+            bb_std_s15 = close_s15.rolling(22).std()
+            bb_upper_s15 = bb_middle_s15 + (2 * bb_std_s15)
+
+            # MFI (14) Hesaplama
+            mfi_s15 = calculate_mfi(high_s15, low_s15, close_s15, volume_s15, 14)
+            mfi_curr_s15 = mfi_s15.iloc[-1]
+            son_mfi = max(son_mfi, mfi_curr_s15)
+
+            # Bollinger Cross Patlaması Kontrolü (Önceki mum üst bandın altında veya eşit, şimdiki mum üst bandı yukarı kırmış)
+            prev_close = close_s15.iloc[-2]
+            prev_upper = bb_upper_s15.iloc[-2]
+            curr_close = close_s15.iloc[-1]
+            curr_upper = bb_upper_s15.iloc[-1]
+
+            is_bb_cross = (prev_close <= prev_upper) and (curr_close > curr_upper)
+
+            # Süper 15 Stratejisi: 22.2 Bollinger Cross + MFI > 60
+            if is_bb_cross and (mfi_curr_s15 > 60):
+              if kayit_guncelle("super_15_bb_cross"):
+                tetiklenen_str.append("SÜPER 15 CROSS")
+                toplam_puan += 35.0
 
         if tetiklenen_str:
           if toplam_puan == 0:
@@ -500,6 +532,8 @@ def run_scanner():
           strat_upper = strat.upper()
           if "DELİRDİ" in strat_upper and "1 SAAT" in strat_upper:
             mesaj_satirlari.append(f"• 💥💥💥 {strat} (RVOL:{item['rvol']:.2f} | MFI:{item['mfi']:.1f} | +DI:{item['plus_di']:.1f} | Konum:%{item['konum']:.1f})")
+          elif "SÜPER 15 CROSS" in strat_upper:
+            mesaj_satirlari.append(f"• ⚡⚡⚡ {strat} (MFI:{item['mfi']:.1f} | Konum:%{item['konum']:.1f})")
           elif "DELİRDİ" in strat_upper:
             mesaj_satirlari.append(f"• 🔥🔥 {strat} (RVOL:{item['rvol']:.2f} | MFI:{item['mfi']:.1f} | +DI:{item['plus_di']:.1f} | Konum:%{item['konum']:.1f})")
           elif "1 SAAT YAKALA" in strat_upper:
