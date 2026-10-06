@@ -476,8 +476,7 @@ def run_scanner():
         continue
 
   if toplanan_sinyaller:
-    # Önemliden aza (3 füzeliler en üstte olacak şekilde) sıralama
-    toplanan_sinyaller.sort(key=lambda x: (len(x['stratejiler']), x['puan']), reverse=True)
+    toplanan_sinyaller.sort(key=lambda x: (len(x['stratejiler']), x['puan']), reverse=False)
 
     grup_boyutu = 5
     for i in range(0, len(toplanan_sinyaller), grup_boyutu):
@@ -496,9 +495,9 @@ def run_scanner():
           elif "DELİRDİ" in strat_upper:
             mesaj_satirlari.append(f"• 🔥🔥 {strat} (RVOL:{item['rvol']:.2f} | MFI:{item['mfi']:.1f} | +DI:{item['plus_di']:.1f} | Konum:%{item['konum']:.1f})")
           elif "1 SAAT YAKALA" in strat_upper:
-            mesaj_satirlari.append(f"• 🏈🏈🏈 {strat} (RSI:{item['rsi']:.1f} | MFI:{item['mfi']:.1f} | +DI:{item['plus_di']:.1f})")
+            mesaj_satirlari.append(f"• ⚫⚫⚫ {strat} (RSI:{item['rsi']:.1f} | MFI:{item['mfi']:.1f} | +DI:{item['plus_di']:.1f})")
           elif "15M YAKALA" in strat_upper:
-            mesaj_satirlari.append(f"• ⚽⚽ {strat} (RSI:{item['rsi']:.1f} | MFI:{item['mfi']:.1f} | +DI:{item['plus_di']:.1f})")
+            mesaj_satirlari.append(f"• ⚫⚫ {strat} (RSI:{item['rsi']:.1f} | MFI:{item['mfi']:.1f} | +DI:{item['plus_di']:.1f})")
           else:
             mesaj_satirlari.append(f"• 🟣 {strat} (RSI:{item['rsi']:.1f} | MFI:{item['mfi']:.1f} | +DI:{item['plus_di']:.1f})")
             
