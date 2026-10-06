@@ -509,16 +509,6 @@ def run_scanner():
         cmf_15 = calculate_cmf(df_15m, 20)
         cmf_curr_15 = cmf_15.iloc[-1]
 
-        # Bollinger Bantları (15m) Hesabı
-        bb_sma_15 = close_15.rolling(20).mean()
-        bb_std_15 = close_15.rolling(20).std()
-        bb_upper_15 = bb_sma_15 + (bb_std_15 * 2)
-        bb_lower_15 = bb_sma_15 - (bb_std_15 * 2)
-        bb_width_15 = (bb_upper_15 - bb_lower_15) / bb_sma_15
-        # Squeeze (Daralma) ve Üst Band Kırılım Kontrolü
-        bb_squeeze_15 = bb_width_15 <= bb_width_15.rolling(50).quantile(0.2)
-        bb_breakout_15 = (close_15 > bb_upper_15) & (close_15.shift(1) <= bb_upper_15.shift(1))
-
         def kayit_guncelle(kural_adi):
             nonlocal gecen_gun_sayisi
             if kural_adi not in tum_hafiza["kayitlar"]:
@@ -551,21 +541,17 @@ def run_scanner():
             tetiklenen_str.append("DELİRDİ 15")
             toplam_puan += 35.0
 
-        # Yeni Strateji: PANİK AVCISI (Panik Avcısı 15)
-        if (konum_yuzde_15 <= 20.0) and (rvol_curr_15 >= 1.5) and (mfi_curr_15 > 45.0) and (rsi_curr_15 < 35.0):
-          if kayit_guncelle("panik_avcisi_15"):
-            tetiklenen_str.append("PANİK AVCISI 15")
-            toplam_puan += 35.0
-
-        # Yeni Strateji: BOLLİNGER SIKIŞMA & PATLAMA (Bollinger Patlama 15)
-        if bb_squeeze_15.iloc[-2:].any() and bb_breakout_15.iloc[-1] and (rvol_curr_15 >= 1.2):
-          if kayit_guncelle("bollinger_patlama_15"):
-            tetiklenen_str.append("BOLLINGER PATLAMA 15")
-            toplam_puan += 30.0
-
-        # Strateji 2: DİP HİBRİT
+        # Strateji 2: DİP HİBRİT (Güncellendi)
+        bb_middle = close_15.rolling(22).mean()
+        bb_std = close_15.rolling(22).std()
+        bb_upper = bb_middle + (2 * bb_std)
+        bb_lower = bb_middle - (2 * bb_std)
+        
+        bollinger_sikisma = (bb_upper - bb_lower) < (bb_middle * 0.1)
+        orta_band_kesisimi = (close_15.iloc[-2] <= bb_middle.iloc[-2]) and (close_15.iloc[-1] > bb_middle.iloc[-1])
+        
         konum_yuzde_1h_curr = check_wave_margins(df_1h, lookback=1)[1]
-        if (0.0 <= konum_yuzde_1h_curr <= 15.0) and (mfi_curr_15 > 60.0) and (plus_di_curr_15 > 30.0) and (cmf_curr_15 > 0.0):
+        if (0.0 <= konum_yuzde_1h_curr <= 15.0) and (mfi_curr_15 > 55.0) and (plus_di_curr_15 > 20.0) and (bollinger_sikisma.iloc[-1] or orta_band_kesisimi):
           if kayit_guncelle("dip_hibrit"):
             tetiklenen_str.append("DİP HİBRİT")
             toplam_puan += 30.0
@@ -693,10 +679,6 @@ def run_scanner():
               mesaj_satirlari.append(f"• ⚠️ {strat} (RVOL:{item['rvol']:.2f}|MFI:{item['mfi']:.1f}|+DI:{item['d_plus']:.1f}|Konum:%{item['konum']:.1f})")
             elif "DELİRDİ" in strat_upper:
               mesaj_satirlari.append(f"• 💥 {strat} (RVOL:{item['rvol']:.2f}|MFI:{item['mfi']:.1f}|+DI:{item['d_plus']:.1f}|Konum:%{item['konum']:.1f})")
-            elif "PANİK AVCISI" in strat_upper:
-              mesaj_satirlari.append(f"• ⚫⚫ {strat} (RVOL:{item['rvol']:.2f}|MFI:{item['mfi']:.1f}|Konum:%{item['konum']:.1f})")
-            elif "BOLLINGER" in strat_upper:
-              mesaj_satirlari.append(f"• 👑 {strat} (RVOL:{item['rvol']:.2f}|Konum:%{item['konum']:.1f})")
             else:
               mesaj_satirlari.append(f"• 🟣 {strat} (RSI:{item['rsi']:.1f}|+DI:{item['d_plus']:.1f})")
           mesaj_satirlari.append("----------------------------------------")
@@ -707,19 +689,18 @@ def run_scanner():
 
   print("\nTüm Hisseler tarandı ve süreç tamamlandı.")
 
-  # --- RAPORLAR PASİFİZE EDİLDİ ---
-  # simdi_kontrol = datetime.now(TZ_TR)
-  # saat = simdi_kontrol.hour
-  # dakika = simdi_kontrol.minute
-  # 
-  # if os.environ.get("FORCE_RUN", "false").lower() == "true":
-  #   performans_raporu_gonder("Manuel / Güncel")
-  # elif saat == 13 and 0 <= dakika <= 30:
-  #   performans_raporu_gonder("Öğle (13:00)")
-  #   time.sleep(600)
-  # elif (saat == 18 and dakika >= 0) or (saat == 19 and dakika <= 30):
-  #   performans_raporu_gonder("Gün Sonu")
-  #   time.sleep(900)
+  simdi_kontrol = datetime.now(TZ_TR)
+  saat = simdi_kontrol.hour
+  dakika = simdi_kontrol.minute
+  
+  if os.environ.get("FORCE_RUN", "false").lower() == "true":
+    performans_raporu_gonder("Manuel / Güncel")
+  elif saat == 13 and 0 <= dakika <= 30:
+    performans_raporu_gonder("Öğle (13:00)")
+    time.sleep(600)
+  elif (saat == 18 and dakika >= 0) or (saat == 19 and dakika <= 30):
+    performans_raporu_gonder("Gün Sonu")
+    time.sleep(900)
 
 
 if __name__ == "__main__":
