@@ -121,7 +121,7 @@ def get_wave_position(df):
     return 50.0
 
 
-def check_wave_margins(df, lookback=3):
+def check_wave_margins(df, lookback=3, threshold_multiplier=0.80):
   try:
     close = df["Close"].values
     high = df["High"].values
@@ -140,7 +140,7 @@ def check_wave_margins(df, lookback=3):
     if margin_range == 0:
       return False
 
-    upper_margin_threshold = recent_low + (margin_range * 0.80)
+    upper_margin_threshold = recent_low + (margin_range * threshold_multiplier)
     
     triggered = False
     for i in range(-lookback, 0):
@@ -325,7 +325,7 @@ def run_scanner():
                 return True
             return simdi_epoch - son_zaman > COOLDOWN_SECONDS
 
-        # --- 1 SAATLİK VERİ ANALİZİ ---
+        # --- 1 SAATLİK VERİ ANALİZİ (Eski katı eşik: 0.80) ---
         df_1h = extract_ticker_df(df_1h_all, clean_ticker, chunk)
         if not df_1h.empty and len(df_1h) >= 40:
           if isinstance(df_1h.columns, pd.MultiIndex):
@@ -367,9 +367,9 @@ def run_scanner():
             # Konum (%)
             son_konum = get_wave_position(df_1h)
 
-            # HMA ve Dalga Marjı
+            # HMA ve Dalga Marjı (1h için standart eşik: 0.80)
             hma20_1h = calculate_hma(close_1h, 20)
-            wave_breakout_1h = check_wave_margins(df_1h, lookback=3)
+            wave_breakout_1h = check_wave_margins(df_1h, lookback=3, threshold_multiplier=0.80)
 
             # Strateji 1: 1 Saat Yakala
             if (close_curr_1h > hma20_1h.iloc[-1]) and (rsi_curr_1h > 50) and (plus_di_curr_1h > 25) and wave_breakout_1h:
@@ -383,7 +383,7 @@ def run_scanner():
                 tetiklenen_str.append("DELİRDİ 1 Saat")
                 toplam_puan += 35.0
 
-        # --- 15 DAKİKALIK VERİ ANALİZİ ---
+        # --- 15 DAKİKALIK VERİ ANALİZİ (Esnetilmiş toleranslı eşik: 0.78) ---
         df_15m = extract_ticker_df(df_15m_all, clean_ticker, chunk)
         if not df_15m.empty and len(df_15m) >= 40:
           if isinstance(df_15m.columns, pd.MultiIndex):
@@ -398,9 +398,9 @@ def run_scanner():
             if guncel_fiyat == 0.0:
               guncel_fiyat = close_15m.iloc[-1]
 
-            # HMA ve Dalga Marjı (15m)
+            # HMA ve Dalga Marjı (15m için esnetilmiş toleranslı eşik: 0.78)
             hma20_15m = calculate_hma(close_15m, 20)
-            wave_breakout_15m = check_wave_margins(df_15m, lookback=3)
+            wave_breakout_15m = check_wave_margins(df_15m, lookback=3, threshold_multiplier=0.78)
 
             # RSI (14) (15m)
             delta_15m = close_15m.diff()
@@ -484,9 +484,9 @@ def run_scanner():
       mesaj_satirlari = ["----------------------------------------"]
 
       for item in alt_grup:
-        roket_ek = " 🚀🚀🚀" if len(item['stratejiler']) >= 3 else ""
+        prefix = "🚀🚀🚀 Hisse:" if len(item['stratejiler']) >= 3 else "📌 Hisse:"
         
-        mesaj_satirlari.append(f"📌 Hisse: 🟦 {item['temiz_isim']} 🟦{roket_ek} | Fiyat: ₺{item['fiyat']:.2f}")
+        mesaj_satirlari.append(f"{prefix} 🟦 {item['temiz_isim']} 🟦 | Fiyat: ₺{item['fiyat']:.2f}")
         
         for strat in item['stratejiler']:
           strat_upper = strat.upper()
