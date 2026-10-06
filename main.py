@@ -612,8 +612,8 @@ def run_scanner():
             tetiklenen_str.append("DELİRDİ 1 Saat")
             toplam_puan += 35.0
 
-        # Strateji 5: ERKEN DELİRDİ
-        if (close_curr_1h > hma20_1h.iloc[-1]) and (rvol_curr_15 >= 2.0) and (75.0 <= konum_yuzde_15 <= 95.0) and sart_wave_15:
+        # Strateji 5: ERKEN DELİRDİ (Tamamen 15m + Bollinger Sıkışma & Yukarı Patlama Mantığına Çevrildi)
+        if (close_curr_15 > hma20_15.iloc[-1]) and (rvol_curr_15 >= 1.5) and sart_wave_15 and (bollinger_sikisma.iloc[-1] or yukari_kirilim):
           if kayit_guncelle("erken_hibrit_1h"):
             tetiklenen_str.append("ERKEN DELİRDİ")
             toplam_puan += 30.0
