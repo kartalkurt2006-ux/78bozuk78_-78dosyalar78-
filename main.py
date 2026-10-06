@@ -443,7 +443,6 @@ def run_scanner():
       guncel_fiyat = 0.0
       toplam_puan = 0.0
       son_d_plus = 0.0
-      son_d_minus = 0.0
       son_mfi = 0.0
       son_rvol = 0.0
       son_konum = 0.0
@@ -499,7 +498,6 @@ def run_scanner():
         plus_di_curr_15 = plus_di_15.iloc[-1]
         minus_di_curr_15 = minus_di_15.iloc[-1]
         son_d_plus = plus_di_curr_15
-        son_d_minus = minus_di_curr_15
 
         rvol_15 = volume_15 / volume_15.rolling(20).mean()
         rvol_curr_15 = rvol_15.iloc[-1]
@@ -511,21 +509,15 @@ def run_scanner():
         cmf_15 = calculate_cmf(df_15m, 20)
         cmf_curr_15 = cmf_15.iloc[-1]
 
-        # --- BOLLINGER BANTLARI HESAPLAMASI ---
-        bb_window = 20
-        bb_std = 2.0
-        bb_middle_15 = close_15.rolling(window=bb_window).mean()
-        rolling_std_15 = close_15.rolling(window=bb_window).std()
-        bb_upper_15 = bb_middle_15 + (rolling_std_15 * bb_std)
-        bb_lower_15 = bb_middle_15 - (rolling_std_15 * bb_std)
-        
-        bb_width_15 = (bb_upper_15 - bb_lower_15) / bb_middle_15
-        width_threshold = 0.06
-        is_squeezed_15 = bb_width_15.shift(1) <= width_threshold
-        above_middle_15 = close_curr_15 > bb_middle_15.iloc[-1]
-        breakout_15 = (close_curr_15 >= bb_upper_15.iloc[-1]) and (close_15.iloc[-2] < bb_upper_15.iloc[-2])
-        
-        bollinger_squeeze_breakout = is_squeezed_15 and above_middle_15 and breakout_15
+        # Bollinger Bantları (15m) Hesabı
+        bb_sma_15 = close_15.rolling(20).mean()
+        bb_std_15 = close_15.rolling(20).std()
+        bb_upper_15 = bb_sma_15 + (bb_std_15 * 2)
+        bb_lower_15 = bb_sma_15 - (bb_std_15 * 2)
+        bb_width_15 = (bb_upper_15 - bb_lower_15) / bb_sma_15
+        # Squeeze (Daralma) ve Üst Band Kırılım Kontrolü
+        bb_squeeze_15 = bb_width_15 <= bb_width_15.rolling(50).quantile(0.2)
+        bb_breakout_15 = (close_15 > bb_upper_15) & (close_15.shift(1) <= bb_upper_15.shift(1))
 
         def kayit_guncelle(kural_adi):
             nonlocal gecen_gun_sayisi
@@ -548,7 +540,10 @@ def run_scanner():
                 son_zaman = simdi_epoch
                 gecen_gun_sayisi = 0
             
-            return True
+            if is_manual_run:
+                return True
+
+            return simdi_epoch - son_zaman > COOLDOWN_SECONDS
 
         # Strateji 1: DELİRDİ 15
         if (rvol_curr_15 >= 1.0) and sart_wave_15 and (mfi_curr_15 > 55) and (plus_di_curr_15 > 25):
@@ -556,21 +551,24 @@ def run_scanner():
             tetiklenen_str.append("DELİRDİ 15")
             toplam_puan += 35.0
 
+        # Yeni Strateji: PANİK AVCISI (Panik Avcısı 15)
+        if (konum_yuzde_15 <= 20.0) and (rvol_curr_15 >= 1.5) and (mfi_curr_15 > 45.0) and (rsi_curr_15 < 35.0):
+          if kayit_guncelle("panik_avcisi_15"):
+            tetiklenen_str.append("PANİK AVCISI 15")
+            toplam_puan += 35.0
+
+        # Yeni Strateji: BOLLİNGER SIKIŞMA & PATLAMA (Bollinger 15)
+        if bb_squeeze_15.iloc[-2:].any() and bb_breakout_15.iloc[-1] and (rvol_curr_15 >= 1.2):
+          if kayit_guncelle("bollinger_patlama_15"):
+            tetiklenen_str.append("BOLLINGER PATLAMA 15")
+            toplam_puan += 30.0
+
         # Strateji 2: DİP HİBRİT
         konum_yuzde_1h_curr = check_wave_margins(df_1h, lookback=1)[1]
-        if (0.0 <= konum_yuzde_1h_curr <= 15.0) and (mfi_curr_15 > 60.0) and (plus_di_curr_15 > 30.0) and (cmf_curr_15 > 0.0) and bollinger_squeeze_breakout:
+        if (0.0 <= konum_yuzde_1h_curr <= 15.0) and (mfi_curr_15 > 60.0) and (plus_di_curr_15 > 30.0) and (cmf_curr_15 > 0.0):
           if kayit_guncelle("dip_hibrit"):
             tetiklenen_str.append("DİP HİBRİT")
             toplam_puan += 30.0
-
-        # Strateji 6: PANİK AVCISI 15
-        di_kesisim_veya_ustunde = (plus_di_curr_15 >= minus_di_curr_15) or ((plus_di_15.iloc[-2] <= minus_di_15.iloc[-2]) and (plus_di_curr_15 > minus_di_curr_15))
-        hma_kesisim_veya_ustunde = (close_curr_15 >= hma20_15.iloc[-1]) or ((close_15.iloc[-2] <= hma20_15.iloc[-2]) and (close_curr_15 > hma20_15.iloc[-1]))
-        
-        if (0.0 <= konum_yuzde_15 <= 20.0) and (rvol_curr_15 >= 1.5) and (mfi_curr_15 < 40.0) and di_kesisim_veya_ustunde and hma_kesisim_veya_ustunde and bollinger_squeeze_breakout:
-          if kayit_guncelle("panik_avcisi_15"):
-            tetiklenen_str.append("PANİK AVCISI 15")
-            toplam_puan += 32.0
 
         close_1h = df_1h["Close"]
         high_1h = df_1h["High"]
@@ -648,7 +646,6 @@ def run_scanner():
               "puan": toplam_puan,
               "stratejiler": tetiklenen_str,
               "d_plus": son_d_plus,
-              "d_minus": son_d_minus,
               "mfi": son_mfi,
               "rvol": son_rvol,
               "konum": son_konum,
@@ -690,16 +687,16 @@ def run_scanner():
           
           for strat in item['stratejiler']:
             strat_upper = strat.upper()
-            if "PANİK AVCISI 15" in strat_upper:
-              mesaj_satirlari.append(f"• 🛡️ {strat} (RVOL:{item['rvol']:.2f}|MFI:{item['mfi']:.1f}|+DI:{item['d_plus']:.1f}|-DI:{item['d_minus']:.1f}|Konum:%{item['konum']:.1f})")
-            elif "DİP HİBRİT" in strat_upper:
-              mesaj_satirlari.append(f"• ⚓ {strat} (RVOL:{item['rvol']:.2f}|MFI:{item['mfi']:.1f}|+DI:{item['d_plus']:.1f}|Konum:%{item['konum']:.1f})")
-            elif "ERKEN DELİRDİ" in strat_upper:
+            if "ERKEN DELİRDİ" in strat_upper:
               mesaj_satirlari.append(f"• 🔥 {strat} (RVOL:{item['rvol']:.2f}|MFI:{item['mfi']:.1f}|+DI:{item['d_plus']:.1f}|Konum:%{item['konum']:.1f})")
             elif "DELİRDİ 1 SAAT" in strat_upper:
               mesaj_satirlari.append(f"• ⚠️ {strat} (RVOL:{item['rvol']:.2f}|MFI:{item['mfi']:.1f}|+DI:{item['d_plus']:.1f}|Konum:%{item['konum']:.1f})")
             elif "DELİRDİ" in strat_upper:
               mesaj_satirlari.append(f"• 💥 {strat} (RVOL:{item['rvol']:.2f}|MFI:{item['mfi']:.1f}|+DI:{item['d_plus']:.1f}|Konum:%{item['konum']:.1f})")
+            elif "PANİK AVCISI" in strat_upper:
+              mesaj_satirlari.append(f"• 🎯 {strat} (RVOL:{item['rvol']:.2f}|MFI:{item['mfi']:.1f}|Konum:%{item['konum']:.1f})")
+            elif "BOLLINGER" in strat_upper:
+              mesaj_satirlari.append(f"• 📉 {strat} (RVOL:{item['rvol']:.2f}|Konum:%{item['konum']:.1f})")
             else:
               mesaj_satirlari.append(f"• 🟣 {strat} (RSI:{item['rsi']:.1f}|+DI:{item['d_plus']:.1f})")
           mesaj_satirlari.append("----------------------------------------")
@@ -725,5 +722,5 @@ def run_scanner():
 
 
 if __name__ == "__main__":
-  print("Tarama ve Performans Takip Sistemi başlatıldı...")
+  print("Tarama dan Performans Takip Sistemi başlatıldı...")
   run_scanner()
