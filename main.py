@@ -87,6 +87,40 @@ def calculate_hma(series, period=20):
   return hma
 
 
+def calculate_mfi(high, low, close, volume, period=14):
+  try:
+    tp = (high + low + close) / 3
+    rmf = tp * volume
+    delta_tp = tp.diff()
+    pos_flow = rmf.where(delta_tp > 0, 0).rolling(period).sum()
+    neg_flow = rmf.where(delta_tp < 0, 0).rolling(period).sum()
+    mfi = 100 - (100 / (1 + pos_flow / (neg_flow + 1e-10)))
+    return mfi
+  except:
+    return pd.Series(50.0, index=close.index)
+
+
+def get_wave_position(df):
+  try:
+    close = df["Close"].values
+    high = df["High"].values
+    low = df["Low"].values
+    wave_sequence = [4, 8, 5, 8, 9]
+    total_cycle = sum(wave_sequence)
+    if len(high) < total_cycle:
+      total_cycle = len(high)
+    recent_high = np.max(high[-total_cycle:])
+    recent_low = np.min(low[-total_cycle:])
+    margin_range = recent_high - recent_low
+    if margin_range == 0:
+      return 50.0
+    current_close = close[-1]
+    pos = ((current_close - recent_low) / margin_range) * 100
+    return max(0.0, min(100.0, pos))
+  except:
+    return 50.0
+
+
 def check_wave_margins(df, lookback=3):
   try:
     close = df["Close"].values
@@ -264,11 +298,12 @@ def run_scanner():
       toplam_puan = 0.0
       son_rsi = 0.0
       son_rvol = 0.0
-      gecen_gun_sayisi = 0
+      son_mfi = 50.0
+      son_plus_di = 0.0
+      son_konum = 50.0
 
       try:
         def kayit_guncelle(kural_adi):
-            nonlocal gecen_gun_sayisi
             if kural_adi not in tum_hafiza["kayitlar"]:
                 tum_hafiza["kayitlar"][kural_adi] = {}
             
@@ -277,7 +312,6 @@ def run_scanner():
                 mevcut_kayit["son_fiyat"] = guncel_fiyat
                 mevcut_kayit["tekrar_sayisi"] = mevcut_kayit.get("tekrar_sayisi", 1) + 1
                 son_zaman = mevcut_kayit.get("zaman", simdi_epoch)
-                gecen_gun_sayisi = max(1, int((simdi_epoch - son_zaman) / (24 * 3600)))
             else:
                 tum_hafiza["kayitlar"][kural_adi][clean_ticker] = {
                     "zaman": simdi_epoch,
@@ -286,7 +320,6 @@ def run_scanner():
                     "tekrar_sayisi": 1
                 }
                 son_zaman = simdi_epoch
-                gecen_gun_sayisi = 0
             
             if is_manual_run:
                 return True
@@ -315,16 +348,24 @@ def run_scanner():
             rsi_curr_1h = (100 - (100 / (1 + rs_1h))).iloc[-1]
             son_rsi = rsi_curr_1h
 
+            # MFI (14)
+            mfi_1h = calculate_mfi(high_1h, low_1h, close_1h, volume_1h, 14)
+            son_mfi = mfi_1h.iloc[-1]
+
             # +DI (14)
             up_move_1h = high_1h.diff()
             down_move_1h = -low_1h.diff()
             plus_dm_1h = up_move_1h.where((up_move_1h > down_move_1h) & (up_move_1h > 0), 0)
             tr_1h = pd.concat([high_1h - low_1h, (high_1h - close_1h.shift()).abs(), (low_1h - close_1h.shift()).abs()], axis=1).max(axis=1)
             plus_di_curr_1h = (100 * (plus_dm_1h.rolling(14).sum() / (tr_1h.rolling(14).sum() + 1e-10))).iloc[-1]
+            son_plus_di = plus_di_curr_1h
 
             # RVOL (1h)
             rvol_curr_1h = (volume_1h / volume_1h.rolling(20).mean()).iloc[-1]
             son_rvol = rvol_curr_1h
+
+            # Konum (%)
+            son_konum = get_wave_position(df_1h)
 
             # HMA ve Dalga Marjı
             hma20_1h = calculate_hma(close_1h, 20)
@@ -369,14 +410,21 @@ def run_scanner():
             rsi_curr_15m = (100 - (100 / (1 + rs_15m))).iloc[-1]
             son_rsi = max(son_rsi, rsi_curr_15m)
 
+            # MFI (15m)
+            mfi_15m = calculate_mfi(high_15m, low_15m, close_15m, volume_15m, 14)
+            son_mfi = max(son_mfi, mfi_15m.iloc[-1])
+
             # +DI (14) (15m)
             up_move_15m = high_15m.diff()
             down_move_15m = -low_15m.diff()
             plus_dm_15m = up_move_15m.where((up_move_15m > down_move_15m) & (up_move_15m > 0), 0)
             tr_15m = pd.concat([high_15m - low_15m, (high_15m - close_15m.shift()).abs(), (low_15m - close_15m.shift()).abs()], axis=1).max(axis=1)
             plus_di_curr_15m = (100 * (plus_dm_15m.rolling(14).sum() / (tr_15m.rolling(14).sum() + 1e-10))).iloc[-1]
+            son_plus_di = max(son_plus_di, plus_di_curr_15m)
 
-            # Strateji 3: 15m Yakala (1 Saat Yakala'nın 15 Dakikalık Versiyonu)
+            son_konum = get_wave_position(df_15m)
+
+            # Strateji 3: 15m Yakala
             if (close_15m.iloc[-1] > hma20_15m.iloc[-1]) and (rsi_curr_15m > 50) and (plus_di_curr_15m > 25) and wave_breakout_15m:
               if kayit_guncelle("15m_yakala"):
                 tetiklenen_str.append("15m Yakala")
@@ -397,28 +445,26 @@ def run_scanner():
             rvol_15m = (volume_15m / volume_15m.rolling(20).mean()).iloc[-1]
             son_rvol = max(son_rvol, rvol_15m)
 
-            # Strateji 4: DELİRDİ 15m (Daralan Bant + RVOL >= 2.0 + Üst Bandı Zorlama)
+            # Strateji 4: DELİRDİ 15 (Daralan Bant + RVOL >= 2.0 + Üst Bandı Zorlama)
             if is_squeezed and (rvol_15m >= 2.0) and (close_15m.iloc[-1] >= bb_upper.iloc[-1] * 0.995):
               if kayit_guncelle("deli_gitan_15m"):
-                tetiklenen_str.append("DELİRDİ 15m (Daralan Bant)")
+                tetiklenen_str.append("DELİRDİ 15")
                 toplam_puan += 30.0
 
         if tetiklenen_str:
           if toplam_puan == 0:
             toplam_puan = 25.0
 
-          ilk_f = tum_hafiza["kayitlar"].get(tetiklenen_str[0], {}).get(clean_ticker, {}).get("ilk_fiyat", guncel_fiyat)
-          kazanc_yuzde = ((guncel_fiyat - ilk_f) / ilk_f) * 100.0 if ilk_f > 0 else 0.0
-
           toplanan_sinyaller.append({
               "temiz_isim": temiz_isim,
               "fiyat": guncel_fiyat,
-              "kazanc_yuzde": kazanc_yuzde,
               "puan": toplam_puan,
               "stratejiler": tetiklenen_str,
               "rsi": son_rsi,
               "rvol": son_rvol,
-              "gecen_gun": gecen_gun_sayisi
+              "mfi": son_mfi,
+              "plus_di": son_plus_di,
+              "konum": son_konum
           })
           hafiza_kaydet(tum_hafiza)
           print(f"  > {clean_ticker} inceleniyor... 🎯 Sinyal Yakalandı!")
@@ -430,24 +476,36 @@ def run_scanner():
         continue
 
   if toplanan_sinyaller:
+    # Önemliden aza (3 füzeliler en üstte olacak şekilde) sıralama
+    toplanan_sinyaller.sort(key=lambda x: (len(x['stratejiler']), x['puan']), reverse=True)
+
     grup_boyutu = 5
     for i in range(0, len(toplanan_sinyaller), grup_boyutu):
       alt_grup = toplanan_sinyaller[i:i + grup_boyutu]
-      mesaj_satirlari = ["🚀 **BIST STRATEJİ SİNYALLERİ (1H & 15M)**", "----------------------------------------"]
+      mesaj_satirlari = ["----------------------------------------"]
 
       for item in alt_grup:
-        mesaj_satirlari.append(f"📌 Hisse: 🟦 {item['temiz_isim']} 🟦 | Fiyat: ₺{item['fiyat']:.2f}")
-        mesaj_satirlari.append(f"📈 Sinyalden Beri Getiri: %{item['kazanc_yuzde']:+.2f} (İlk Sinyal: {item['gecen_gun']} gün önce)")
+        roket_ek = " 🚀🚀🚀" if len(item['stratejiler']) >= 3 else ""
+        
+        mesaj_satirlari.append(f"📌 Hisse: 🟦 {item['temiz_isim']} 🟦{roket_ek} | Fiyat: ₺{item['fiyat']:.2f}")
         
         for strat in item['stratejiler']:
-          if "DELİRDİ" in strat.upper():
-            mesaj_satirlari.append(f"• ⚠️ {strat} (RVOL:{item['rvol']:.2f})")
+          strat_upper = strat.upper()
+          if "DELİRDİ" in strat_upper and "1 SAAT" in strat_upper:
+            mesaj_satirlari.append(f"• 💥💥💥 {strat} (RVOL:{item['rvol']:.2f} | MFI:{item['mfi']:.1f} | +DI:{item['plus_di']:.1f} | Konum:%{item['konum']:.1f})")
+          elif "DELİRDİ" in strat_upper:
+            mesaj_satirlari.append(f"• 🔥🔥 {strat} (RVOL:{item['rvol']:.2f} | MFI:{item['mfi']:.1f} | +DI:{item['plus_di']:.1f} | Konum:%{item['konum']:.1f})")
+          elif "1 SAAT YAKALA" in strat_upper:
+            mesaj_satirlari.append(f"• 🏈🏈🏈 {strat} (RSI:{item['rsi']:.1f} | MFI:{item['mfi']:.1f} | +DI:{item['plus_di']:.1f})")
+          elif "15M YAKALA" in strat_upper:
+            mesaj_satirlari.append(f"• ⚽⚽ {strat} (RSI:{item['rsi']:.1f} | MFI:{item['mfi']:.1f} | +DI:{item['plus_di']:.1f})")
           else:
-            mesaj_satirlari.append(f"• 🟣 {strat} (RSI:{item['rsi']:.1f})")
+            mesaj_satirlari.append(f"• 🟣 {strat} (RSI:{item['rsi']:.1f} | MFI:{item['mfi']:.1f} | +DI:{item['plus_di']:.1f})")
+            
         mesaj_satirlari.append("----------------------------------------")
 
       final_mesaj = "\n".join(mesaj_satirlari)
-      send_ntfy(final_mesaj, "BIST Strateji Sinyalleri")
+      send_ntfy(final_mesaj, "borsa_senet")
       time.sleep(0.4)
 
   print("\nTüm Hisseler tarandı ve süreç tamamlandı.")
