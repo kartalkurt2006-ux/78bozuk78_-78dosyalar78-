@@ -557,7 +557,7 @@ def run_scanner():
             tetiklenen_str.append("PANİK AVCISI 15")
             toplam_puan += 35.0
 
-        # Yeni Strateji: BOLLİNGER SIKIŞMA & PATLAMA (Bollinger 15)
+        # Yeni Strateji: BOLLİNGER SIKIŞMA & PATLAMA (Bollinger Patlama 15)
         if bb_squeeze_15.iloc[-2:].any() and bb_breakout_15.iloc[-1] and (rvol_curr_15 >= 1.2):
           if kayit_guncelle("bollinger_patlama_15"):
             tetiklenen_str.append("BOLLINGER PATLAMA 15")
@@ -694,7 +694,7 @@ def run_scanner():
             elif "DELİRDİ" in strat_upper:
               mesaj_satirlari.append(f"• 💥 {strat} (RVOL:{item['rvol']:.2f}|MFI:{item['mfi']:.1f}|+DI:{item['d_plus']:.1f}|Konum:%{item['konum']:.1f})")
             elif "PANİK AVCISI" in strat_upper:
-              mesaj_satirlari.append(f"• 🎯 {strat} (RVOL:{item['rvol']:.2f}|MFI:{item['mfi']:.1f}|Konum:%{item['konum']:.1f})")
+              mesaj_satirlari.append(f"• ⚫⚫ {strat} (RVOL:{item['rvol']:.2f}|MFI:{item['mfi']:.1f}|Konum:%{item['konum']:.1f})")
             elif "BOLLINGER" in strat_upper:
               mesaj_satirlari.append(f"• 👑 {strat} (RVOL:{item['rvol']:.2f}|Konum:%{item['konum']:.1f})")
             else:
