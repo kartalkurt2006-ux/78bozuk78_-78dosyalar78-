@@ -696,7 +696,7 @@ def run_scanner():
             elif "PANİK AVCISI" in strat_upper:
               mesaj_satirlari.append(f"• 🎯 {strat} (RVOL:{item['rvol']:.2f}|MFI:{item['mfi']:.1f}|Konum:%{item['konum']:.1f})")
             elif "BOLLINGER" in strat_upper:
-              mesaj_satirlari.append(f"• 📉 {strat} (RVOL:{item['rvol']:.2f}|Konum:%{item['konum']:.1f})")
+              mesaj_satirlari.append(f"• 👑 {strat} (RVOL:{item['rvol']:.2f}|Konum:%{item['konum']:.1f})")
             else:
               mesaj_satirlari.append(f"• 🟣 {strat} (RSI:{item['rsi']:.1f}|+DI:{item['d_plus']:.1f})")
           mesaj_satirlari.append("----------------------------------------")
@@ -707,20 +707,21 @@ def run_scanner():
 
   print("\nTüm Hisseler tarandı ve süreç tamamlandı.")
 
-  simdi_kontrol = datetime.now(TZ_TR)
-  saat = simdi_kontrol.hour
-  dakika = simdi_kontrol.minute
-  
-  if os.environ.get("FORCE_RUN", "false").lower() == "true":
-    performans_raporu_gonder("Manuel / Güncel")
-  elif saat == 13 and 0 <= dakika <= 30:
-    performans_raporu_gonder("Öğle (13:00)")
-    time.sleep(600)
-  elif (saat == 18 and dakika >= 0) or (saat == 19 and dakika <= 30):
-    performans_raporu_gonder("Gün Sonu")
-    time.sleep(900)
+  # --- RAPORLAR PASİFİZE EDİLDİ ---
+  # simdi_kontrol = datetime.now(TZ_TR)
+  # saat = simdi_kontrol.hour
+  # dakika = simdi_kontrol.minute
+  # 
+  # if os.environ.get("FORCE_RUN", "false").lower() == "true":
+  #   performans_raporu_gonder("Manuel / Güncel")
+  # elif saat == 13 and 0 <= dakika <= 30:
+  #   performans_raporu_gonder("Öğle (13:00)")
+  #   time.sleep(600)
+  # elif (saat == 18 and dakika >= 0) or (saat == 19 and dakika <= 30):
+  #   performans_raporu_gonder("Gün Sonu")
+  #   time.sleep(900)
 
 
 if __name__ == "__main__":
-  print("Tarama dan Performans Takip Sistemi başlatıldı...")
+  print("Tarama ve Performans Takip Sistemi başlatıldı...")
   run_scanner()
