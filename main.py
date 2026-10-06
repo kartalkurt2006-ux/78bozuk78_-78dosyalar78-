@@ -541,17 +541,17 @@ def run_scanner():
             tetiklenen_str.append("DELİRDİ 15")
             toplam_puan += 35.0
 
-        # Strateji 2: DİP HİBRİT (Güncellendi)
+        # Strateji 2: DİP HİBRİT (Bollinger Sıkışması ve Yukarı Kırılım Yönlü)
         bb_middle = close_15.rolling(22).mean()
         bb_std = close_15.rolling(22).std()
         bb_upper = bb_middle + (2 * bb_std)
         bb_lower = bb_middle - (2 * bb_std)
         
         bollinger_sikisma = (bb_upper - bb_lower) < (bb_middle * 0.1)
-        orta_band_kesisimi = (close_15.iloc[-2] <= bb_middle.iloc[-2]) and (close_15.iloc[-1] > bb_middle.iloc[-1])
+        yukari_kirilim = (close_15.iloc[-2] <= bb_middle.iloc[-2]) and (close_15.iloc[-1] > bb_middle.iloc[-1]) or (close_15.iloc[-1] >= bb_upper.iloc[-1] * 0.98)
         
         konum_yuzde_1h_curr = check_wave_margins(df_1h, lookback=1)[1]
-        if (0.0 <= konum_yuzde_1h_curr <= 15.0) and (mfi_curr_15 > 55.0) and (plus_di_curr_15 > 20.0) and (bollinger_sikisma.iloc[-1] or orta_band_kesisimi):
+        if (0.0 <= konum_yuzde_1h_curr <= 30.0) and (mfi_curr_15 > 55.0) and (plus_di_curr_15 > 20.0) and (bollinger_sikisma.iloc[-1] or yukari_kirilim):
           if kayit_guncelle("dip_hibrit"):
             tetiklenen_str.append("DİP HİBRİT")
             toplam_puan += 30.0
@@ -679,6 +679,8 @@ def run_scanner():
               mesaj_satirlari.append(f"• ⚠️ {strat} (RVOL:{item['rvol']:.2f}|MFI:{item['mfi']:.1f}|+DI:{item['d_plus']:.1f}|Konum:%{item['konum']:.1f})")
             elif "DELİRDİ" in strat_upper:
               mesaj_satirlari.append(f"• 💥 {strat} (RVOL:{item['rvol']:.2f}|MFI:{item['mfi']:.1f}|+DI:{item['d_plus']:.1f}|Konum:%{item['konum']:.1f})")
+            elif "DİP HİBRİT" in strat_upper:
+              mesaj_satirlari.append(f"• 🟣⚫⚫ {strat} (MFI:{item['mfi']:.1f}|+DI:{item['d_plus']:.1f}|Konum:%{item['konum']:.1f})")
             else:
               mesaj_satirlari.append(f"• 🟣 {strat} (RSI:{item['rsi']:.1f}|+DI:{item['d_plus']:.1f})")
           mesaj_satirlari.append("----------------------------------------")
@@ -694,7 +696,7 @@ def run_scanner():
   dakika = simdi_kontrol.minute
   
   if os.environ.get("FORCE_RUN", "false").lower() == "true":
-    pass  # Canlı/Manuel performans raporu iptal edildi
+    pass
   elif saat == 13 and 0 <= dakika <= 30:
     performans_raporu_gonder("Öğle (13:00)")
     time.sleep(600)
