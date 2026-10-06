@@ -694,7 +694,7 @@ def run_scanner():
   dakika = simdi_kontrol.minute
   
   if os.environ.get("FORCE_RUN", "false").lower() == "true":
-    performans_raporu_gonder("Manuel / Güncel")
+    pass  # Canlı/Manuel performans raporu iptal edildi
   elif saat == 13 and 0 <= dakika <= 30:
     performans_raporu_gonder("Öğle (13:00)")
     time.sleep(600)
