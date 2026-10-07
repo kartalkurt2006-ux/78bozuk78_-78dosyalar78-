@@ -508,73 +508,81 @@ def run_scanner():
         continue
 
   if toplanan_sinyaller:
+    cifte_sinyaller = []
+    uc_fuzeliler = []
+    iki_fuzeliler = []
+    tek_fuzeliler = []
+
     for item in toplanan_sinyaller:
       strat_names = [s.upper() for s in item['stratejiler']]
-      
-      # Çifte Sinyal (Seçenek B) Durumu
       if any("1 SAAT YAKALA" in s for s in strat_names) and any("DELİRDİ 1 SAAT" in s for s in strat_names):
-        mesaj_satirlari = [
-            "╔══════════════════════════════════════╗",
-            "║     🎯 ÇİFTE STRATEJİ SİNERJİSİ 🎯     ║",
-            "╚══════════════════════════════════════╝",
-            f"Hisse : 🔥🔥 🟦 {item['temiz_isim']} 🟦 🔥🔥 (₺{item['fiyat']:.2f})",
-            f"📈 Getiri: %{item['kazanc_yuzde']:+.2f} | ⏱️ {item['gecen_gun']} Gün Önce",
-            "────────────────────────────────────────"
-        ]
-        for strat in item['stratejiler']:
-          strat_upper = strat.upper()
-          if "1 SAAT YAKALA" in strat_upper:
-            mesaj_satirlari.append(f"• 🟣 {strat} (RSI:{item['rsi']:.1f} | +DI:{item['d_plus']:.1f})")
-          elif "DELİRDİ 1 SAAT" in strat_upper:
-            mesaj_satirlari.append(f"• ⚠️ {strat} (RVOL:{item['rvol']:.2f} | MFI:{item['mfi']:.1f})")
-          else:
-            mesaj_satirlari.append(f"• 📌 {strat}")
-        
-        final_mesaj = "\n".join(mesaj_satirlari)
-        send_ntfy(final_mesaj, f"Çifte Sinyal: {item['temiz_isim']}")
-        time.sleep(0.4)
+        cifte_sinyaller.append(item)
       else:
-        # TERS SIRALAMA: Üç Füzeli -> İki Füzeli -> Tek Füzeli (En güçlüler en üstte)
-        tek_fuzeliler = [item] if item['puan'] <= 25.0 else []
-        iki_fuzeliler = [item] if 25.0 < item['puan'] <= 30.0 else []
-        uc_fuzeliler = [item] if item['puan'] > 30.0 else []
+        if item['puan'] > 30.0:
+          uc_fuzeliler.append(item)
+        elif 25.0 < item['puan'] <= 30.0:
+          iki_fuzeliler.append(item)
+        else:
+          tek_fuzeliler.append(item)
 
-        gruplar = [
-            ("🚀🚀🚀 ÜÇ FÜZELİ SİNYALLER", uc_fuzeliler),
-            ("🚀🚀 İKİ FÜZELİ SİNYALLER", iki_fuzeliler),
-            ("🚀 TEK FÜZELİ SİNYALLER", tek_fuzeliler)
-        ]
+    # Telefonda en son gönderilen mesaj en üstte göründüğü için sıralama:
+    # Tek Füzeli -> İki Füzeli -> Üç Füzeli -> Çifte Sinyal (En üstte)
+    gonderim_sirasi_gruplar = [
+        ("🚀 TEK FÜZELİ SİNYALLER", tek_fuzeliler),
+        ("🚀🚀 İKİ FÜZELİ SİNYALLER", iki_fuzeliler),
+        ("🚀🚀🚀 ÜÇ FÜZELİ SİNYALLER", uc_fuzeliler)
+    ]
 
-        for grup_baslik, grup_liste in gruplar:
-          if not grup_liste:
-            continue
+    for grup_baslik, grup_liste in gonderim_sirasi_gruplar:
+      if not grup_liste:
+        continue
+      
+      grup_boyutu = 5
+      for i in range(0, len(grup_liste), grup_boyutu):
+        alt_grup = grup_liste[i:i + grup_boyutu]
+        mesaj_satirlari = [grup_baslik, "----------------------------------------"]
+
+        for itm in alt_grup:
+          mesaj_satirlari.append(f"📌 {itm['temiz_isim']} | ₺{itm['fiyat']:.2f} | %{itm['kazanc_yuzde']:+.2f}")
           
-          grup_boyutu = 5
-          for i in range(0, len(grup_liste), grup_boyutu):
-            alt_grup = grup_liste[i:i + grup_boyutu]
-            mesaj_satirlari = [grup_baslik, "----------------------------------------"]
+          for strat in itm['stratejiler']:
+            strat_upper = strat.upper()
+            if "ERKEN DELİRDİ" in strat_upper:
+              mesaj_satirlari.append(f"• 🔥 {strat} (RVOL:{itm['rvol']:.2f}|MFI:{itm['mfi']:.1f})")
+            elif "DELİRDİ 1 SAAT" in strat_upper:
+              mesaj_satirlari.append(f"• ⚠️ {strat} (RVOL:{itm['rvol']:.2f}|MFI:{itm['mfi']:.1f})")
+            elif "DELİRDİ" in strat_upper:
+              mesaj_satirlari.append(f"• 💥 {strat} (RVOL:{itm['rvol']:.2f}|MFI:{itm['mfi']:.1f})")
+            elif "DİP HİBRİT" in strat_upper:
+              mesaj_satirlari.append(f"• 🟣 {strat} (MFI:{itm['mfi']:.1f}|+DI:{itm['d_plus']:.1f})")
+            else:
+              mesaj_satirlari.append(f"• 🟣 {strat} (RSI:{itm['rsi']:.1f}|+DI:{itm['d_plus']:.1f})")
+          mesaj_satirlari.append("----------------------------------------")
 
-            for itm in alt_grup:
-              mesaj_satirlari.append(f"📌 Hisse: 🟦 {itm['temiz_isim']} 🟦 | Fiyat: ₺{itm['fiyat']:.2f}")
-              mesaj_satirlari.append(f"📈 Sinyalden Beri Getiri: %{itm['kazanc_yuzde']:+.2f} (İlk Sinyal: {itm['gecen_gun']} gün önce)")
-              
-              for strat in itm['stratejiler']:
-                strat_upper = strat.upper()
-                if "ERKEN DELİRDİ" in strat_upper:
-                  mesaj_satirlari.append(f"• 🔥 {strat} (RVOL:{itm['rvol']:.2f}|MFI:{itm['mfi']:.1f}|+DI:{itm['d_plus']:.1f}|Konum:%{itm['konum']:.1f})")
-                elif "DELİRDİ 1 SAAT" in strat_upper:
-                  mesaj_satirlari.append(f"• ⚠️ {strat} (RVOL:{itm['rvol']:.2f}|MFI:{itm['mfi']:.1f}|+DI:{itm['d_plus']:.1f}|Konum:%{itm['konum']:.1f})")
-                elif "DELİRDİ" in strat_upper:
-                  mesaj_satirlari.append(f"• 💥 {strat} (RVOL:{itm['rvol']:.2f}|MFI:{itm['mfi']:.1f}|+DI:{itm['d_plus']:.1f}|Konum:%{itm['konum']:.1f})")
-                elif "DİP HİBRİT" in strat_upper:
-                  mesaj_satirlari.append(f"• 🟣⚫⚫ {strat} (MFI:{itm['mfi']:.1f}|+DI:{itm['d_plus']:.1f}|Konum:%{itm['konum']:.1f})")
-                else:
-                  mesaj_satirlari.append(f"• 🟣 {strat} (RSI:{itm['rsi']:.1f}|+DI:{itm['d_plus']:.1f})")
-              mesaj_satirlari.append("----------------------------------------")
+        final_mesaj = "\n".join(mesaj_satirlari)
+        send_ntfy(final_mesaj, "BIST Sinyaller")
+        time.sleep(0.4)
 
-            final_mesaj = "\n".join(mesaj_satirlari)
-            send_ntfy(final_mesaj, "BIST Sinyaller")
-            time.sleep(0.4)
+    # En son Çifte Sinyalleri gönder (Böylece telefon ekranının EN ÜSTÜNDE bu görünecek)
+    for item in cifte_sinyaller:
+      mesaj_satirlari = [
+          "🎯 ÇİFTE STRATEJİ SİNERJİSİ",
+          f"🔥🔥 🟦 {item['temiz_isim']} 🟦 🔥🔥 (₺{item['fiyat']:.2f})",
+          f"📈 Getiri: %{item['kazanc_yuzde']:+.2f} | ⏱️ {item['gecen_gun']} Gün Önce",
+          "----------------------------------------"
+      ]
+      for strat in item['stratejiler']:
+        strat_upper = strat.upper()
+        if "1 SAAT YAKALA" in strat_upper:
+          mesaj_satirlari.append(f"• 🟣 {strat} (RSI:{item['rsi']:.1f} | +DI:{item['d_plus']:.1f})")
+        elif "DELİRDİ 1 SAAT" in strat_upper:
+          mesaj_satirlari.append(f"• ⚠️ {strat} (RVOL:{item['rvol']:.2f} | MFI:{item['mfi']:.1f})")
+        else:
+          mesaj_satirlari.append(f"• 📌 {strat}")
+      
+      final_mesaj = "\n".join(mesaj_satirlari)
+      send_ntfy(final_mesaj, f"Çifte Sinyal: {item['temiz_isim']}")
+      time.sleep(0.4)
 
   print("\nTüm Hisseler tarandı ve süreç tamamlandı.")
 
@@ -587,6 +595,5 @@ if __name__ == "__main__":
     except Exception as e:
       print(f"Ana döngü hatası: {e}")
     
-    # Seans saatleri dışında veya içinde 15 dakikada bir (900 saniye) döngüyü tekrarla
     print("Sonraki tarama için 15 dakika bekleniyor...\n")
     time.sleep(900)
