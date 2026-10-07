@@ -407,13 +407,7 @@ def run_scanner():
 
             return simdi_epoch - son_zaman > COOLDOWN_SECONDS
 
-        # Strateji 1: DELİRDİ 15 (PASİFİZE EDİLDİ)
-        # if (rvol_curr_15 >= 1.0) and sart_wave_15 and (mfi_curr_15 > 55) and (plus_di_curr_15 > 25):
-        #   if kayit_guncelle("gitan_15"):
-        #     tetiklenen_str.append("DELİRDİ 15")
-        #     toplam_puan += 35.0
-
-        # Strateji 2: DİP HİBRİT (Bollinger Sıkışması ve Yukarı Kırılım Yönlü)
+        # Strateji 2: DİP HİBRİT
         bb_middle = close_15.rolling(22).mean()
         bb_std = close_15.rolling(22).std()
         bb_upper = bb_middle + (2 * bb_std)
@@ -484,12 +478,6 @@ def run_scanner():
             tetiklenen_str.append("DELİRDİ 1 Saat")
             toplam_puan += 35.0
 
-        # Strateji 5: ERKEN DELİRDİ (PASİFİZE EDİLDİ)
-        # if (close_curr_15 > hma20_15.iloc[-1]) and (rvol_curr_15 >= 1.5) and sart_wave_15 and (bollinger_sikisma.iloc[-1] or yukari_kirilim):
-        #   if kayit_guncelle("erken_hibrit_1h"):
-        #     tetiklenen_str.append("ERKEN DELİRDİ")
-        #     toplam_puan += 30.0
-
         if tetiklenen_str:
           if toplam_puan == 0:
             toplam_puan = 30.0
@@ -520,46 +508,73 @@ def run_scanner():
         continue
 
   if toplanan_sinyaller:
-    tek_fuzeliler = [item for item in toplanan_sinyaller if item['puan'] <= 25.0]
-    iki_fuzeliler = [item for item in toplanan_sinyaller if 25.0 < item['puan'] <= 30.0]
-    uc_fuzeliler = [item for item in toplanan_sinyaller if item['puan'] > 30.0]
-
-    gruplar = [
-        ("🚀 TEK FÜZELİ SİNYALLER", tek_fuzeliler),
-        ("🚀🚀 İKİ FÜZELİ SİNYALLER", iki_fuzeliler),
-        ("🚀🚀🚀 ÜÇ FÜZELİ SİNYALLER", uc_fuzeliler)
-    ]
-
-    for grup_baslik, grup_liste in gruplar:
-      if not grup_liste:
-        continue
+    for item in toplanan_sinyaller:
+      strat_names = [s.upper() for s in item['stratejiler']]
       
-      grup_boyutu = 5
-      for i in range(0, len(grup_liste), grup_boyutu):
-        alt_grup = grup_liste[i:i + grup_boyutu]
-        mesaj_satirlari = [grup_baslik, "----------------------------------------"]
-
-        for item in alt_grup:
-          mesaj_satirlari.append(f"📌 Hisse: 🟦 {item['temiz_isim']} 🟦 | Fiyat: ₺{item['fiyat']:.2f}")
-          mesaj_satirlari.append(f"📈 Sinyalden Beri Getiri: %{item['kazanc_yuzde']:+.2f} (İlk Sinyal: {item['gecen_gun']} gün önce)")
-          
-          for strat in item['stratejiler']:
-            strat_upper = strat.upper()
-            if "ERKEN DELİRDİ" in strat_upper:
-              mesaj_satirlari.append(f"• 🔥 {strat} (RVOL:{item['rvol']:.2f}|MFI:{item['mfi']:.1f}|+DI:{item['d_plus']:.1f}|Konum:%{item['konum']:.1f})")
-            elif "DELİRDİ 1 SAAT" in strat_upper:
-              mesaj_satirlari.append(f"• ⚠️ {strat} (RVOL:{item['rvol']:.2f}|MFI:{item['mfi']:.1f}|+DI:{item['d_plus']:.1f}|Konum:%{item['konum']:.1f})")
-            elif "DELİRDİ" in strat_upper:
-              mesaj_satirlari.append(f"• 💥 {strat} (RVOL:{item['rvol']:.2f}|MFI:{item['mfi']:.1f}|+DI:{item['d_plus']:.1f}|Konum:%{item['konum']:.1f})")
-            elif "DİP HİBRİT" in strat_upper:
-              mesaj_satirlari.append(f"• 🟣⚫⚫ {strat} (MFI:{item['mfi']:.1f}|+DI:{item['d_plus']:.1f}|Konum:%{item['konum']:.1f})")
-            else:
-              mesaj_satirlari.append(f"• 🟣 {strat} (RSI:{item['rsi']:.1f}|+DI:{item['d_plus']:.1f})")
-          mesaj_satirlari.append("----------------------------------------")
-
+      # ÖZEL KOŞUL: "1 Saat Yakala" ve "DELİRDİ 1 Saat" aynı anda tetiklendiyse Seçenek B Şablonu
+      if any("1 SAAT YAKALA" in s for s in strat_names) and any("DELİRDİ 1 SAAT" in s for s in strat_names):
+        mesaj_satirlari = [
+            "╔══════════════════════════════════════╗",
+            "║     🎯 ÇİFTE STRATEJİ SİNERJİSİ 🎯     ║",
+            "╚══════════════════════════════════════╝",
+            f"Hisse : 🔥🔥 🟦 {item['temiz_isim']} 🟦 🔥🔥 (₺{item['fiyat']:.2f})",
+            f"📈 Getiri: %{item['kazanc_yuzde']:+.2f} | ⏱️ {item['gecen_gun']} Gün Önce",
+            "────────────────────────────────────────"
+        ]
+        for strat in item['stratejiler']:
+          strat_upper = strat.upper()
+          if "1 SAAT YAKALA" in strat_upper:
+            mesaj_satirlari.append(f"• 🟣 {strat} (RSI:{item['rsi']:.1f} | +DI:{item['d_plus']:.1f})")
+          elif "DELİRDİ 1 SAAT" in strat_upper:
+            mesaj_satirlari.append(f"• ⚠️ {strat} (RVOL:{item['rvol']:.2f} | MFI:{item['mfi']:.1f})")
+          else:
+            mesaj_satirlari.append(f"• 📌 {strat}")
+        
         final_mesaj = "\n".join(mesaj_satirlari)
-        send_ntfy(final_mesaj, "BIST Sinyaller")
+        send_ntfy(final_mesaj, f"Çifte Sinyal: {item['temiz_isim']}")
         time.sleep(0.4)
+      else:
+        # Standart Gruplama ve Gönderim Akışı
+        tek_fuzeliler = [item] if item['puan'] <= 25.0 else []
+        iki_fuzeliler = [item] if 25.0 < item['puan'] <= 30.0 else []
+        uc_fuzeliler = [item] if item['puan'] > 30.0 else []
+
+        gruplar = [
+            ("🚀 TEK FÜZELİ SİNYALLER", tek_fuzeliler),
+            ("🚀🚀 İKİ FÜZELİ SİNYALLER", iki_fuzeliler),
+            ("🚀🚀🚀 ÜÇ FÜZELİ SİNYALLER", uc_fuzeliler)
+        ]
+
+        for grup_baslik, grup_liste in gruplar:
+          if not grup_liste:
+            continue
+          
+          grup_boyutu = 5
+          for i in range(0, len(grup_liste), grup_boyutu):
+            alt_grup = grup_liste[i:i + grup_boyutu]
+            mesaj_satirlari = [grup_baslik, "----------------------------------------"]
+
+            for itm in alt_grup:
+              mesaj_satirlari.append(f"📌 Hisse: 🟦 {itm['temiz_isim']} 🟦 | Fiyat: ₺{itm['fiyat']:.2f}")
+              mesaj_satirlari.append(f"📈 Sinyalden Beri Getiri: %{itm['kazanc_yuzde']:+.2f} (İlk Sinyal: {itm['gecen_gun']} gün önce)")
+              
+              for strat in itm['stratejiler']:
+                strat_upper = strat.upper()
+                if "ERKEN DELİRDİ" in strat_upper:
+                  mesaj_satirlari.append(f"• 🔥 {strat} (RVOL:{itm['rvol']:.2f}|MFI:{itm['mfi']:.1f}|+DI:{itm['d_plus']:.1f}|Konum:%{itm['konum']:.1f})")
+                elif "DELİRDİ 1 SAAT" in strat_upper:
+                  mesaj_satirlari.append(f"• ⚠️ {strat} (RVOL:{itm['rvol']:.2f}|MFI:{itm['mfi']:.1f}|+DI:{itm['d_plus']:.1f}|Konum:%{itm['konum']:.1f})")
+                elif "DELİRDİ" in strat_upper:
+                  mesaj_satirlari.append(f"• 💥 {strat} (RVOL:{itm['rvol']:.2f}|MFI:{itm['mfi']:.1f}|+DI:{itm['d_plus']:.1f}|Konum:%{itm['konum']:.1f})")
+                elif "DİP HİBRİT" in strat_upper:
+                  mesaj_satirlari.append(f"• 🟣⚫⚫ {strat} (MFI:{itm['mfi']:.1f}|+DI:{itm['d_plus']:.1f}|Konum:%{itm['konum']:.1f})")
+                else:
+                  mesaj_satirlari.append(f"• 🟣 {strat} (RSI:{itm['rsi']:.1f}|+DI:{itm['d_plus']:.1f})")
+              mesaj_satirlari.append("----------------------------------------")
+
+            final_mesaj = "\n".join(mesaj_satirlari)
+            send_ntfy(final_mesaj, "BIST Sinyaller")
+            time.sleep(0.4)
 
   print("\nTüm Hisseler tarandı ve süreç tamamlandı.")
 
