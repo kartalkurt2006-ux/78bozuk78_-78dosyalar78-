@@ -272,7 +272,7 @@ def extract_ticker_df(df_all, clean_ticker, chunk):
 
 def run_scanner():
   if not piyasa_zaman_kontrolu():
-    print(f"[{datetime.now(TZ_TR).strftime('%Y-%m-%d %H:%M:%S')}] Borsa seans saatleri dışındayız veya hafta sonu. Tarama atlanıyor.")
+    print("Borsa seans saatleri dışındayız veya hafta sonu. Tarama atlanıyor.")
     return
 
   simdi_epoch = time.time()
@@ -407,7 +407,13 @@ def run_scanner():
 
             return simdi_epoch - son_zaman > COOLDOWN_SECONDS
 
-        # Strateji 2: DİP HİBRİT
+        # Strateji 1: DELİRDİ 15
+        if (rvol_curr_15 >= 1.0) and sart_wave_15 and (mfi_curr_15 > 55) and (plus_di_curr_15 > 25):
+          if kayit_guncelle("gitan_15"):
+            tetiklenen_str.append("DELİRDİ 15")
+            toplam_puan += 35.0
+
+        # Strateji 2: DİP HİBRİT (Bollinger Sıkışması ve Yukarı Kırılım Yönlü)
         bb_middle = close_15.rolling(22).mean()
         bb_std = close_15.rolling(22).std()
         bb_upper = bb_middle + (2 * bb_std)
@@ -477,6 +483,12 @@ def run_scanner():
           if kayit_guncelle("deli_gitan_1h"):
             tetiklenen_str.append("DELİRDİ 1 Saat")
             toplam_puan += 35.0
+
+        # Strateji 5: ERKEN DELİRDİ (Tamamen 15m + Bollinger Sıkışma & Yukarı Patlama Mantığına Çevrildi)
+        if (close_curr_15 > hma20_15.iloc[-1]) and (rvol_curr_15 >= 1.5) and sart_wave_15 and (bollinger_sikisma.iloc[-1] or yukari_kirilim):
+          if kayit_guncelle("erken_hibrit_1h"):
+            tetiklenen_str.append("ERKEN DELİRDİ")
+            toplam_puan += 30.0
 
         if tetiklenen_str:
           if toplam_puan == 0:
@@ -553,12 +565,5 @@ def run_scanner():
 
 
 if __name__ == "__main__":
-  print("Tarama ve Performans Takip Sistemi Sürekli Çalışma Modunda Başlatıldı...")
-  while True:
-    try:
-      run_scanner()
-    except Exception as e:
-      print(f"Ana döngü hatası: {e}")
-    
-    print("Sonraki tarama için 15 dakika bekleniyor...\n")
-    time.sleep(900)
+  print("Tarama ve Takip Sistemi başlatıldı...")
+  run_scanner()
