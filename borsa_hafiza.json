@@ -1404,7 +1404,7 @@
             "DZGYO.IS": {
                 "zaman": 1790857052.1610317,
                 "ilk_fiyat": 0.0,
-                "tekrar_sayisi": 15,
+                "tekrar_sayisi": 16,
                 "son_fiyat": 6.75
             },
             "EGGUB.IS": {
@@ -1668,7 +1668,7 @@
             "BAYRK.IS": {
                 "zaman": 1790925554.9952743,
                 "ilk_fiyat": 0.0,
-                "tekrar_sayisi": 11,
+                "tekrar_sayisi": 12,
                 "son_fiyat": 2.990000009536743
             },
             "BEGYO.IS": {
@@ -2280,8 +2280,8 @@
             "BRMEN.IS": {
                 "zaman": 1791110604.3679993,
                 "ilk_fiyat": 0.0,
-                "tekrar_sayisi": 76,
-                "son_fiyat": 8.819999694824219
+                "tekrar_sayisi": 77,
+                "son_fiyat": 8.630000114440918
             },
             "THYAO.IS": {
                 "zaman": 1791110604.3679993,
@@ -20107,7 +20107,7 @@
                 "zaman": 1791277896.0846558,
                 "ilk_fiyat": 425000.0,
                 "son_fiyat": 425000.0,
-                "tekrar_sayisi": 22
+                "tekrar_sayisi": 23
             },
             "ISGYO.IS": {
                 "zaman": 1791277896.0846558,
@@ -20124,8 +20124,8 @@
             "KLSYN.IS": {
                 "zaman": 1791279765.4162643,
                 "ilk_fiyat": 14.289999961853027,
-                "son_fiyat": 14.289999961853027,
-                "tekrar_sayisi": 1
+                "son_fiyat": 14.1899995803833,
+                "tekrar_sayisi": 2
             },
             "TMPOL.IS": {
                 "zaman": 1791279765.4162643,
@@ -20222,6 +20222,30 @@
                 "ilk_fiyat": 307.25,
                 "son_fiyat": 307.25,
                 "tekrar_sayisi": 5
+            },
+            "DERHL.IS": {
+                "zaman": 1791372017.191118,
+                "ilk_fiyat": 1.5199999809265137,
+                "son_fiyat": 1.5199999809265137,
+                "tekrar_sayisi": 1
+            },
+            "LUKSK.IS": {
+                "zaman": 1791372017.191118,
+                "ilk_fiyat": 62.849998474121094,
+                "son_fiyat": 62.849998474121094,
+                "tekrar_sayisi": 1
+            },
+            "SKBNK.IS": {
+                "zaman": 1791372017.191118,
+                "ilk_fiyat": 5.0,
+                "son_fiyat": 5.0,
+                "tekrar_sayisi": 1
+            },
+            "TRGYO.IS": {
+                "zaman": 1791372017.191118,
+                "ilk_fiyat": 90.5,
+                "son_fiyat": 90.5,
+                "tekrar_sayisi": 1
             }
         },
         "panik_avcisi_15": {
