@@ -277,7 +277,7 @@ def run_scanner():
   is_manual_run = os.environ.get("FORCE_RUN", "false").lower() == "true"
   
   print(
-      f"[{datetime.now(TZ_TR).strftime('%Y-%m-%d %H:%M:%S')}] Güncellenmiş Tarama Sistemi Başlatıldı (Deniz Dalgası ve Tehlikeli Hibrit Ekli)... (Manuel Mod: {is_manual_run})"
+      f"[{datetime.now(TZ_TR).strftime('%Y-%m-%d %H:%M:%S')}] Erken Avcı (ROC + Süper 15 Cross) Sistemi Başlatıldı... (Manuel Mod: {is_manual_run})"
   )
 
   tum_hafiza = hafiza_yukle()
@@ -315,6 +315,7 @@ def run_scanner():
       son_plus_di = 0.0
       son_konum = 50.0
       son_cmf = 0.0
+      son_roc = 0.0
 
       try:
         def kayit_guncelle(kural_adi):
@@ -399,7 +400,7 @@ def run_scanner():
                 toplam_puan += 35.0
 
         # ==========================================
-        # 2. 15 DAKİKALIK VERİ ANALİZİ (TEHLİKELİ HİBRİT ENTEGRASYONU)
+        # 2. 15 DAKİKALIK VERİ ANALİZİ (TEHLİKELİ HİBRİT)
         # ==========================================
         df_15m = extract_ticker_df(df_15m_all, clean_ticker, chunk)
         if not df_15m.empty and len(df_15m) >= 40:
@@ -450,7 +451,7 @@ def run_scanner():
                 toplam_puan += 30.0
 
         # ==========================================
-        # 3. SÜPER 15 MODÜLÜ (22.2 Bollinger Cross + MFI > 60)
+        # 3. SÜPER 15 CROSS MODÜLÜ (22 Periyot Bollinger Sıkışması + Üst Bant Cross + ROC Erken İvme)
         # ==========================================
         if not df_15m.empty and len(df_15m) >= 40:
           close_s15 = df_15m["Close"]
@@ -465,22 +466,30 @@ def run_scanner():
             bb_middle_s15 = close_s15.rolling(22).mean()
             bb_std_s15 = close_s15.rolling(22).std()
             bb_upper_s15 = bb_middle_s15 + (2 * bb_std_s15)
+            bb_lower_s15 = bb_middle_s15 - (2 * bb_std_s15)
 
+            # 22 Barlık Bant Genişliği ve Sıkışma Kontrolü
+            bb_width_s15 = bb_upper_s15 - bb_lower_s15
+            is_squeezed_s15 = bb_width_s15.iloc[-2] <= bb_width_s15.rolling(22).min().iloc[-2] * 1.15
+
+            # ROC (Rate of Change) - Son 2 barda %1.5 ve üzeri ani fiyat ivmelenmesi (Erken Avcı Atılımı)
+            roc_s15 = close_s15.pct_change(periods=2) * 100
+            roc_curr_s15 = roc_s15.iloc[-1]
+            son_roc = max(son_roc, roc_curr_s15)
+            is_sudden_burst = roc_curr_s15 >= 1.5
+
+            # Üst Bant Kırılımı veya Teması
+            is_bb_breakout = close_s15.iloc[-1] >= bb_upper_s15.iloc[-1]
+
+            # MFI desteği (katı 60 yerine esnetilmiş hafif para akışı kontrolü)
             mfi_s15 = calculate_mfi(high_s15, low_s15, close_s15, volume_s15, 14)
             mfi_curr_s15 = mfi_s15.iloc[-1]
             son_mfi = max(son_mfi, mfi_curr_s15)
 
-            prev_close = close_s15.iloc[-2]
-            prev_upper = bb_upper_s15.iloc[-2]
-            curr_close = close_s15.iloc[-1]
-            curr_upper = bb_upper_s15.iloc[-1]
-
-            is_bb_cross = (prev_close <= prev_upper) and (curr_close > curr_upper)
-
-            if is_bb_cross and (mfi_curr_s15 > 60):
+            if is_squeezed_s15 and is_bb_breakout and is_sudden_burst and (mfi_curr_s15 > 50.0):
               if kayit_guncelle("super_15_bb_cross"):
-                tetiklenen_str.append("SÜPER 15 CROSS")
-                toplam_puan += 35.0
+                tetiklenen_str.append("SÜPER 15 CROSS (ROC)")
+                toplam_puan += 40.0
 
         # ==========================================
         # 4. 🛡️ DENİZ DALGASI MODÜLÜ
@@ -535,7 +544,8 @@ def run_scanner():
               "mfi": son_mfi,
               "plus_di": son_plus_di,
               "konum": son_konum,
-              "cmf": son_cmf
+              "cmf": son_cmf,
+              "roc": son_roc
           })
           hafiza_kaydet(tum_hafiza)
           print(f"  > {clean_ticker} inceleniyor... 🎯 Sinyal Yakalandı!")
@@ -572,11 +582,11 @@ def run_scanner():
           if "TEHLİKELİ HİBRİT" in strat_upper:
             mesaj_satirlari.append(f"• 🟢🟢🟢 {strat} (MFI:{item['mfi']:.1f} | +DI:{item['plus_di']:.1f} | CMF:{item['cmf']:.2f} | Konum:%{item['konum']:.1f})")
           elif "DENİZ DALGASI" in strat_upper:
-            mesaj_satirlari.append(f"• 🛡️️⚡ {strat} (RVOL:{item['rvol']:.2f} | MFI:{item['mfi']:.1f} | +DI:{item['plus_di']:.1f} | Konum:%{item['konum']:.1f})")
+            mesaj_satirlari.append(f"• 🛡⚡ {strat} (RVOL:{item['rvol']:.2f} | MFI:{item['mfi']:.1f} | +DI:{item['plus_di']:.1f} | Konum:%{item['konum']:.1f})")
           elif "DELİRDİ" in strat_upper and "1 SAAT" in strat_upper:
             mesaj_satirlari.append(f"• 💥💥💥 {strat} (RVOL:{item['rvol']:.2f} | MFI:{item['mfi']:.1f} | +DI:{item['plus_di']:.1f} | Konum:%{item['konum']:.1f})")
           elif "SÜPER 15 CROSS" in strat_upper:
-            mesaj_satirlari.append(f"• 🎯🎯 {strat} (MFI:{item['mfi']:.1f} | Konum:%{item['konum']:.1f})")
+            mesaj_satirlari.append(f"• 🎯🎯 {strat} (ROC:%{item['roc']:.1f} | MFI:{item['mfi']:.1f} | Konum:%{item['konum']:.1f})")
           elif "DELİRDİ" in strat_upper:
             mesaj_satirlari.append(f"• 🔥🔥 {strat} (RVOL:{item['rvol']:.2f} | MFI:{item['mfi']:.1f} | +DI:{item['plus_di']:.1f} | Konum:%{item['konum']:.1f})")
           elif "1 SAAT YAKALA" in strat_upper:
