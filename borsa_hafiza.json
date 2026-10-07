@@ -954,8 +954,8 @@
             "RNPOL.IS": {
                 "zaman": 1790576096.849583,
                 "ilk_fiyat": 0.0,
-                "tekrar_sayisi": 1,
-                "son_fiyat": 1.8200000524520874
+                "tekrar_sayisi": 2,
+                "son_fiyat": 1.8799999952316284
             },
             "RYGYO.IS": {
                 "zaman": 1790576096.849583,
@@ -1404,8 +1404,8 @@
             "DZGYO.IS": {
                 "zaman": 1790857052.1610317,
                 "ilk_fiyat": 0.0,
-                "tekrar_sayisi": 14,
-                "son_fiyat": 6.789999961853027
+                "tekrar_sayisi": 15,
+                "son_fiyat": 6.75
             },
             "EGGUB.IS": {
                 "zaman": 1790930515.8118167,
@@ -1668,7 +1668,7 @@
             "BAYRK.IS": {
                 "zaman": 1790925554.9952743,
                 "ilk_fiyat": 0.0,
-                "tekrar_sayisi": 10,
+                "tekrar_sayisi": 11,
                 "son_fiyat": 2.990000009536743
             },
             "BEGYO.IS": {
@@ -2082,7 +2082,7 @@
             "SONME.IS": {
                 "zaman": 1790930515.8118167,
                 "ilk_fiyat": 0.0,
-                "tekrar_sayisi": 9,
+                "tekrar_sayisi": 10,
                 "son_fiyat": 124.9000015258789
             },
             "TRGYO.IS": {
@@ -2280,7 +2280,7 @@
             "BRMEN.IS": {
                 "zaman": 1791110604.3679993,
                 "ilk_fiyat": 0.0,
-                "tekrar_sayisi": 75,
+                "tekrar_sayisi": 76,
                 "son_fiyat": 8.819999694824219
             },
             "THYAO.IS": {
@@ -3949,7 +3949,7 @@
                 "zaman": 1791270632.8564057,
                 "ilk_fiyat": 6.380000114440918,
                 "son_fiyat": 6.690000057220459,
-                "tekrar_sayisi": 50
+                "tekrar_sayisi": 51
             },
             "ULUUN.IS": {
                 "zaman": 1791270632.8564057,
@@ -10651,7 +10651,7 @@
                 "zaman": 1791368904.651517,
                 "ilk_fiyat": 6.690000057220459,
                 "son_fiyat": 6.690000057220459,
-                "tekrar_sayisi": 3
+                "tekrar_sayisi": 4
             }
         },
         "gitan_15": {
