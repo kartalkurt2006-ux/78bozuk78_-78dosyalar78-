@@ -1404,8 +1404,8 @@
             "DZGYO.IS": {
                 "zaman": 1790857052.1610317,
                 "ilk_fiyat": 0.0,
-                "tekrar_sayisi": 16,
-                "son_fiyat": 6.75
+                "tekrar_sayisi": 17,
+                "son_fiyat": 6.78000020980835
             },
             "EGGUB.IS": {
                 "zaman": 1790930515.8118167,
@@ -1668,7 +1668,7 @@
             "BAYRK.IS": {
                 "zaman": 1790925554.9952743,
                 "ilk_fiyat": 0.0,
-                "tekrar_sayisi": 14,
+                "tekrar_sayisi": 15,
                 "son_fiyat": 2.990000009536743
             },
             "BEGYO.IS": {
@@ -2280,7 +2280,7 @@
             "BRMEN.IS": {
                 "zaman": 1791110604.3679993,
                 "ilk_fiyat": 0.0,
-                "tekrar_sayisi": 79,
+                "tekrar_sayisi": 80,
                 "son_fiyat": 8.630000114440918
             },
             "THYAO.IS": {
@@ -4194,8 +4194,8 @@
             "MOBTL.IS": {
                 "zaman": 1791365275.7083547,
                 "ilk_fiyat": 10.3100004196167,
-                "son_fiyat": 10.300000190734863,
-                "tekrar_sayisi": 4
+                "son_fiyat": 10.260000228881836,
+                "tekrar_sayisi": 5
             }
         },
         "4h": {},
@@ -20107,7 +20107,7 @@
                 "zaman": 1791277896.0846558,
                 "ilk_fiyat": 425000.0,
                 "son_fiyat": 425000.0,
-                "tekrar_sayisi": 25
+                "tekrar_sayisi": 26
             },
             "ISGYO.IS": {
                 "zaman": 1791277896.0846558,
@@ -20124,8 +20124,8 @@
             "KLSYN.IS": {
                 "zaman": 1791279765.4162643,
                 "ilk_fiyat": 14.289999961853027,
-                "son_fiyat": 14.210000038146973,
-                "tekrar_sayisi": 4
+                "son_fiyat": 14.180000305175781,
+                "tekrar_sayisi": 5
             },
             "TMPOL.IS": {
                 "zaman": 1791279765.4162643,
@@ -20226,14 +20226,14 @@
             "DERHL.IS": {
                 "zaman": 1791372017.191118,
                 "ilk_fiyat": 1.5199999809265137,
-                "son_fiyat": 1.5099999904632568,
-                "tekrar_sayisi": 3
+                "son_fiyat": 1.5199999809265137,
+                "tekrar_sayisi": 4
             },
             "LUKSK.IS": {
                 "zaman": 1791372017.191118,
                 "ilk_fiyat": 62.849998474121094,
-                "son_fiyat": 62.79999923706055,
-                "tekrar_sayisi": 3
+                "son_fiyat": 62.599998474121094,
+                "tekrar_sayisi": 4
             },
             "SKBNK.IS": {
                 "zaman": 1791372017.191118,
@@ -20256,7 +20256,13 @@
             "DMSAS.IS": {
                 "zaman": 1791373237.9800882,
                 "ilk_fiyat": 6.5,
-                "son_fiyat": 6.5,
+                "son_fiyat": 6.570000171661377,
+                "tekrar_sayisi": 2
+            },
+            "ANSGR.IS": {
+                "zaman": 1791374046.1091948,
+                "ilk_fiyat": 23.899999618530273,
+                "son_fiyat": 23.899999618530273,
                 "tekrar_sayisi": 1
             }
         },
