@@ -511,7 +511,7 @@ def run_scanner():
     for item in toplanan_sinyaller:
       strat_names = [s.upper() for s in item['stratejiler']]
       
-      # ÖZEL KOŞUL: "1 Saat Yakala" ve "DELİRDİ 1 Saat" aynı anda tetiklendiyse Seçenek B Şablonu
+      # Çifte Sinyal (Seçenek B) Durumu
       if any("1 SAAT YAKALA" in s for s in strat_names) and any("DELİRDİ 1 SAAT" in s for s in strat_names):
         mesaj_satirlari = [
             "╔══════════════════════════════════════╗",
@@ -534,15 +534,15 @@ def run_scanner():
         send_ntfy(final_mesaj, f"Çifte Sinyal: {item['temiz_isim']}")
         time.sleep(0.4)
       else:
-        # Standart Gruplama ve Gönderim Akışı
+        # TERS SIRALAMA: Üç Füzeli -> İki Füzeli -> Tek Füzeli (En güçlüler en üstte)
         tek_fuzeliler = [item] if item['puan'] <= 25.0 else []
         iki_fuzeliler = [item] if 25.0 < item['puan'] <= 30.0 else []
         uc_fuzeliler = [item] if item['puan'] > 30.0 else []
 
         gruplar = [
-            ("🚀 TEK FÜZELİ SİNYALLER", tek_fuzeliler),
+            ("🚀🚀🚀 ÜÇ FÜZELİ SİNYALLER", uc_fuzeliler),
             ("🚀🚀 İKİ FÜZELİ SİNYALLER", iki_fuzeliler),
-            ("🚀🚀🚀 ÜÇ FÜZELİ SİNYALLER", uc_fuzeliler)
+            ("🚀 TEK FÜZELİ SİNYALLER", tek_fuzeliler)
         ]
 
         for grup_baslik, grup_liste in gruplar:
@@ -580,5 +580,5 @@ def run_scanner():
 
 
 if __name__ == "__main__":
-  print("Tarama ve Performans Takip Sistemi başlatıldı...")
+  print("Tarama and Performans Takip Sistemi başlatıldı...")
   run_scanner()
