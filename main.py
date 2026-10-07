@@ -272,7 +272,7 @@ def extract_ticker_df(df_all, clean_ticker, chunk):
 
 def run_scanner():
   if not piyasa_zaman_kontrolu():
-    print("Borsa seans saatleri dışındayız veya hafta sonu. Tarama atlanıyor.")
+    print(f"[{datetime.now(TZ_TR).strftime('%Y-%m-%d %H:%M:%S')}] Borsa seans saatleri dışındayız veya hafta sonu. Tarama atlanıyor.")
     return
 
   simdi_epoch = time.time()
@@ -580,5 +580,13 @@ def run_scanner():
 
 
 if __name__ == "__main__":
-  print("Tarama and Performans Takip Sistemi başlatıldı...")
-  run_scanner()
+  print("Tarama ve Performans Takip Sistemi Sürekli Çalışma Modunda Başlatıldı...")
+  while True:
+    try:
+      run_scanner()
+    except Exception as e:
+      print(f"Ana döngü hatası: {e}")
+    
+    # Seans saatleri dışında veya içinde 15 dakikada bir (900 saniye) döngüyü tekrarla
+    print("Sonraki tarama için 15 dakika bekleniyor...\n")
+    time.sleep(900)
