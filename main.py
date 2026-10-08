@@ -539,14 +539,14 @@ def run_scanner():
           if toplam_puan == 0:
             toplam_puan = 25.0
 
-          # --- HİBRİT CANLI FİYAT GÜNCELLEMESİ (fast_info) ---
+          # --- HİBRİT CANLI FİYAT GÜNCELLEMESİ (Güvenli fast_info) ---
           try:
               live_tk = yf.Ticker(clean_ticker)
-              live_price = live_tk.fast_info.get('lastPrice')
-              if live_price and not math.isnan(live_price) and live_price > 0:
+              live_price = live_tk.fast_info['lastPrice']
+              if live_price is not None and not math.isnan(float(live_price)) and float(live_price) > 0:
                   guncel_fiyat = float(live_price)
           except Exception:
-              pass  # Canlı fiyat çekilemezse mevcut bar fiyatı (guncel_fiyat) ile devam eder
+              pass  # Canlı fiyat alınamazsa mum verisindeki guncel_fiyat ile devam eder
 
           toplanan_sinyaller.append({
               "temiz_isim": temiz_isim,
@@ -562,7 +562,7 @@ def run_scanner():
               "roc": son_roc
           })
           hafiza_kaydet(tum_hafiza)
-          print(f"  > {clean_ticker} inceleniyor... 🎯 Sinyal Yakalandı! (Canlı Fiyat: ₺{guncel_fiyat:.2f})")
+          print(f"  > {clean_ticker} inceleniyor... 🎯 Sinyal Yakalandı! (Fiyat: ₺{guncel_fiyat:.2f})")
         else:
           print(f"  > {clean_ticker} inceleniyor... [Temiz]")
 
