@@ -277,7 +277,7 @@ def run_scanner():
   is_manual_run = os.environ.get("FORCE_RUN", "false").lower() == "true"
   
   print(
-      f"[{datetime.now(TZ_TR).strftime('%Y-%m-%d %H:%M:%S')}] Erken Avcı (ROC + Süper 15 Cross) Sistemi Başlatıldı... (Manuel Mod: {is_manual_run})"
+      f"[{datetime.now(TZ_TR).strftime('%Y-%m-%d %H:%M:%S')}] Erken Avcı (Hibrit Deniz Dalgası) Sistemi Başlatıldı... (Manuel Mod: {is_manual_run})"
   )
 
   tum_hafiza = hafiza_yukle()
@@ -369,7 +369,7 @@ def run_scanner():
             mfi_1h = calculate_mfi(high_1h, low_1h, close_1h, volume_1h, 14)
             son_mfi = mfi_1h.iloc[-1]
 
-            # +DI (14)
+            # +DI / -DI (14) Hesaplamaları
             up_move_1h = high_1h.diff()
             down_move_1h = -low_1h.diff()
             plus_dm_1h = up_move_1h.where((up_move_1h > down_move_1h) & (up_move_1h > 0), 0)
@@ -492,48 +492,76 @@ def run_scanner():
                 toplam_puan += 40.0
 
         # ==========================================
-        # 4. 🛡️ DENİZ DALGASI MODÜLÜ (VWAP + ROC Optimizasyonu)
+        # 4. 🛡️ DENİZ DALGASI MODÜLÜ (HİBRİT YAPI: 1S Trend + 15M Hacim/MFI/Hull20/+DI)
         # ==========================================
-        if not df_15m.empty and len(df_15m) >= 40:
-          close_dd = df_15m["Close"]
-          high_dd = df_15m["High"]
-          low_dd = df_15m["Low"]
-          volume_dd = df_15m["Volume"]
+        if not df_1h.empty and not df_15m.empty and len(df_1h) >= 40 and len(df_15m) >= 40:
+          # --- A) 1 SAATLİK BÜYÜK RESİM KONTROLÜ ---
+          # Şart 1: 1 Saatlikte +DI >= -DI (Alıcılar üstün veya yeni kesişim yapmış)
+          # Şart 2: 1 Saatlikte RSI >= 50 (Boğa bölgesi momentumu)
+          close_1h_dd = df_1h["Close"]
+          high_1h_dd = df_1h["High"]
+          low_1h_dd = df_1h["Low"]
+          
+          up_1h = high_1h_dd.diff()
+          down_1h = -low_1h_dd.diff()
+          p_dm_1h = up_1h.where((up_1h > down_1h) & (up_1h > 0), 0)
+          n_dm_1h = down_1h.where((down_1h > up_1h) & (down_1h > 0), 0)
+          tr_val_1h = pd.concat([high_1h_dd - low_1h_dd, (high_1h_dd - close_1h_dd.shift()).abs(), (low_1h_dd - close_1h_dd.shift()).abs()], axis=1).max(axis=1)
+          
+          p_di_1h_series = 100 * (p_dm_1h.rolling(14).sum() / (tr_val_1h.rolling(14).sum() + 1e-10))
+          n_di_1h_series = 100 * (n_dm_1h.rolling(14).sum() / (tr_val_1h.rolling(14).sum() + 1e-10))
+          
+          is_1h_di_bullish = p_di_1h_series.iloc[-1] >= n_di_1h_series.iloc[-1]
+          
+          delta_1h_dd = close_1h_dd.diff()
+          g_1h = (delta_1h_dd.where(delta_1h_dd > 0, 0)).rolling(14).mean()
+          l_1h = (-delta_1h_dd.where(delta_1h_dd < 0, 0)).rolling(14).mean()
+          rs_1h_dd = g_1h / (l_1h + 1e-10)
+          rsi_1h_curr = (100 - (100 / (1 + rs_1h_dd))).iloc[-1]
+          is_1h_rsi_valid = rsi_1h_curr >= 50.0
 
-          if not close_dd.isna().iloc[-1] and not volume_dd.isna().iloc[-1]:
-            if guncel_fiyat == 0.0:
-              guncel_fiyat = close_dd.iloc[-1]
+          if is_1h_di_bullish and is_1h_rsi_valid:
+            # --- B) 15 DAKİKALIK ANLIK TETİK VE ZAMANLAMA KONTROLÜ ---
+            close_dd = df_15m["Close"]
+            high_dd = df_15m["High"]
+            low_dd = df_15m["Low"]
+            volume_dd = df_15m["Volume"]
 
-            bb_m_dd = close_dd.rolling(22).mean()
-            bb_s_dd = close_dd.rolling(22).std()
-            bb_u_dd = bb_m_dd + (2 * bb_s_dd)
-            bb_l_dd = bb_m_dd - (2 * bb_s_dd)
+            if not close_dd.isna().iloc[-1] and not volume_dd.isna().iloc[-1]:
+              if guncel_fiyat == 0.0:
+                guncel_fiyat = close_dd.iloc[-1]
 
-            bw_dd = (bb_u_dd - bb_l_dd) / bb_m_dd
-            is_squeezed_dd = bw_dd.iloc[-2] < bw_dd.rolling(20).mean().iloc[-2]
-            is_cross_dd = (close_dd.iloc[-3] <= bb_u_dd.iloc[-3]) and (close_dd.iloc[-2] > bb_u_dd.iloc[-2])
+              # Şart 1: RVOL (Ani Hacim Çarpanı) >= 2.5
+              rvol_15m = volume_dd / volume_dd.rolling(20).mean()
+              is_rvol_burst = rvol_15m.iloc[-1] >= 2.5
+              son_rvol = max(son_rvol, rvol_15m.iloc[-1])
 
-            # VWAP Hesaplama ve Kontrolü
-            typical_price_dd = (high_dd + low_dd + close_dd) / 3
-            vwap_dd = (typical_price_dd * volume_dd).cumsum() / volume_dd.cumsum()
-            is_above_vwap = close_dd.iloc[-1] > vwap_dd.iloc[-1]
+              # Şart 2: MFI > 60 (Net Para Akışı)
+              mfi_dd = calculate_mfi(high_dd, low_dd, close_dd, volume_dd, 14)
+              mfi_curr_dd = mfi_dd.iloc[-1]
+              is_mfi_valid = mfi_curr_dd > 60.0
+              son_mfi = max(son_mfi, mfi_curr_dd)
 
-            # ROC (Rate of Change) Hız Filtresi
-            roc_dd = close_dd.pct_change(periods=2) * 100
-            roc_curr_dd = roc_dd.iloc[-1]
-            is_roc_burst_dd = roc_curr_dd >= 1.5
-            son_roc = max(son_roc, roc_curr_dd)
+              # Şart 3: Fiyat > Hull 20 (Hızlı Trend Onayı)
+              hma20_15m = calculate_hma(close_dd, 20)
+              is_above_hull = close_dd.iloc[-1] > hma20_15m.iloc[-1]
 
-            wave_pos_dd = get_wave_position(df_15m)
-            son_konum = max(son_konum, wave_pos_dd)
+              # Şart 4: 15m +DI > 20
+              up_15 = high_dd.diff()
+              down_15 = -low_15m.diff() if 'low_15m' in locals() else -low_dd.diff()
+              p_dm_15 = up_15.where((up_15 > down_15) & (up_15 > 0), 0)
+              tr_15 = pd.concat([high_dd - low_dd, (high_dd - close_dd.shift()).abs(), (low_dd - close_dd.shift()).abs()], axis=1).max(axis=1)
+              p_di_15_series = 100 * (p_dm_15.rolling(14).sum() / (tr_15.rolling(14).sum() + 1e-10))
+              p_di_15_curr = p_di_15_series.iloc[-1]
+              is_15_di_valid = p_di_15_curr > 20.0
+              son_plus_di = max(son_plus_di, p_di_15_curr)
 
-            mfi_dd = calculate_mfi(high_dd, low_dd, close_dd, volume_dd, 14)
-            son_mfi = max(son_mfi, mfi_dd.iloc[-2])
+              son_konum = max(son_konum, get_wave_position(df_15m))
 
-            if is_squeezed_dd and is_cross_dd and is_above_vwap and is_roc_burst_dd:
-              if kayit_guncelle("deniz_dalgasi_vwap_roc"):
-                tetiklenen_str.append("DENİZ DALGASI (VWAP+ROC)")
-                toplam_puan += 50.0
+              if is_rvol_burst and is_mfi_valid and is_above_hull and is_15_di_valid:
+                if kayit_guncelle("deniz_dalgasi_hibrit"):
+                  tetiklenen_str.append("DENİZ DALGASI (HİBRİT)")
+                  toplam_puan += 50.0
 
         if tetiklenen_str:
           if toplam_puan == 0:
@@ -596,7 +624,7 @@ def run_scanner():
           if "TEHLİKELİ HİBRİT" in strat_upper:
             mesaj_satirlari.append(f"• 🟢🟢🟢 {strat} (MFI:{item['mfi']:.1f} | +DI:{item['plus_di']:.1f} | CMF:{item['cmf']:.2f} | Konum:%{item['konum']:.1f})")
           elif "DENİZ DALGASI" in strat_upper:
-            mesaj_satirlari.append(f"• 🛡⚡ {strat} (ROC:%{item['roc']:.1f} | MFI:{item['mfi']:.1f} | Konum:%{item['konum']:.1f})")
+            mesaj_satirlari.append(f"• 🛡⚡ {strat} (RVOL:{item['rvol']:.2f} | MFI:{item['mfi']:.1f} | +DI:{item['plus_di']:.1f} | Konum:%{item['konum']:.1f})")
           elif "DELİRDİ" in strat_upper and "1 SAAT" in strat_upper:
             mesaj_satirlari.append(f"• 💥💥💥 {strat} (RVOL:{item['rvol']:.2f} | MFI:{item['mfi']:.1f} | +DI:{item['plus_di']:.1f} | Konum:%{item['konum']:.1f})")
           elif "SÜPER 15 CROSS" in strat_upper:
