@@ -1,4 +1,4 @@
-from datetime import datetime
+From datetime import datetime
 import json
 import os
 import time
@@ -400,7 +400,7 @@ def run_scanner():
                 toplam_puan += 35.0
 
         # ==========================================
-        # 2. 15 DAKİKALIK VERİ ANALİZİ (TEHLİKELİ HİBRİT)
+        # 2. 15 DAKİKALIK VERİ ANALİZİ (TEHLİKELİ HİBRİT + ICHIMOKU TENKAN/KIJUN)
         # ==========================================
         df_15m = extract_ticker_df(df_15m_all, clean_ticker, chunk)
         if not df_15m.empty and len(df_15m) >= 40:
@@ -433,19 +433,19 @@ def run_scanner():
 
             son_konum = max(son_konum, get_wave_position(df_15m))
 
-            # Bollinger 22 Hesaplamaları (15m)
-            bb_sma_15 = close_15m.rolling(22).mean()
-            bb_std_15 = close_15m.rolling(22).std()
-            bb_top_15 = bb_sma_15 + (2 * bb_std_15)
-            bb_bot_15 = bb_sma_15 - (2 * bb_std_15)
-            bb_width_15 = bb_top_15 - bb_bot_15
+            # Ichimoku Tenkan-sen (9) ve Kijun-sen (26) Hesaplamaları (15m)
+            tenkan_9 = (high_15m.rolling(9).max() + low_15m.rolling(9).min()) / 2
+            kijun_26 = (high_15m.rolling(26).max() + low_15m.rolling(26).min()) / 2
 
-            bollinger_sikisma_15 = (bb_width_15 < (bb_top_15 * 0.1)).iloc[-1]
-            bollinger_orta_cross_15 = (close_15m.iloc[-2] <= bb_sma_15.iloc[-2]) and (close_15m.iloc[-1] > bb_sma_15.iloc[-1])
+            # Kesişim veya Üstünde Olma Koşulu
+            # Tenkan'ın Kijun'u yeni kestiği an VEYA Tenkan'ın zaten Kijun'un üzerinde seyrettiği durum
+            ichimoku_kesisim = (tenkan_9.iloc[-2] <= kijun_26.iloc[-2]) and (tenkan_9.iloc[-1] > kijun_26.iloc[-1])
+            ichimoku_ustunde = tenkan_9.iloc[-1] >= kijun_26.iloc[-1]
+            ichimoku_trigger = ichimoku_kesisim or ichimoku_ustunde
 
-            # Strateji: TEHLİKELİ HİBRİT
+            # Strateji: TEHLİKELİ HİBRİT (Ichimoku Entegreli)
             konum_yuzde_1h_curr = check_wave_margins(df_1h, lookback=1)[1] if not df_15m.empty else get_wave_position(df_15m)
-            if (0.0 <= konum_yuzde_1h_curr <= 15.0) and (mfi_curr_15 > 50.0) and (plus_di_curr_15 > 20.0) and (cmf_curr_15 > 0.0) and bollinger_sikisma_15 and bollinger_orta_cross_15:
+            if (0.0 <= konum_yuzde_1h_curr <= 15.0) and (mfi_curr_15 > 50.0) and (plus_di_curr_15 > 20.0) and (cmf_curr_15 > 0.0) and ichimoku_trigger:
               if kayit_guncelle("dip_hibrit"):
                 tetiklenen_str.append("TEHLİKELİ HİBRİT")
                 toplam_puan += 30.0
@@ -496,8 +496,6 @@ def run_scanner():
         # ==========================================
         if not df_1h.empty and not df_15m.empty and len(df_1h) >= 40 and len(df_15m) >= 40:
           # --- A) 1 SAATLİK BÜYÜK RESİM KONTROLÜ ---
-          # Şart 1: 1 Saatlikte +DI >= -DI (Alıcılar üstün veya yeni kesişim yapmış)
-          # Şart 2: 1 Saatlikte RSI >= 50 (Boğa bölgesi momentumu)
           close_1h_dd = df_1h["Close"]
           high_1h_dd = df_1h["High"]
           low_1h_dd = df_1h["Low"]
@@ -574,7 +572,7 @@ def run_scanner():
               if live_price is not None and not math.isnan(float(live_price)) and float(live_price) > 0:
                   guncel_fiyat = float(live_price)
           except Exception:
-              pass  # Canlı fiyat alınamazsa mum verisindeki guncel_fiyat ile devam eder
+              pass
 
           toplanan_sinyaller.append({
               "temiz_isim": temiz_isim,
