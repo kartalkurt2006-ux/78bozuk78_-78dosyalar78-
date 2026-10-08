@@ -400,7 +400,7 @@ def run_scanner():
                 toplam_puan += 35.0
 
         # ==========================================
-        # 2. 15 DAKİKALIK VERİ ANALİZİ (TEHLİKELİ HİBRİT + ICHIMOKU TREND DEVAMI & BULUT KONTROLÜ)
+        # 2. 15 DAKİKALIK VERİ ANALİZİ (TEHLİKELİ HİBRİT + FİYAT ÜSTÜNDE VEYA KESİYOR KONTROLÜ)
         # ==========================================
         df_15m = extract_ticker_df(df_15m_all, clean_ticker, chunk)
         if not df_15m.empty and len(df_15m) >= 40:
@@ -448,14 +448,15 @@ def run_scanner():
             kumo_ust = pd.concat([senkou_span_a, senkou_span_b], axis=1).max(axis=1)
             kumo_alt = pd.concat([senkou_span_a, senkou_span_b], axis=1).min(axis=1)
 
-            seviye_referansi = tenkan_9.iloc[-1]
-            bulut_ici = (seviye_referansi >= kumo_alt.iloc[-1]) and (seviye_referansi <= kumo_ust.iloc[-1])
-            bulut_ustu = seviye_referansi > kumo_ust.iloc[-1]
+            # Fiyatın bulutun üstünde olması VEYA bulutun üst sınırını yukarı kesmesi (Breakout / Kesecek)
+            fiyat_ustunde = close_15m.iloc[-1] > kumo_ust.iloc[-1]
+            fiyat_kesecek = (close_15m.iloc[-2] <= kumo_ust.iloc[-2]) and (close_15m.iloc[-1] > kumo_ust.iloc[-1])
+            fiyat_bulut_gecerli = fiyat_ustunde or fiyat_kesecek
 
-            # Bulut altı (zayıf al) eleniyor; bulut içi veya üstündeki kesişim/devam onaylanıyor
-            ichimoku_gecerli = ichimoku_trigger and (bulut_ici or bulut_ustu)
+            # Bulut altı/içi tuzaklar eleniyor; fiyat ya üstünde ya da yukarı kesiyor
+            ichimoku_gecerli = ichimoku_trigger and fiyat_bulut_gecerli
 
-            # Strateji: TEHLİKELİ HİBRİT (Ichimoku Trend Devamı / Bulut Onaylı)
+            # Strateji: TEHLİKELİ HİBRİT (Fiyat Bulut Üstü veya Kesişim Onaylı)
             konum_yuzde_1h_curr = check_wave_margins(df_1h, lookback=1)[1] if not df_15m.empty else get_wave_position(df_15m)
             if (0.0 <= konum_yuzde_1h_curr <= 15.0) and (mfi_curr_15 > 50.0) and (plus_di_curr_15 > 20.0) and (cmf_curr_15 > 0.0) and ichimoku_gecerli:
               if kayit_guncelle("dip_hibrit"):
