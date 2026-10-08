@@ -400,7 +400,7 @@ def run_scanner():
                 toplam_puan += 35.0
 
         # ==========================================
-        # 2. 15 DAKİKALIK VERİ ANALİZİ (TEHLİKELİ HİBRİT + ICHIMOKU BULUT KONUMU & TENKAN/KIJUN KESİŞİMİ)
+        # 2. 15 DAKİKALIK VERİ ANALİZİ (TEHLİKELİ HİBRİT + ICHIMOKU TREND DEVAMI & BULUT KONTROLÜ)
         # ==========================================
         df_15m = extract_ticker_df(df_15m_all, clean_ticker, chunk)
         if not df_15m.empty and len(df_15m) >= 40:
@@ -437,8 +437,10 @@ def run_scanner():
             tenkan_9 = (high_15m.rolling(9).max() + low_15m.rolling(9).min()) / 2
             kijun_26 = (high_15m.rolling(26).max() + low_15m.rolling(26).min()) / 2
 
-            # Tenkan Sen'in Kijun Sen'i Yukarı Kesmesi
+            # Kesişim VEYA Tenkan'ın Kijun'un Üzerinde Seyretmesi (Trend Devamı)
             tenkan_kesisimi = (tenkan_9.iloc[-2] <= kijun_26.iloc[-2]) and (tenkan_9.iloc[-1] > kijun_26.iloc[-1])
+            tenkan_ustunde = tenkan_9.iloc[-1] > kijun_26.iloc[-1]
+            ichimoku_trigger = tenkan_kesisimi or tenkan_ustunde
 
             # Ichimoku Bulut Sınırları (Senkou Span A ve Span B)
             senkou_span_a = (tenkan_9 + kijun_26) / 2
@@ -446,20 +448,16 @@ def run_scanner():
             kumo_ust = pd.concat([senkou_span_a, senkou_span_b], axis=1).max(axis=1)
             kumo_alt = pd.concat([senkou_span_a, senkou_span_b], axis=1).min(axis=1)
 
-            # Kesişimin gerçekleştiği andaki Tenkan seviyesi
-            kesisim_seviyesi = tenkan_9.iloc[-1]
+            seviye_referansi = tenkan_9.iloc[-1]
+            bulut_ici = (seviye_referansi >= kumo_alt.iloc[-1]) and (seviye_referansi <= kumo_ust.iloc[-1])
+            bulut_ustu = seviye_referansi > kumo_ust.iloc[-1]
 
-            # 3 Maddeye Göre Sinyal Gücü Kontrolü (Zayıf Al, Orta Şiddetli Al, Güçlü Al)
-            bulut_alti = kesisim_seviyesi < kumo_alt.iloc[-1]
-            bulut_ici = (kesisim_seviyesi >= kumo_alt.iloc[-1]) and (kesisim_seviyesi <= kumo_ust.iloc[-1])
-            bulut_ustu = kesisim_seviyesi > kumo_ust.iloc[-1]
+            # Bulut altı (zayıf al) eleniyor; bulut içi veya üstündeki kesişim/devam onaylanıyor
+            ichimoku_gecerli = ichimoku_trigger and (bulut_ici or bulut_ustu)
 
-            # İstediğiniz gibi bulut altı zayıf sinyalleri eleyip, Orta ve Güçlü sinyalleri kabul ediyoruz
-            ichimoku_gecerli_kesisim = tenkan_kesisimi and (bulut_ici or bulut_ustu)
-
-            # Strateji: TEHLİKELİ HİBRİT (Ichimoku Bulut İçi / Üstü Kesişim Teyitli)
+            # Strateji: TEHLİKELİ HİBRİT (Ichimoku Trend Devamı / Bulut Onaylı)
             konum_yuzde_1h_curr = check_wave_margins(df_1h, lookback=1)[1] if not df_15m.empty else get_wave_position(df_15m)
-            if (0.0 <= konum_yuzde_1h_curr <= 15.0) and (mfi_curr_15 > 50.0) and (plus_di_curr_15 > 20.0) and (cmf_curr_15 > 0.0) and ichimoku_gecerli_kesisim:
+            if (0.0 <= konum_yuzde_1h_curr <= 15.0) and (mfi_curr_15 > 50.0) and (plus_di_curr_15 > 20.0) and (cmf_curr_15 > 0.0) and ichimoku_gecerli:
               if kayit_guncelle("dip_hibrit"):
                 tetiklenen_str.append("TEHLİKELİ HİBRİT")
                 toplam_puan += 30.0
