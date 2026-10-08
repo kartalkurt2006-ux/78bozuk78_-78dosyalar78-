@@ -1,4 +1,4 @@
-From datetime import datetime
+from datetime import datetime
 import json
 import os
 import time
@@ -438,7 +438,6 @@ def run_scanner():
             kijun_26 = (high_15m.rolling(26).max() + low_15m.rolling(26).min()) / 2
 
             # Kesişim veya Üstünde Olma Koşulu
-            # Tenkan'ın Kijun'u yeni kestiği an VEYA Tenkan'ın zaten Kijun'un üzerinde seyrettiği durum
             ichimoku_kesisim = (tenkan_9.iloc[-2] <= kijun_26.iloc[-2]) and (tenkan_9.iloc[-1] > kijun_26.iloc[-1])
             ichimoku_ustunde = tenkan_9.iloc[-1] >= kijun_26.iloc[-1]
             ichimoku_trigger = ichimoku_kesisim or ichimoku_ustunde
@@ -451,7 +450,7 @@ def run_scanner():
                 toplam_puan += 30.0
 
         # ==========================================
-        # 3. SÜPER 15 CROSS MODÜLÜ (22 Periyot Bollinger Sıkışması + Üst Bant Cross + ROC Erken İvme)
+        # 3. SÜPER 15 CROSS MODÜLÜ (22 Periyot Bollinger Sıkışması + Üst Bant Cross + RVOL >= 1.0)
         # ==========================================
         if not df_15m.empty and len(df_15m) >= 40:
           close_s15 = df_15m["Close"]
@@ -472,23 +471,23 @@ def run_scanner():
             bb_width_s15 = bb_upper_s15 - bb_lower_s15
             is_squeezed_s15 = bb_width_s15.iloc[-2] <= bb_width_s15.rolling(22).min().iloc[-2] * 1.15
 
-            # ROC (Rate of Change) - Son 2 barda %1.5 ve üzeri ani fiyat ivmelenmesi (Erken Avcı Atılımı)
-            roc_s15 = close_s15.pct_change(periods=2) * 100
-            roc_curr_s15 = roc_s15.iloc[-1]
-            son_roc = max(son_roc, roc_curr_s15)
-            is_sudden_burst = roc_curr_s15 >= 1.5
+            # RVOL (Relative Volume) - Hacmin kendi 20 günlük ortalamasında veya üstünde olması (>= 1.0)
+            rvol_s15 = volume_s15 / volume_s15.rolling(20).mean()
+            rvol_curr_s15 = rvol_s15.iloc[-1]
+            son_rvol = max(son_rvol, rvol_curr_s15)
+            is_rvol_valid = rvol_curr_s15 >= 1.0
 
             # Üst Bant Kırılımı veya Teması
             is_bb_breakout = close_s15.iloc[-1] >= bb_upper_s15.iloc[-1]
 
-            # MFI desteği (katı 60 yerine esnetilmiş hafif para akışı kontrolü)
+            # MFI desteği
             mfi_s15 = calculate_mfi(high_s15, low_s15, close_s15, volume_s15, 14)
             mfi_curr_s15 = mfi_s15.iloc[-1]
             son_mfi = max(son_mfi, mfi_curr_s15)
 
-            if is_squeezed_s15 and is_bb_breakout and is_sudden_burst and (mfi_curr_s15 > 50.0):
+            if is_squeezed_s15 and is_bb_breakout and is_rvol_valid and (mfi_curr_s15 > 50.0):
               if kayit_guncelle("super_15_bb_cross"):
-                tetiklenen_str.append("SÜPER 15 CROSS (ROC)")
+                tetiklenen_str.append("SÜPER 15 CROSS (RVOL)")
                 toplam_puan += 40.0
 
         # ==========================================
@@ -548,7 +547,7 @@ def run_scanner():
               up_15 = high_dd.diff()
               down_15 = -low_15m.diff() if 'low_15m' in locals() else -low_dd.diff()
               p_dm_15 = up_15.where((up_15 > down_15) & (up_15 > 0), 0)
-              tr_15 = pd.concat([high_dd - low_dd, (high_dd - close_dd.shift()).abs(), (low_dd - close_dd.shift()).abs()], axis=1).max(axis=1)
+              tr_15 = pd.concat([high_dd - low_dd, (high_dd - close_1h_dd.shift()).abs() if 'close_1h_dd' in locals() else (high_dd - close_dd.shift()).abs(), (low_dd - close_dd.shift()).abs()], axis=1).max(axis=1)
               p_di_15_series = 100 * (p_dm_15.rolling(14).sum() / (tr_15.rolling(14).sum() + 1e-10))
               p_di_15_curr = p_di_15_series.iloc[-1]
               is_15_di_valid = p_di_15_curr > 20.0
@@ -626,7 +625,7 @@ def run_scanner():
           elif "DELİRDİ" in strat_upper and "1 SAAT" in strat_upper:
             mesaj_satirlari.append(f"• 💥💥💥 {strat} (RVOL:{item['rvol']:.2f} | MFI:{item['mfi']:.1f} | +DI:{item['plus_di']:.1f} | Konum:%{item['konum']:.1f})")
           elif "SÜPER 15 CROSS" in strat_upper:
-            mesaj_satirlari.append(f"• 🎯🎯 {strat} (ROC:%{item['roc']:.1f} | MFI:{item['mfi']:.1f} | Konum:%{item['konum']:.1f})")
+            mesaj_satirlari.append(f"• 🎯🎯 {strat} (RVOL:{item['rvol']:.2f} | MFI:{item['mfi']:.1f} | Konum:%{item['konum']:.1f})")
           elif "DELİRDİ" in strat_upper:
             mesaj_satirlari.append(f"• 🔥🔥 {strat} (RVOL:{item['rvol']:.2f} | MFI:{item['mfi']:.1f} | +DI:{item['plus_di']:.1f} | Konum:%{item['konum']:.1f})")
           elif "1 SAAT YAKALA" in strat_upper:
