@@ -492,7 +492,7 @@ def run_scanner():
                 toplam_puan += 40.0
 
         # ==========================================
-        # 4. 🛡️ DENİZ DALGASI MODÜLÜ
+        # 4. 🛡️ DENİZ DALGASI MODÜLÜ (VWAP + ROC Optimizasyonu)
         # ==========================================
         if not df_15m.empty and len(df_15m) >= 40:
           close_dd = df_15m["Close"]
@@ -513,8 +513,16 @@ def run_scanner():
             is_squeezed_dd = bw_dd.iloc[-2] < bw_dd.rolling(20).mean().iloc[-2]
             is_cross_dd = (close_dd.iloc[-3] <= bb_u_dd.iloc[-3]) and (close_dd.iloc[-2] > bb_u_dd.iloc[-2])
 
-            vol_ma_dd = volume_dd.rolling(20).mean()
-            is_vol_dd = volume_dd.iloc[-2] >= (vol_ma_dd.iloc[-2] * 2.0)
+            # VWAP Hesaplama ve Kontrolü
+            typical_price_dd = (high_dd + low_dd + close_dd) / 3
+            vwap_dd = (typical_price_dd * volume_dd).cumsum() / volume_dd.cumsum()
+            is_above_vwap = close_dd.iloc[-1] > vwap_dd.iloc[-1]
+
+            # ROC (Rate of Change) Hız Filtresi
+            roc_dd = close_dd.pct_change(periods=2) * 100
+            roc_curr_dd = roc_dd.iloc[-1]
+            is_roc_burst_dd = roc_curr_dd >= 1.5
+            son_roc = max(son_roc, roc_curr_dd)
 
             wave_pos_dd = get_wave_position(df_15m)
             son_konum = max(son_konum, wave_pos_dd)
@@ -522,13 +530,10 @@ def run_scanner():
             mfi_dd = calculate_mfi(high_dd, low_dd, close_dd, volume_dd, 14)
             son_mfi = max(son_mfi, mfi_dd.iloc[-2])
 
-            rvol_dd = (volume_dd / volume_dd.rolling(20).mean()).iloc[-1]
-            son_rvol = max(son_rvol, rvol_dd)
-
-            if is_squeezed_dd and is_cross_dd and is_vol_dd:
-              if kayit_guncelle("deniz_dalgasi_modul"):
-                tetiklenen_str.append("DENİZ DALGASI")
-                toplam_puan += 40.0
+            if is_squeezed_dd and is_cross_dd and is_above_vwap and is_roc_burst_dd:
+              if kayit_guncelle("deniz_dalgasi_vwap_roc"):
+                tetiklenen_str.append("DENİZ DALGASI (VWAP+ROC)")
+                toplam_puan += 50.0
 
         if tetiklenen_str:
           if toplam_puan == 0:
@@ -582,7 +587,7 @@ def run_scanner():
           if "TEHLİKELİ HİBRİT" in strat_upper:
             mesaj_satirlari.append(f"• 🟢🟢🟢 {strat} (MFI:{item['mfi']:.1f} | +DI:{item['plus_di']:.1f} | CMF:{item['cmf']:.2f} | Konum:%{item['konum']:.1f})")
           elif "DENİZ DALGASI" in strat_upper:
-            mesaj_satirlari.append(f"• 🛡⚡ {strat} (RVOL:{item['rvol']:.2f} | MFI:{item['mfi']:.1f} | +DI:{item['plus_di']:.1f} | Konum:%{item['konum']:.1f})")
+            mesaj_satirlari.append(f"• 🛡⚡ {strat} (ROC:%{item['roc']:.1f} | MFI:{item['mfi']:.1f} | Konum:%{item['konum']:.1f})")
           elif "DELİRDİ" in strat_upper and "1 SAAT" in strat_upper:
             mesaj_satirlari.append(f"• 💥💥💥 {strat} (RVOL:{item['rvol']:.2f} | MFI:{item['mfi']:.1f} | +DI:{item['plus_di']:.1f} | Konum:%{item['konum']:.1f})")
           elif "SÜPER 15 CROSS" in strat_upper:
