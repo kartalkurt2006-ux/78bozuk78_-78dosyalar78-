@@ -277,7 +277,7 @@ def run_scanner():
   is_manual_run = os.environ.get("FORCE_RUN", "false").lower() == "true"
   
   print(
-      f"[{datetime.now(TZ_TR).strftime('%Y-%m-%d %H:%M:%S')}] Erken Avcı (Hibrit Deniz Dalgası) Sistemi Başlatıldı... (Manuel Mod: {is_manual_run})"
+      f"[{datetime.now(TZ_TR).strftime('%Y-%m-%d %H:%M:%S')}] Erken Avcı (Hibrit TOPGUN) Sistemi Başlatıldı... (Manuel Mod: {is_manual_run})"
   )
 
   tum_hafiza = hafiza_yukle()
@@ -340,6 +340,8 @@ def run_scanner():
                 return True
             return simdi_epoch - son_zaman > COOLDOWN_SECONDS
 
+        is_1h_yakala_valid = False
+
         # ==========================================
         # 1. 1 SAATLİK VERİ ANALİZİ (Aktif)
         # ==========================================
@@ -389,6 +391,7 @@ def run_scanner():
 
             # Strateji: 1 Saat Yakala
             if (close_curr_1h > hma20_1h.iloc[-1]) and (rsi_curr_1h > 50) and (plus_di_curr_1h > 25) and wave_breakout_1h:
+              is_1h_yakala_valid = True
               if kayit_guncelle("1h_dalga_gorsel"):
                 tetiklenen_str.append("1 Saat Yakala")
                 toplam_puan += 25.0
@@ -400,7 +403,7 @@ def run_scanner():
                 toplam_puan += 35.0
 
         # ==========================================
-        # 2. 15 DAKİKALIK VERİ ANALİZİ (TEHLİKELİ HİBRİT + ICHIMOKU TREND DEVAMI & BULUT KONTROLÜ)
+        # 2. 15 DAKİKALIK VERİ ANALİZİ (TEHLİKELİ HİBRİT + TOPGUN)
         # ==========================================
         df_15m = extract_ticker_df(df_15m_all, clean_ticker, chunk)
         if not df_15m.empty and len(df_15m) >= 40:
@@ -433,151 +436,50 @@ def run_scanner():
 
             son_konum = max(son_konum, get_wave_position(df_15m))
 
-            # Ichimoku Tenkan-sen (9) ve Kijun-sen (26) Hesaplamaları (15m)
+            # Ichimoku Bulut Sınırları (15m)
             tenkan_9 = (high_15m.rolling(9).max() + low_15m.rolling(9).min()) / 2
             kijun_26 = (high_15m.rolling(26).max() + low_15m.rolling(26).min()) / 2
-
-            # Kesişim VEYA Tenkan'ın Kijun'un Üzerinde Seyretmesi (Trend Devamı)
-            tenkan_kesisimi = (tenkan_9.iloc[-2] <= kijun_26.iloc[-2]) and (tenkan_9.iloc[-1] > kijun_26.iloc[-1])
-            tenkan_ustunde = tenkan_9.iloc[-1] > kijun_26.iloc[-1]
-            ichimoku_trigger = tenkan_kesisimi or tenkan_ustunde
-
-            # Ichimoku Bulut Sınırları (Senkou Span A ve Span B)
             senkou_span_a = (tenkan_9 + kijun_26) / 2
             senkou_span_b = (high_15m.rolling(52).max() + low_15m.rolling(52).min()) / 2
             kumo_ust = pd.concat([senkou_span_a, senkou_span_b], axis=1).max(axis=1)
-            kumo_alt = pd.concat([senkou_span_a, senkou_span_b], axis=1).min(axis=1)
 
-            seviye_referansi = tenkan_9.iloc[-1]
-            bulut_ici = (seviye_referansi >= kumo_alt.iloc[-1]) and (seviye_referansi <= kumo_ust.iloc[-1])
-            bulut_ustu = seviye_referansi > kumo_ust.iloc[-1]
+            # Bulutun patlaması veya bulutun üstünde olması
+            bulut_kirilimi = (close_15m.iloc[-2] <= kumo_ust.iloc[-2]) and (close_15m.iloc[-1] > kumo_ust.iloc[-1])
+            bulut_ustunde = close_15m.iloc[-1] > kumo_ust.iloc[-1]
+            ichimoku_hibrit_onay = bulut_kirilimi or bulut_ustunde
 
-            # Bulut altı (zayıf al) eleniyor; bulut içi veya üstündeki kesişim/devam onaylanıyor
-            ichimoku_gecerli = ichimoku_trigger and (bulut_ici or bulut_ustu)
+            hma20_15m = calculate_hma(close_15m, 20)
+            is_above_hma20_15m = close_15m.iloc[-1] > hma20_15m.iloc[-1]
 
-            # Strateji: TEHLİKELİ HİBRİT (Ichimoku Trend Devamı / Bulut Onaylı)
-            konum_yuzde_1h_curr = check_wave_margins(df_1h, lookback=1)[1] if not df_15m.empty else get_wave_position(df_15m)
-            if (0.0 <= konum_yuzde_1h_curr <= 15.0) and (mfi_curr_15 > 50.0) and (plus_di_curr_15 > 20.0) and (cmf_curr_15 > 0.0) and ichimoku_gecerli:
+            # Strateji: TEHLİKELİ HİBRİT (1s Konum 0-30 & 15m Bulut Patlaması / Üstü)
+            konum_yuzde_1h_curr = get_wave_position(df_1h) if not df_1h.empty else get_wave_position(df_15m)
+            if (0.0 <= konum_yuzde_1h_curr <= 30.0) and (mfi_curr_15 > 50.0) and (plus_di_curr_15 > 20.0) and (cmf_curr_15 > 0.0) and ichimoku_hibrit_onay:
               if kayit_guncelle("dip_hibrit"):
                 tetiklenen_str.append("TEHLİKELİ HİBRİT")
                 toplam_puan += 30.0
 
-        # ==========================================
-        # 3. SÜPER 15 CROSS MODÜLÜ (22 Periyot Bollinger Sıkışması + Üst Bant Cross + RVOL >= 1.0)
-        # ==========================================
-        if not df_15m.empty and len(df_15m) >= 40:
-          close_s15 = df_15m["Close"]
-          high_s15 = df_15m["High"]
-          low_s15 = df_15m["Low"]
-          volume_s15 = df_15m["Volume"]
-
-          if not close_s15.isna().iloc[-1] and not volume_s15.isna().iloc[-1]:
-            if guncel_fiyat == 0.0:
-              guncel_fiyat = close_s15.iloc[-1]
-
-            bb_middle_s15 = close_s15.rolling(22).mean()
-            bb_std_s15 = close_s15.rolling(22).std()
-            bb_upper_s15 = bb_middle_s15 + (2 * bb_std_s15)
-            bb_lower_s15 = bb_middle_s15 - (2 * bb_std_s15)
-
-            # 22 Barlık Bant Genişliği ve Sıkışma Kontrolü
-            bb_width_s15 = bb_upper_s15 - bb_lower_s15
-            is_squeezed_s15 = bb_width_s15.iloc[-2] <= bb_width_s15.rolling(22).min().iloc[-2] * 1.15
-
-            # RVOL (Relative Volume) - Hacmin kendi 20 günlük ortalamasında veya üstünde olması (>= 1.0)
-            rvol_s15 = volume_s15 / volume_s15.rolling(20).mean()
-            rvol_curr_s15 = rvol_s15.iloc[-1]
-            son_rvol = max(son_rvol, rvol_curr_s15)
-            is_rvol_valid = rvol_curr_s15 >= 1.0
-
-            # Üst Bant Kırılımı veya Teması
-            is_bb_breakout = close_s15.iloc[-1] >= bb_upper_s15.iloc[-1]
-
-            # MFI desteği
-            mfi_s15 = calculate_mfi(high_s15, low_s15, close_s15, volume_s15, 14)
-            mfi_curr_s15 = mfi_s15.iloc[-1]
-            son_mfi = max(son_mfi, mfi_curr_s15)
-
-            if is_squeezed_s15 and is_bb_breakout and is_rvol_valid and (mfi_curr_s15 > 50.0):
-              if kayit_guncelle("super_15_bb_cross"):
-                tetiklenen_str.append("SÜPER 15 CROSS (RVOL)")
-                toplam_puan += 40.0
+            # Strateji: TOPGUN (1 Saat Yakala kuralları + 15m Ichimoku + MFI>60 + +DI>25 + HMA20 altında fiyat)
+            if is_1h_yakala_valid and ichimoku_hibrit_onay and (plus_di_curr_15 > 25.0) and (mfi_curr_15 > 60.0) and is_above_hma20_15m:
+              if kayit_guncelle("topgun_strategy"):
+                tetiklenen_str.append("TOPGUN")
+                toplam_puan += 45.0
 
         # ==========================================
-        # 4. 🛡️ DENİZ DALGASI MODÜLÜ (HİBRİT YAPI: 1S Trend + 15M Hacim/MFI/Hull20/+DI)
+        # 3. SÜPER 15 CROSS MODÜLÜ (PASİFİZE EDİLDİ)
         # ==========================================
-        if not df_1h.empty and not df_15m.empty and len(df_1h) >= 40 and len(df_15m) >= 40:
-          # --- A) 1 SAATLİK BÜYÜK RESİM KONTROLÜ ---
-          close_1h_dd = df_1h["Close"]
-          high_1h_dd = df_1h["High"]
-          low_1h_dd = df_1h["Low"]
-          
-          up_1h = high_1h_dd.diff()
-          down_1h = -low_1h_dd.diff()
-          p_dm_1h = up_1h.where((up_1h > down_1h) & (up_1h > 0), 0)
-          n_dm_1h = down_1h.where((down_1h > up_1h) & (down_1h > 0), 0)
-          tr_val_1h = pd.concat([high_1h_dd - low_1h_dd, (high_1h_dd - close_1h_dd.shift()).abs(), (low_1h_dd - close_1h_dd.shift()).abs()], axis=1).max(axis=1)
-          
-          p_di_1h_series = 100 * (p_dm_1h.rolling(14).sum() / (tr_val_1h.rolling(14).sum() + 1e-10))
-          n_di_1h_series = 100 * (n_dm_1h.rolling(14).sum() / (tr_val_1h.rolling(14).sum() + 1e-10))
-          
-          is_1h_di_bullish = p_di_1h_series.iloc[-1] >= n_di_1h_series.iloc[-1]
-          
-          delta_1h_dd = close_1h_dd.diff()
-          g_1h = (delta_1h_dd.where(delta_1h_dd > 0, 0)).rolling(14).mean()
-          l_1h = (-delta_1h_dd.where(delta_1h_dd < 0, 0)).rolling(14).mean()
-          rs_1h_dd = g_1h / (l_1h + 1e-10)
-          rsi_1h_curr = (100 - (100 / (1 + rs_1h_dd))).iloc[-1]
-          is_1h_rsi_valid = rsi_1h_curr >= 50.0
+        if False:
+          pass
 
-          if is_1h_di_bullish and is_1h_rsi_valid:
-            # --- B) 15 DAKİKALIK ANLIK TETİK VE ZAMANLAMA KONTROLÜ ---
-            close_dd = df_15m["Close"]
-            high_dd = df_15m["High"]
-            low_dd = df_15m["Low"]
-            volume_dd = df_15m["Volume"]
-
-            if not close_dd.isna().iloc[-1] and not volume_dd.isna().iloc[-1]:
-              if guncel_fiyat == 0.0:
-                guncel_fiyat = close_dd.iloc[-1]
-
-              # Şart 1: RVOL (Ani Hacim Çarpanı) >= 2.5
-              rvol_15m = volume_dd / volume_dd.rolling(20).mean()
-              is_rvol_burst = rvol_15m.iloc[-1] >= 2.5
-              son_rvol = max(son_rvol, rvol_15m.iloc[-1])
-
-              # Şart 2: MFI > 60 (Net Para Akışı)
-              mfi_dd = calculate_mfi(high_dd, low_dd, close_dd, volume_dd, 14)
-              mfi_curr_dd = mfi_dd.iloc[-1]
-              is_mfi_valid = mfi_curr_dd > 60.0
-              son_mfi = max(son_mfi, mfi_curr_dd)
-
-              # Şart 3: Fiyat > Hull 20 (Hızlı Trend Onayı)
-              hma20_15m = calculate_hma(close_dd, 20)
-              is_above_hull = close_dd.iloc[-1] > hma20_15m.iloc[-1]
-
-              # Şart 4: 15m +DI > 20
-              up_15 = high_dd.diff()
-              down_15 = -low_15m.diff() if 'low_15m' in locals() else -low_dd.diff()
-              p_dm_15 = up_15.where((up_15 > down_15) & (up_15 > 0), 0)
-              tr_15 = pd.concat([high_dd - low_dd, (high_dd - close_1h_dd.shift()).abs() if 'close_1h_dd' in locals() else (high_dd - close_dd.shift()).abs(), (low_dd - close_dd.shift()).abs()], axis=1).max(axis=1)
-              p_di_15_series = 100 * (p_dm_15.rolling(14).sum() / (tr_15.rolling(14).sum() + 1e-10))
-              p_di_15_curr = p_di_15_series.iloc[-1]
-              is_15_di_valid = p_di_15_curr > 20.0
-              son_plus_di = max(son_plus_di, p_di_15_curr)
-
-              son_konum = max(son_konum, get_wave_position(df_15m))
-
-              if is_rvol_burst and is_mfi_valid and is_above_hull and is_15_di_valid:
-                if kayit_guncelle("deniz_dalgasi_hibrit"):
-                  tetiklenen_str.append("DENİZ DALGASI (HİBRİT)")
-                  toplam_puan += 50.0
+        # ==========================================
+        # 4. 🛡️ DENİZ DALGASI MODÜLÜ (PASİFİZE EDİLDİ)
+        # ==========================================
+        if False:
+          pass
 
         if tetiklenen_str:
           if toplam_puan == 0:
             toplam_puan = 25.0
 
-          # --- HİBRİT CANLI FİYAT GÜNCELLEMESİ (Güvenli fast_info) ---
           try:
               live_tk = yf.Ticker(clean_ticker)
               live_price = live_tk.fast_info['lastPrice']
@@ -631,16 +533,12 @@ def run_scanner():
         
         for strat in item['stratejiler']:
           strat_upper = strat.upper()
-          if "TEHLİKELİ HİBRİT" in strat_upper:
+          if "TOPGUN" in strat_upper:
+            mesaj_satirlari.append(f"• 🦅🐴🦅 {strat} (RSI:{item['rsi']:.1f} | MFI:{item['mfi']:.1f} | +DI:{item['plus_di']:.1f} | Konum:%{item['konum']:.1f})")
+          elif "TEHLİKELİ HİBRİT" in strat_upper:
             mesaj_satirlari.append(f"• 🟢🟢🟢 {strat} (MFI:{item['mfi']:.1f} | +DI:{item['plus_di']:.1f} | CMF:{item['cmf']:.2f} | Konum:%{item['konum']:.1f})")
-          elif "DENİZ DALGASI" in strat_upper:
-            mesaj_satirlari.append(f"• 🛡⚡ {strat} (RVOL:{item['rvol']:.2f} | MFI:{item['mfi']:.1f} | +DI:{item['plus_di']:.1f} | Konum:%{item['konum']:.1f})")
           elif "DELİRDİ" in strat_upper and "1 SAAT" in strat_upper:
             mesaj_satirlari.append(f"• 💥💥💥 {strat} (RVOL:{item['rvol']:.2f} | MFI:{item['mfi']:.1f} | +DI:{item['plus_di']:.1f} | Konum:%{item['konum']:.1f})")
-          elif "SÜPER 15 CROSS" in strat_upper:
-            mesaj_satirlari.append(f"• 🎯🎯 {strat} (RVOL:{item['rvol']:.2f} | MFI:{item['mfi']:.1f} | Konum:%{item['konum']:.1f})")
-          elif "DELİRDİ" in strat_upper:
-            mesaj_satirlari.append(f"• 🔥🔥 {strat} (RVOL:{item['rvol']:.2f} | MFI:{item['mfi']:.1f} | +DI:{item['plus_di']:.1f} | Konum:%{item['konum']:.1f})")
           elif "1 SAAT YAKALA" in strat_upper:
             mesaj_satirlari.append(f"• ⚫⚫⚫ {strat} (RSI:{item['rsi']:.1f} | MFI:{item['mfi']:.1f} | +DI:{item['plus_di']:.1f})")
           else:
