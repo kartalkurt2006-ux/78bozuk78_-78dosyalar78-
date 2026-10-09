@@ -457,9 +457,8 @@ def run_scanner():
             # Bulut altı/içi tuzaklar eleniyor (TradingView ile birebir hizalı)
             ichimoku_gecerli = ichimoku_trigger and fiyat_bulut_gecerli
 
-            # Strateji: TEHLİKELİ HİBRİT (26 Bar Kaydırılmış Bulut Onaylı)
-            konum_yuzde_1h_curr = check_wave_margins(df_1h, lookback=1)[1] if not df_15m.empty else get_wave_position(df_15m)
-            if (0.0 <= konum_yuzde_1h_curr <= 15.0) and (mfi_curr_15 > 50.0) and (plus_di_curr_15 > 20.0) and (cmf_curr_15 > 0.0) and ichimoku_gecerli:
+            # Strateji: TEHLİKELİ HİBRİT (26 Bar Kaydırılmış Bulut Onaylı - Yüzde Sınırı Kaldırıldı)
+            if (mfi_curr_15 > 50.0) and (plus_di_curr_15 > 20.0) and (cmf_curr_15 > 0.0) and ichimoku_gecerli:
               if kayit_guncelle("dip_hibrit"):
                 tetiklenen_str.append("TEHLİKELİ HİBRİT")
                 toplam_puan += 30.0
