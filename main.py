@@ -400,7 +400,7 @@ def run_scanner():
                 toplam_puan += 35.0
 
         # ==========================================
-        # 2. 15 DAKİKALIK VERİ ANALİZİ (TEHLİKELİ HİBRİT + 26 BAR KAYDIRILMIŞ İCHİMOKU BULUTU)
+        # 2. 15 DAKİKALIK VERİ ANALİZİ (TEHLİKELİ HİBRİT GÜNCELLENDİ)
         # ==========================================
         df_15m = extract_ticker_df(df_15m_all, clean_ticker, chunk)
         if not df_15m.empty and len(df_15m) >= 40:
@@ -431,6 +431,8 @@ def run_scanner():
             cmf_curr_15 = cmf_15m.iloc[-1]
             son_cmf = max(son_cmf, cmf_curr_15)
 
+            hma20_15m = calculate_hma(close_15m, 20)
+
             son_konum = max(son_konum, get_wave_position(df_15m))
 
             # Ichimoku Tenkan-sen (9) ve Kijun-sen (26) Hesaplamaları (15m)
@@ -442,7 +444,7 @@ def run_scanner():
             tenkan_ustunde = tenkan_9.iloc[-1] > kijun_26.iloc[-1]
             ichimoku_trigger = tenkan_kesisimi or tenkan_ustunde
 
-            # Ichimoku Bulut Sınırları (Senkou Span A ve Span B) - 26 Bar Kaydırma (.shift(26)) Eklendi
+            # Ichimoku Bulut Sınırları (Senkou Span A ve Span B) - 26 Bar Kaydırma (.shift(26))
             senkou_span_a = (tenkan_9 + kijun_26) / 2
             senkou_span_b = (high_15m.rolling(52).max() + low_15m.rolling(52).min()) / 2
             
@@ -454,11 +456,11 @@ def run_scanner():
             fiyat_kesecek = (close_15m.iloc[-2] <= kumo_ust.iloc[-2]) and (close_15m.iloc[-1] > kumo_ust.iloc[-1])
             fiyat_bulut_gecerli = fiyat_ustunde or fiyat_kesecek
 
-            # Bulut altı/içi tuzaklar eleniyor (TradingView ile birebir hizalı)
+            # Bulut altı/içi tuzaklar eleniyor
             ichimoku_gecerli = ichimoku_trigger and fiyat_bulut_gecerli
 
-            # Strateji: TEHLİKELİ HİBRİT (26 Bar Kaydırılmış Bulut Onaylı - Yüzde Sınırı Kaldırıldı)
-            if (mfi_curr_15 > 50.0) and (plus_di_curr_15 > 20.0) and (cmf_curr_15 > 0.0) and ichimoku_gecerli:
+            # Strateji: TEHLİKELİ HİBRİT (15m Tarama: +DI>25, MFI>50, CMF>0, HMA20 Fiyatın Altında, Bulut Kesişim/Üstü)
+            if (mfi_curr_15 > 50.0) and (plus_di_curr_15 > 25.0) and (cmf_curr_15 > 0.0) and (close_15m.iloc[-1] > hma20_15m.iloc[-1]) and ichimoku_gecerli:
               if kayit_guncelle("dip_hibrit"):
                 tetiklenen_str.append("TEHLİKELİ HİBRİT")
                 toplam_puan += 30.0
