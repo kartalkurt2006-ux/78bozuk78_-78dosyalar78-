@@ -457,14 +457,11 @@ def run_scanner():
             # Bulut Şartı: Fiyat veya Tenkan bulutun üstünde VEYA yukarıya doğru bulutu kesiyor/patlatıyor
             bulut_ustu_veya_kesis = (seviye_referansi > kumo_ust.iloc[-1]) or (close_15m.iloc[-1] > kumo_ust.iloc[-1]) or (tenkan_kesisimi and seviye_referansi >= kumo_alt.iloc[-1])
 
-            # Strateji: TEHLİKELİ HİBRİT (%40 Konum + RVOL >= 1.2 + MFI > 60 + +DI > 25 + Bulut Patlatma/Üstü)
-            konum_yuzde_1h_curr = check_wave_margins(df_1h, lookback=1)[1] if not df_15m.empty else get_wave_position(df_15m)
-            
+            # Strateji: TEHLİKELİ HİBRİT (1 Saatlik marj kontrolü kaldırıldı | MFI > 60 | +DI > 30 | RVOL >= 1.2)
             if (
-                (0.0 <= konum_yuzde_1h_curr <= 40.0)
-                and (rvol_curr_15 >= 1.2)
+                (rvol_curr_15 >= 1.2)
                 and (mfi_curr_15 > 60.0)
-                and (plus_di_curr_15 > 25.0)
+                and (plus_di_curr_15 > 30.0)
                 and bulut_ustu_veya_kesis
             ):
               if kayit_guncelle("dip_hibrit"):
