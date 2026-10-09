@@ -289,7 +289,7 @@ def run_scanner():
   def fetch_chunk_data(chunk_idx, chunk):
     print(f"Grup {chunk_idx}/{len(stock_chunks)} verileri indiriliyor ({len(chunk)} hisse)...")
     df_1h_all = download_with_retry(chunk, "1h", "2mo")
-    df_15m_all = download_with_retry(chunk, "15m", "15d") # 15 dakikalık veri derinliği TradingView shift mantığı için artırıldı
+    df_15m_all = download_with_retry(chunk, "15m", "10d")
     return chunk_idx, chunk, df_1h_all, df_15m_all
 
   chunk_results = []
@@ -344,7 +344,6 @@ def run_scanner():
         # 1. 1 SAATLİK VERİ ANALİZİ (Aktif)
         # ==========================================
         df_1h = extract_ticker_df(df_1h_all, clean_ticker, chunk)
-        wave_breakout_1h = False
         if not df_1h.empty and len(df_1h) >= 40:
           if isinstance(df_1h.columns, pd.MultiIndex):
             df_1h.columns = df_1h.columns.get_level_values(0)
@@ -401,11 +400,10 @@ def run_scanner():
                 toplam_puan += 35.0
 
         # ==========================================
-        # 2. 15 DAKİKALIK VERİ ANALİZİ (TEHLİKELİ HİBRİT - TRADINGVIEW SHIFT 26 MANTIĞI)
+        # 2. 15 DAKİKALIK VERİ ANALİZİ (TEHLİKELİ HİBRİT + ICHIMOKU TREND DEVAMI & BULUT KONTROLÜ)
         # ==========================================
         df_15m = extract_ticker_df(df_15m_all, clean_ticker, chunk)
-        # 52 periyot + 26 shift = en az 80-90 bar güvenli sınır
-        if not df_15m.empty and len(df_15m) >= 90:
+        if not df_15m.empty and len(df_15m) >= 40:
           if isinstance(df_15m.columns, pd.MultiIndex):
             df_15m.columns = df_15m.columns.get_level_values(0)
 
@@ -435,42 +433,31 @@ def run_scanner():
 
             son_konum = max(son_konum, get_wave_position(df_15m))
 
-            # RVOL (15m) Hesaplaması
-            rvol_15m = volume_15m / volume_15m.rolling(20).mean()
-            rvol_curr_15 = rvol_15m.iloc[-1]
-            son_rvol = max(son_rvol, rvol_curr_15)
-
-            # HMA 20 (15m) Hesaplaması
-            hma20_15m = calculate_hma(close_15m, 20)
-            is_hma_below_price = close_15m.iloc[-1] > hma20_15m.iloc[-1]
-
-            # TradingView Mantığıyla Ichimoku Çizgileri ve 26 Bar İleri Kaydırma (Shift 26)
+            # Ichimoku Tenkan-sen (9) ve Kijun-sen (26) Hesaplamaları (15m)
             tenkan_9 = (high_15m.rolling(9).max() + low_15m.rolling(9).min()) / 2
             kijun_26 = (high_15m.rolling(26).max() + low_15m.rolling(26).min()) / 2
 
+            # Kesişim VEYA Tenkan'ın Kijun'un Üzerinde Seyretmesi (Trend Devamı)
             tenkan_kesisimi = (tenkan_9.iloc[-2] <= kijun_26.iloc[-2]) and (tenkan_9.iloc[-1] > kijun_26.iloc[-1])
-            
-            # Senkou Span A ve Span B (26 bar geleceğe ötelenir)
-            senkou_span_a = ((tenkan_9 + kijun_26) / 2).shift(26)
-            senkou_span_b = (high_15m.rolling(52).max() + low_15m.rolling(52).min()).shift(26)
-            
+            tenkan_ustunde = tenkan_9.iloc[-1] > kijun_26.iloc[-1]
+            ichimoku_trigger = tenkan_kesisimi or tenkan_ustunde
+
+            # Ichimoku Bulut Sınırları (Senkou Span A ve Span B)
+            senkou_span_a = (tenkan_9 + kijun_26) / 2
+            senkou_span_b = (high_15m.rolling(52).max() + low_15m.rolling(52).min()) / 2
             kumo_ust = pd.concat([senkou_span_a, senkou_span_b], axis=1).max(axis=1)
             kumo_alt = pd.concat([senkou_span_a, senkou_span_b], axis=1).min(axis=1)
 
             seviye_referansi = tenkan_9.iloc[-1]
-            
-            # Bulut Şartı: Fiyat veya Tenkan bulutun üstünde VEYA yukarıya doğru bulutu kesiyor/patlatıyor
-            bulut_ustu_veya_kesis = (seviye_referansi > kumo_ust.iloc[-1]) or (close_15m.iloc[-1] > kumo_ust.iloc[-1]) or (tenkan_kesisimi and seviye_referansi >= kumo_alt.iloc[-1])
+            bulut_ici = (seviye_referansi >= kumo_alt.iloc[-1]) and (seviye_referansi <= kumo_ust.iloc[-1])
+            bulut_ustu = seviye_referansi > kumo_ust.iloc[-1]
 
-            # Strateji: TEHLİKELİ HİBRİT (1S Dalga Yapısı Var | Marj Yok | RVOL >= 1.2 | MFI > 60 | +DI >= 30 | HMA20 Fiyatın Altında | Bulut Üstü/Kesiş)
-            if (
-                wave_breakout_1h
-                and (rvol_curr_15 >= 1.2)
-                and (mfi_curr_15 > 60.0)
-                and (plus_di_curr_15 >= 30.0)
-                and is_hma_below_price
-                and bulut_ustu_veya_kesis
-            ):
+            # Bulut altı (zayıf al) eleniyor; bulut içi veya üstündeki kesişim/devam onaylanıyor
+            ichimoku_gecerli = ichimoku_trigger and (bulut_ici or bulut_ustu)
+
+            # Strateji: TEHLİKELİ HİBRİT (Ichimoku Trend Devamı / Bulut Onaylı)
+            konum_yuzde_1h_curr = check_wave_margins(df_1h, lookback=1)[1] if not df_15m.empty else get_wave_position(df_15m)
+            if (0.0 <= konum_yuzde_1h_curr <= 15.0) and (mfi_curr_15 > 50.0) and (plus_di_curr_15 > 20.0) and (cmf_curr_15 > 0.0) and ichimoku_gecerli:
               if kayit_guncelle("dip_hibrit"):
                 tetiklenen_str.append("TEHLİKELİ HİBRİT")
                 toplam_puan += 30.0
@@ -493,16 +480,20 @@ def run_scanner():
             bb_upper_s15 = bb_middle_s15 + (2 * bb_std_s15)
             bb_lower_s15 = bb_middle_s15 - (2 * bb_std_s15)
 
+            # 22 Barlık Bant Genişliği ve Sıkışma Kontrolü
             bb_width_s15 = bb_upper_s15 - bb_lower_s15
             is_squeezed_s15 = bb_width_s15.iloc[-2] <= bb_width_s15.rolling(22).min().iloc[-2] * 1.15
 
+            # RVOL (Relative Volume) - Hacmin kendi 20 günlük ortalamasında veya üstünde olması (>= 1.0)
             rvol_s15 = volume_s15 / volume_s15.rolling(20).mean()
             rvol_curr_s15 = rvol_s15.iloc[-1]
             son_rvol = max(son_rvol, rvol_curr_s15)
             is_rvol_valid = rvol_curr_s15 >= 1.0
 
+            # Üst Bant Kırılımı veya Teması
             is_bb_breakout = close_s15.iloc[-1] >= bb_upper_s15.iloc[-1]
 
+            # MFI desteği
             mfi_s15 = calculate_mfi(high_s15, low_s15, close_s15, volume_s15, 14)
             mfi_curr_s15 = mfi_s15.iloc[-1]
             son_mfi = max(son_mfi, mfi_curr_s15)
@@ -516,6 +507,7 @@ def run_scanner():
         # 4. 🛡️ DENİZ DALGASI MODÜLÜ (HİBRİT YAPI: 1S Trend + 15M Hacim/MFI/Hull20/+DI)
         # ==========================================
         if not df_1h.empty and not df_15m.empty and len(df_1h) >= 40 and len(df_15m) >= 40:
+          # --- A) 1 SAATLİK BÜYÜK RESİM KONTROLÜ ---
           close_1h_dd = df_1h["Close"]
           high_1h_dd = df_1h["High"]
           low_1h_dd = df_1h["Low"]
@@ -539,6 +531,7 @@ def run_scanner():
           is_1h_rsi_valid = rsi_1h_curr >= 50.0
 
           if is_1h_di_bullish and is_1h_rsi_valid:
+            # --- B) 15 DAKİKALIK ANLIK TETİK VE ZAMANLAMA KONTROLÜ ---
             close_dd = df_15m["Close"]
             high_dd = df_15m["High"]
             low_dd = df_15m["Low"]
@@ -548,18 +541,22 @@ def run_scanner():
               if guncel_fiyat == 0.0:
                 guncel_fiyat = close_dd.iloc[-1]
 
+              # Şart 1: RVOL (Ani Hacim Çarpanı) >= 2.5
               rvol_15m = volume_dd / volume_dd.rolling(20).mean()
               is_rvol_burst = rvol_15m.iloc[-1] >= 2.5
               son_rvol = max(son_rvol, rvol_15m.iloc[-1])
 
+              # Şart 2: MFI > 60 (Net Para Akışı)
               mfi_dd = calculate_mfi(high_dd, low_dd, close_dd, volume_dd, 14)
               mfi_curr_dd = mfi_dd.iloc[-1]
               is_mfi_valid = mfi_curr_dd > 60.0
               son_mfi = max(son_mfi, mfi_curr_dd)
 
+              # Şart 3: Fiyat > Hull 20 (Hızlı Trend Onayı)
               hma20_15m = calculate_hma(close_dd, 20)
               is_above_hull = close_dd.iloc[-1] > hma20_15m.iloc[-1]
 
+              # Şart 4: 15m +DI > 20
               up_15 = high_dd.diff()
               down_15 = -low_15m.diff() if 'low_15m' in locals() else -low_dd.diff()
               p_dm_15 = up_15.where((up_15 > down_15) & (up_15 > 0), 0)
@@ -580,6 +577,7 @@ def run_scanner():
           if toplam_puan == 0:
             toplam_puan = 25.0
 
+          # --- HİBRİT CANLI FİYAT GÜNCELLEMESİ (Güvenli fast_info) ---
           try:
               live_tk = yf.Ticker(clean_ticker)
               live_price = live_tk.fast_info['lastPrice']
