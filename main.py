@@ -400,10 +400,11 @@ def run_scanner():
                 toplam_puan += 35.0
 
         # ==========================================
-        # 2. 15 DAKİKALIK VERİ ANALİZİ (TEHLİKELİ HİBRİT - GÜNCELLENDİ)
+        # 2. 15 DAKİKALIK VERİ ANALİZİ (TEHLİKELİ HİBRİT)
         # ==========================================
         df_15m = extract_ticker_df(df_15m_all, clean_ticker, chunk)
-        if not df_15m.empty and len(df_15m) >= 40:
+        # Ichimoku 52 periyot gerektirdiği için uzunluk en az 60 olmalı ki NaN hatası patlamasın
+        if not df_15m.empty and len(df_15m) >= 60:
           if isinstance(df_15m.columns, pd.MultiIndex):
             df_15m.columns = df_15m.columns.get_level_values(0)
 
@@ -455,14 +456,14 @@ def run_scanner():
             # Bulut Şartı: Bulutun üstünde VEYA yukarıya kesişim
             bulut_ustu_veya_kesis = (seviye_referansi > kumo_ust.iloc[-1]) or (tenkan_kesisimi and seviye_referansi >= kumo_alt.iloc[-1])
 
-            # Strateji: TEHLİKELİ HİBRİT (Konum %40 + RVOL 1.2 + MFI > 60 + +DI > 25 + Bulut Üstü/Yukarı Kesişim)
+            # Strateji: TEHLİKELİ HİBRİT (%40 Konum + RVOL >= 1.2 + MFI > 60 + +DI > 25 + Bulut Üstü/Yukarı Kesişim)
             konum_yuzde_1h_curr = check_wave_margins(df_1h, lookback=1)[1] if not df_15m.empty else get_wave_position(df_15m)
             
             if (
                 (0.0 <= konum_yuzde_1h_curr <= 40.0)
                 and (rvol_curr_15 >= 1.2)
-                and (mfi_curr_15 > 60.0)                  # İsteğiniz üzerine MFI > 60 yapıldı
-                and (plus_di_curr_15 > 25.0)              # İsteğiniz üzerine +DI > 25 yapıldı
+                and (mfi_curr_15 > 60.0)
+                and (plus_di_curr_15 > 25.0)
                 and bulut_ustu_veya_kesis
             ):
               if kayit_guncelle("dip_hibrit"):
