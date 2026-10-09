@@ -100,16 +100,6 @@ def calculate_mfi(high, low, close, volume, period=14):
     return pd.Series(50.0, index=close.index)
 
 
-def calculate_cmf(high, low, close, volume, period=20):
-  try:
-    mf_multiplier = ((close - low) - (high - close)) / (high - low + 1e-10)
-    mf_volume = mf_multiplier * volume
-    cmf = mf_volume.rolling(period).sum() / (volume.rolling(period).sum() + 1e-10)
-    return cmf
-  except:
-    return pd.Series(0.0, index=close.index)
-
-
 def get_wave_position(df):
   try:
     close = df["Close"].values
@@ -316,6 +306,8 @@ def run_scanner():
       son_konum = 50.0
       son_cmf = 0.0
       son_roc = 0.0
+      close_curr_1h = 0.0
+      hma20_1h_curr = 0.0
 
       try:
         def kayit_guncelle(kural_adi):
@@ -341,6 +333,7 @@ def run_scanner():
             return simdi_epoch - son_zaman > COOLDOWN_SECONDS
 
         is_1h_yakala_valid = False
+        di_sarti_1h = False
 
         # ==========================================
         # 1. 1 SAATLİK VERİ ANALİZİ (Aktif)
@@ -371,13 +364,23 @@ def run_scanner():
             mfi_1h = calculate_mfi(high_1h, low_1h, close_1h, volume_1h, 14)
             son_mfi = mfi_1h.iloc[-1]
 
-            # +DI / -DI (14) Hesaplamaları
+            # +DI / -DI (14) Hesaplamaları (1h)
             up_move_1h = high_1h.diff()
             down_move_1h = -low_1h.diff()
             plus_dm_1h = up_move_1h.where((up_move_1h > down_move_1h) & (up_move_1h > 0), 0)
+            minus_dm_1h = down_move_1h.where((down_move_1h > up_move_1h) & (down_move_1h > 0), 0)
             tr_1h = pd.concat([high_1h - low_1h, (high_1h - close_1h.shift()).abs(), (low_1h - close_1h.shift()).abs()], axis=1).max(axis=1)
-            plus_di_curr_1h = (100 * (plus_dm_1h.rolling(14).sum() / (tr_1h.rolling(14).sum() + 1e-10))).iloc[-1]
+            
+            plus_di_1h = 100 * (plus_dm_1h.rolling(14).sum() / (tr_1h.rolling(14).sum() + 1e-10))
+            minus_di_1h = 100 * (minus_dm_1h.rolling(14).sum() / (tr_1h.rolling(14).sum() + 1e-10))
+            
+            plus_di_curr_1h = plus_di_1h.iloc[-1]
             son_plus_di = plus_di_curr_1h
+
+            # 1s DI Kesişim veya Üstünde Olma Şartı
+            di_kesisim_1h = (plus_di_1h.iloc[-2] <= minus_di_1h.iloc[-2]) and (plus_di_1h.iloc[-1] > minus_di_1h.iloc[-1])
+            di_ustunde_1h = plus_di_1h.iloc[-1] > minus_di_1h.iloc[-1]
+            di_sarti_1h = di_kesisim_1h or di_ustunde_1h
 
             # RVOL (1h)
             rvol_curr_1h = (volume_1h / volume_1h.rolling(20).mean()).iloc[-1]
@@ -388,16 +391,17 @@ def run_scanner():
             son_konum = wave_res_1h[1]
 
             hma20_1h = calculate_hma(close_1h, 20)
+            hma20_1h_curr = hma20_1h.iloc[-1]
 
             # Strateji: 1 Saat Yakala
-            if (close_curr_1h > hma20_1h.iloc[-1]) and (rsi_curr_1h > 50) and (plus_di_curr_1h > 25) and wave_breakout_1h:
+            if (close_curr_1h > hma20_1h_curr) and (rsi_curr_1h > 50) and (plus_di_curr_1h > 25) and wave_breakout_1h:
               is_1h_yakala_valid = True
               if kayit_guncelle("1h_dalga_gorsel"):
                 tetiklenen_str.append("1 Saat Yakala")
                 toplam_puan += 25.0
 
             # Strateji: DELİRDİ 1 Saat
-            if (close_curr_1h > hma20_1h.iloc[-1]) and (rvol_curr_1h >= 2.0) and wave_breakout_1h:
+            if (close_curr_1h > hma20_1h_curr) and (rvol_curr_1h >= 2.0) and wave_breakout_1h:
               if kayit_guncelle("deli_gitan_1h"):
                 tetiklenen_str.append("DELİRDİ 1 Saat")
                 toplam_puan += 35.0
@@ -430,10 +434,6 @@ def run_scanner():
             plus_di_curr_15 = (100 * (plus_dm_15m.rolling(14).sum() / (tr_15m.rolling(14).sum() + 1e-10))).iloc[-1]
             son_plus_di = max(son_plus_di, plus_di_curr_15)
 
-            cmf_15m = calculate_cmf(high_15m, low_15m, close_15m, volume_15m, 20)
-            cmf_curr_15 = cmf_15m.iloc[-1]
-            son_cmf = max(son_cmf, cmf_curr_15)
-
             son_konum = max(son_konum, get_wave_position(df_15m))
 
             # Ichimoku Bulut Sınırları (15m)
@@ -451,15 +451,15 @@ def run_scanner():
             hma20_15m = calculate_hma(close_15m, 20)
             is_above_hma20_15m = close_15m.iloc[-1] > hma20_15m.iloc[-1]
 
-            # Strateji: TEHLİKELİ HİBRİT (1s Konum 0-30 & 15m Bulut Patlaması / Üstü)
+            # Strateji: TEHLİKELİ HİBRİT (1s Konum 0-60, 1s +DI/-DI Şartı, 1s HMA20 üstü fiyat & 15m Bulut Patlaması/Üstü, MFI>50, 15m +DI>30)
             konum_yuzde_1h_curr = get_wave_position(df_1h) if not df_1h.empty else get_wave_position(df_15m)
-            if (0.0 <= konum_yuzde_1h_curr <= 30.0) and (mfi_curr_15 > 50.0) and (plus_di_curr_15 > 20.0) and (cmf_curr_15 > 0.0) and ichimoku_hibrit_onay:
+            if (0.0 <= konum_yuzde_1h_curr <= 60.0) and di_sarti_1h and (close_curr_1h > hma20_1h_curr) and (mfi_curr_15 > 50.0) and (plus_di_curr_15 > 30.0) and ichimoku_hibrit_onay:
               if kayit_guncelle("dip_hibrit"):
                 tetiklenen_str.append("TEHLİKELİ HİBRİT")
                 toplam_puan += 30.0
 
-            # Strateji: TOPGUN (1 Saat Yakala kuralları + 15m Ichimoku + MFI>60 + +DI>25 + HMA20 altında fiyat)
-            if is_1h_yakala_valid and ichimoku_hibrit_onay and (plus_di_curr_15 > 25.0) and (mfi_curr_15 > 60.0) and is_above_hma20_15m:
+            # Strateji: TOPGUN (1 Saat Yakala kuralları + 15m Ichimoku + MFI>50 + +DI>25 + HMA20 üstü fiyat)
+            if is_1h_yakala_valid and ichimoku_hibrit_onay and (plus_di_curr_15 > 25.0) and (mfi_curr_15 > 50.0) and is_above_hma20_15m:
               if kayit_guncelle("topgun_strategy"):
                 tetiklenen_str.append("TOPGUN")
                 toplam_puan += 45.0
@@ -536,7 +536,7 @@ def run_scanner():
           if "TOPGUN" in strat_upper:
             mesaj_satirlari.append(f"• 🦅🐴🦅 {strat} (RSI:{item['rsi']:.1f} | MFI:{item['mfi']:.1f} | +DI:{item['plus_di']:.1f} | Konum:%{item['konum']:.1f})")
           elif "TEHLİKELİ HİBRİT" in strat_upper:
-            mesaj_satirlari.append(f"• 🟢🟢🟢 {strat} (MFI:{item['mfi']:.1f} | +DI:{item['plus_di']:.1f} | CMF:{item['cmf']:.2f} | Konum:%{item['konum']:.1f})")
+            mesaj_satirlari.append(f"• 🟢🟢🟢 {strat} (MFI:{item['mfi']:.1f} | +DI:{item['plus_di']:.1f} | Konum:%{item['konum']:.1f})")
           elif "DELİRDİ" in strat_upper and "1 SAAT" in strat_upper:
             mesaj_satirlari.append(f"• 💥💥💥 {strat} (RVOL:{item['rvol']:.2f} | MFI:{item['mfi']:.1f} | +DI:{item['plus_di']:.1f} | Konum:%{item['konum']:.1f})")
           elif "1 SAAT YAKALA" in strat_upper:
