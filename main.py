@@ -344,6 +344,7 @@ def run_scanner():
         # 1. 1 SAATLİK VERİ ANALİZİ (Aktif)
         # ==========================================
         df_1h = extract_ticker_df(df_1h_all, clean_ticker, chunk)
+        wave_breakout_1h = False
         if not df_1h.empty and len(df_1h) >= 40:
           if isinstance(df_1h.columns, pd.MultiIndex):
             df_1h.columns = df_1h.columns.get_level_values(0)
@@ -439,6 +440,10 @@ def run_scanner():
             rvol_curr_15 = rvol_15m.iloc[-1]
             son_rvol = max(son_rvol, rvol_curr_15)
 
+            # HMA 20 (15m) Hesaplaması
+            hma20_15m = calculate_hma(close_15m, 20)
+            is_hma_below_price = close_15m.iloc[-1] > hma20_15m.iloc[-1]
+
             # TradingView Mantığıyla Ichimoku Çizgileri ve 26 Bar İleri Kaydırma (Shift 26)
             tenkan_9 = (high_15m.rolling(9).max() + low_15m.rolling(9).min()) / 2
             kijun_26 = (high_15m.rolling(26).max() + low_15m.rolling(26).min()) / 2
@@ -457,11 +462,13 @@ def run_scanner():
             # Bulut Şartı: Fiyat veya Tenkan bulutun üstünde VEYA yukarıya doğru bulutu kesiyor/patlatıyor
             bulut_ustu_veya_kesis = (seviye_referansi > kumo_ust.iloc[-1]) or (close_15m.iloc[-1] > kumo_ust.iloc[-1]) or (tenkan_kesisimi and seviye_referansi >= kumo_alt.iloc[-1])
 
-            # Strateji: TEHLİKELİ HİBRİT (1 Saatlik marj kontrolü kaldırıldı | MFI > 60 | +DI > 30 | RVOL >= 1.2)
+            # Strateji: TEHLİKELİ HİBRİT (1S Dalga Yapısı Var | Marj Yok | RVOL >= 1.2 | MFI > 60 | +DI >= 30 | HMA20 Fiyatın Altında | Bulut Üstü/Kesiş)
             if (
-                (rvol_curr_15 >= 1.2)
+                wave_breakout_1h
+                and (rvol_curr_15 >= 1.2)
                 and (mfi_curr_15 > 60.0)
-                and (plus_di_curr_15 > 30.0)
+                and (plus_di_curr_15 >= 30.0)
+                and is_hma_below_price
                 and bulut_ustu_veya_kesis
             ):
               if kayit_guncelle("dip_hibrit"):
