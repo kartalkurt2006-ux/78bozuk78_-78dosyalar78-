@@ -465,23 +465,35 @@ def run_scanner():
             hma20_15m = calculate_hma(close_15m, 20)
             is_above_hma20_15m = close_15m.iloc[-1] > hma20_15m.iloc[-1]
 
-            # Çekirge 15 için Daralan Bulut Tanımı
+            # Daralan Bulut Tanımı (Ortak)
             bulut_kalinligi_15m = (senkou_span_a - senkou_span_b).abs()
             cok_ince_bulut_15m = bulut_kalinligi_15m.iloc[-1] < (close_15m.iloc[-1] * 0.01)
             daralan_trend_15m = (bulut_kalinligi_15m.iloc[-1] < bulut_kalinligi_15m.iloc[-2]) and (bulut_kalinligi_15m.iloc[-2] < bulut_kalinligi_15m.iloc[-3])
             daralan_bulut_onay_15m = cok_ince_bulut_15m or daralan_trend_15m
 
-            # --- FIRTINA 1 🛡️ STRATEJİSİ ---
+            # --- FIRTINA 1 🛡️ STRATEJİSİ (Güncellendi) ---
             span_a_kirilimi_15m = (close_15m.iloc[-2] <= senkou_span_a.iloc[-2]) and (close_15m.iloc[-1] > senkou_span_a.iloc[-1])
             span_a_ustunde_15m = close_15m.iloc[-1] > senkou_span_a.iloc[-1]
             firtina_span_onay = span_a_kirilimi_15m or span_a_ustunde_15m
 
+            firtina_bulut_sarti = firtina_span_onay or ichimoku_hibrit_onay or daralan_bulut_onay_15m
+
+            mfi_window_12_firtina = mfi_ser_15m.iloc[-12:]
+            firtina_mfi_above = (mfi_window_12_firtina > 70).any()
+            firtina_mfi_cross = False
+            for idx in range(len(mfi_ser_15m) - 11, len(mfi_ser_15m)):
+                if idx > 0:
+                    if mfi_ser_15m.iloc[idx - 1] <= 70 and mfi_ser_15m.iloc[idx] > 70:
+                        firtina_mfi_cross = True
+                        break
+            firtina_mfi_onay = firtina_mfi_above or firtina_mfi_cross
+
             if (
                 wave_breakout_1h
                 and (close_curr_1h > hma20_1h_curr)
-                and firtina_span_onay
+                and firtina_bulut_sarti
                 and (plus_di_15m > 20.0)
-                and (mfi_15m > 50.0)
+                and firtina_mfi_onay
             ):
               if kayit_guncelle("firtina_1"):
                 tetiklenen_str.append("FIRTINA 1")
@@ -493,7 +505,7 @@ def run_scanner():
                 tetiklenen_str.append("TEHLİKELİ HİBRİT")
                 toplam_puan += 30.0
 
-            # Strateji: TOPGUN (Daralan bulut yok, yeni MFI 3 saat / 12 bar kuralı eklendi)
+            # Strateji: TOPGUN
             mfi_window_12 = mfi_ser_15m.iloc[-12:]
             is_above_70_3h = (mfi_window_12 > 70).any()
             cross_70_count = 0
