@@ -465,13 +465,13 @@ def run_scanner():
             hma20_15m = calculate_hma(close_15m, 20)
             is_above_hma20_15m = close_15m.iloc[-1] > hma20_15m.iloc[-1]
 
+            # Çekirge 15 için Daralan Bulut Tanımı
+            bulut_kalinligi_15m = (senkou_span_a - senkou_span_b).abs()
+            cok_ince_bulut_15m = bulut_kalinligi_15m.iloc[-1] < (close_15m.iloc[-1] * 0.01)
+            daralan_trend_15m = (bulut_kalinligi_15m.iloc[-1] < bulut_kalinligi_15m.iloc[-2]) and (bulut_kalinligi_15m.iloc[-2] < bulut_kalinligi_15m.iloc[-3])
+            daralan_bulut_onay_15m = cok_ince_bulut_15m or daralan_trend_15m
+
             # --- FIRTINA 1 🛡️ STRATEJİSİ ---
-            # Şartlar: 
-            # 1. 1s wave_breakout_1h aktif
-            # 2. 1s HMA 20 fiyatın altında (close_curr_1h > hma20_1h_curr)
-            # 3. 15m Span A kırılımı veya üzerinde olma
-            # 4. 15m +DI > 20
-            # 5. 15m MFI > 50
             span_a_kirilimi_15m = (close_15m.iloc[-2] <= senkou_span_a.iloc[-2]) and (close_15m.iloc[-1] > senkou_span_a.iloc[-1])
             span_a_ustunde_15m = close_15m.iloc[-1] > senkou_span_a.iloc[-1]
             firtina_span_onay = span_a_kirilimi_15m or span_a_ustunde_15m
@@ -493,18 +493,22 @@ def run_scanner():
                 tetiklenen_str.append("TEHLİKELİ HİBRİT")
                 toplam_puan += 30.0
 
-            # Strateji: TOPGUN
-            if is_1h_yakala_valid and ichimoku_hibrit_onay and (plus_di_15m > 25.0) and (mfi_15m > 50.0) and is_above_hma20_15m:
+            # Strateji: TOPGUN (Daralan bulut yok, yeni MFI 3 saat / 12 bar kuralı eklendi)
+            mfi_window_12 = mfi_ser_15m.iloc[-12:]
+            is_above_70_3h = (mfi_window_12 > 70).any()
+            cross_70_count = 0
+            for idx in range(len(mfi_ser_15m) - 11, len(mfi_ser_15m)):
+                if idx > 0:
+                    if mfi_ser_15m.iloc[idx - 1] <= 70 and mfi_ser_15m.iloc[idx] > 70:
+                        cross_70_count += 1
+            topgun_mfi_onay = is_above_70_3h or (cross_70_count >= 2)
+
+            if is_1h_yakala_valid and ichimoku_hibrit_onay and (plus_di_15m > 25.0) and topgun_mfi_onay and is_above_hma20_15m:
               if kayit_guncelle("topgun_strategy"):
                 tetiklenen_str.append("TOPGUN")
                 toplam_puan += 45.0
 
             # Strateji: 🐒🐒 Çekirge 15 (Daralan Bulut + DI>25 + HMA20 üstü + CMF>0 + RSI>50 + MFI>55)
-            bulut_kalinligi_15m = (senkou_span_a - senkou_span_b).abs()
-            cok_ince_bulut_15m = bulut_kalinligi_15m.iloc[-1] < (close_15m.iloc[-1] * 0.01)
-            daralan_trend_15m = (bulut_kalinligi_15m.iloc[-1] < bulut_kalinligi_15m.iloc[-2]) and (bulut_kalinligi_15m.iloc[-2] < bulut_kalinligi_15m.iloc[-3])
-            daralan_bulut_onay_15m = cok_ince_bulut_15m or daralan_trend_15m
-
             if (
                 daralan_bulut_onay_15m
                 and (plus_di_15m > 25.0)
