@@ -313,6 +313,8 @@ def run_scanner():
       mfi_15m = 50.0
       plus_di_15m = 0.0
       konum_15m = 50.0
+      rsi_15m = 50.0
+      cmf_15m = 0.0
 
       try:
         def kayit_guncelle(kural_adi):
@@ -405,7 +407,7 @@ def run_scanner():
                 toplam_puan += 35.0
 
         # ==========================================
-        # 2. 15 DAKİKALIK VERİ ANALİZİ (Mikro Katman: Tehlikeli Hibrit + TOPGUN)
+        # 2. 15 DAKİKALIK VERİ ANALİZİ (Mikro Katman: Tehlikeli Hibrit + TOPGUN + Çekirge 15)
         # ==========================================
         df_15m = extract_ticker_df(df_15m_all, clean_ticker, chunk)
         if not df_15m.empty and len(df_15m) >= 40:
@@ -420,6 +422,19 @@ def run_scanner():
           if not close_15m.isna().iloc[-1] and not volume_15m.isna().iloc[-1]:
             if guncel_fiyat == 0.0:
               guncel_fiyat = close_15m.iloc[-1]
+
+            # RSI (14) - 15m
+            delta_15m = close_15m.diff()
+            gain_15m = (delta_15m.where(delta_15m > 0, 0)).rolling(14).mean()
+            loss_15m = (-delta_15m.where(delta_15m < 0, 0)).rolling(14).mean()
+            rs_15m = gain_15m / (loss_15m + 1e-10)
+            rsi_15m = (100 - (100 / (1 + rs_15m))).iloc[-1]
+
+            # CMF (20) - 15m
+            mf_multiplier = ((close_15m - low_15m) - (high_15m - close_15m)) / ((high_15m - low_15m) + 1e-10)
+            mf_volume = mf_multiplier * volume_15m
+            cmf_ser_15m = mf_volume.rolling(20).sum() / (volume_15m.rolling(20).sum() + 1e-10)
+            cmf_15m = cmf_ser_15m.iloc[-1]
 
             mfi_ser_15m = calculate_mfi(high_15m, low_15m, close_15m, volume_15m, 14)
             mfi_15m = mfi_ser_15m.iloc[-1]
@@ -448,18 +463,35 @@ def run_scanner():
             hma20_15m = calculate_hma(close_15m, 20)
             is_above_hma20_15m = close_15m.iloc[-1] > hma20_15m.iloc[-1]
 
-            # Strateji: TEHLİKELİ HİBRİT (1s Konum 0-60, 1s +DI/-DI Şartı, 1s HMA20 üstü fiyat & 15m Bulut Patlaması/Üstü, 15m MFI>50, 15m +DI>30)
-            # İZOLASYON SAĞLANDI: 1s koşulları 1s değişkenleriyle, 15m koşulları 15m değişkenleriyle denetleniyor.
+            # Strateji: TEHLİKELİ HİBRİT
             if (0.0 <= konum_1h <= 60.0) and di_sarti_1h and (close_curr_1h > hma20_1h_curr) and (mfi_15m > 50.0) and (plus_di_15m > 30.0) and ichimoku_hibrit_onay:
               if kayit_guncelle("dip_hibrit"):
                 tetiklenen_str.append("TEHLİKELİ HİBRİT")
                 toplam_puan += 30.0
 
-            # Strateji: TOPGUN (1s Temel Şartlar + 15m Ichimoku + 15m MFI>50 + 15m +DI>25 + 15m HMA20 üstü)
+            # Strateji: TOPGUN
             if is_1h_yakala_valid and ichimoku_hibrit_onay and (plus_di_15m > 25.0) and (mfi_15m > 50.0) and is_above_hma20_15m:
               if kayit_guncelle("topgun_strategy"):
                 tetiklenen_str.append("TOPGUN")
                 toplam_puan += 45.0
+
+            # Strateji: 🐒🐒 Çekirge 15 (Daralan Bulut + DI>25 + HMA20 üstü + CMF>0 + RSI>50 + MFI>55)
+            bulut_kalinligi_15m = (senkou_span_a - senkou_span_b).abs()
+            cok_ince_bulut_15m = bulut_kalinligi_15m.iloc[-1] < (close_15m.iloc[-1] * 0.01)
+            daralan_trend_15m = (bulut_kalinligi_15m.iloc[-1] < bulut_kalinligi_15m.iloc[-2]) and (bulut_kalinligi_15m.iloc[-2] < bulut_kalinligi_15m.iloc[-3])
+            daralan_bulut_onay_15m = cok_ince_bulut_15m or daralan_trend_15m
+
+            if (
+                daralan_bulut_onay_15m
+                and (plus_di_15m > 25.0)
+                and is_above_hma20_15m
+                and (cmf_15m > 0.0)
+                and (rsi_15m > 50.0)
+                and (mfi_15m > 55.0)
+            ):
+              if kayit_guncelle("cekirge_15"):
+                tetiklenen_str.append("🐒🐒 Çekirge 15")
+                toplam_puan += 40.0
 
         if tetiklenen_str:
           if toplam_puan == 0:
@@ -473,7 +505,6 @@ def run_scanner():
           except Exception:
               pass
 
-          # Bildirimlere her stratejinin kendi zaman dilimi verisi (1s veya 15m) doğru aktarılıyor
           toplanan_sinyaller.append({
               "temiz_isim": temiz_isim,
               "fiyat": guncel_fiyat,
@@ -483,7 +514,9 @@ def run_scanner():
               "rvol_1h": rvol_1h,
               "mfi_15m": mfi_15m,
               "plus_di_15m": plus_di_15m,
-              "konum_1h": konum_1h
+              "konum_1h": konum_1h,
+              "rsi_15m": rsi_15m,
+              "cmf_15m": cmf_15m
           })
           hafiza_kaydet(tum_hafiza)
           print(f"  > {clean_ticker} inceleniyor... 🎯 Sinyal Yakalandı! (Fiyat: ₺{guncel_fiyat:.2f})")
@@ -521,12 +554,14 @@ def run_scanner():
             mesaj_satirlari.append(f"• 🦅🐴🦅 {strat} (1s RSI:{item['rsi_1h']:.1f} | 15m MFI:{item['mfi_15m']:.1f} | 15m +DI:{item['plus_di_15m']:.1f} | 1s Konum:%{item['konum_1h']:.1f})")
           elif "TEHLİKELİ HİBRİT" in strat_upper:
             mesaj_satirlari.append(f"• 🟢🟢🟢 {strat} (15m MFI:{item['mfi_15m']:.1f} | 15m +DI:{item['plus_di_15m']:.1f} | 1s Konum:%{item['konum_1h']:.1f})")
+          elif "ÇEKİRGE 15" in strat_upper:
+            mesaj_satirlari.append(f"• 🐒🐒 {strat} (15m MFI:{item['mfi_15m']:.1f} | 15m RSI:{item['rsi_15m']:.1f} | 15m CMF:{item['cmf_15m']:.2f} | 15m +DI:{item['plus_di_15m']:.1f})")
           elif "DELİRDİ" in strat_upper and "1 SAAT" in strat_upper:
             mesaj_satirlari.append(f"• 💥💥💥 {strat} (1s RVOL:{item['rvol_1h']:.2f} | 1s RSI:{item['rsi_1h']:.1f} | 1s Konum:%{item['konum_1h']:.1f})")
           elif "1 SAAT YAKALA" in strat_upper:
             mesaj_satirlari.append(f"• ⚫⚫⚫ {strat} (1s RSI:{item['rsi_1h']:.1f} | 1s Konum:%{item['konum_1h']:.1f})")
           else:
-            mesaj_satirlari.append(f"• 🟣 {strat} (1s RSI:{item['rsi_1h']:.1f})")
+            mesaj_satirlari.append(f"• 🟣 {strat}")
             
         mesaj_satirlari.append("----------------------------------------")
 
