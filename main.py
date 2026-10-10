@@ -308,6 +308,8 @@ def run_scanner():
       rvol_1h = 0.0
       is_1h_yakala_valid = False
       di_sarti_1h = False
+      wave_breakout_1h = False
+      hma20_1h_curr = 0.0
 
       # --- 15 DAKİKALIK (MİKRO) DEĞİŞKENLER ---
       mfi_15m = 50.0
@@ -407,7 +409,7 @@ def run_scanner():
                 toplam_puan += 35.0
 
         # ==========================================
-        # 2. 15 DAKİKALIK VERİ ANALİZİ (Mikro Katman: Tehlikeli Hibrit + TOPGUN + Çekirge 15)
+        # 2. 15 DAKİKALIK VERİ ANALİZİ (Mikro Katman)
         # ==========================================
         df_15m = extract_ticker_df(df_15m_all, clean_ticker, chunk)
         if not df_15m.empty and len(df_15m) >= 40:
@@ -449,7 +451,7 @@ def run_scanner():
 
             konum_15m = get_wave_position(df_15m)
 
-            # Ichimoku Bulut Sınırları (15m)
+            # Ichimoku Bulut Sınırları ve Span A (15m)
             tenkan_9 = (high_15m.rolling(9).max() + low_15m.rolling(9).min()) / 2
             kijun_26 = (high_15m.rolling(26).max() + low_15m.rolling(26).min()) / 2
             senkou_span_a = (tenkan_9 + kijun_26) / 2
@@ -462,6 +464,28 @@ def run_scanner():
 
             hma20_15m = calculate_hma(close_15m, 20)
             is_above_hma20_15m = close_15m.iloc[-1] > hma20_15m.iloc[-1]
+
+            # --- FIRTINA 1 🛡️ STRATEJİSİ ---
+            # Şartlar: 
+            # 1. 1s wave_breakout_1h aktif
+            # 2. 1s HMA 20 fiyatın altında (close_curr_1h > hma20_1h_curr)
+            # 3. 15m Span A kırılımı veya üzerinde olma
+            # 4. 15m +DI > 20
+            # 5. 15m MFI > 50
+            span_a_kirilimi_15m = (close_15m.iloc[-2] <= senkou_span_a.iloc[-2]) and (close_15m.iloc[-1] > senkou_span_a.iloc[-1])
+            span_a_ustunde_15m = close_15m.iloc[-1] > senkou_span_a.iloc[-1]
+            firtina_span_onay = span_a_kirilimi_15m or span_a_ustunde_15m
+
+            if (
+                wave_breakout_1h
+                and (close_curr_1h > hma20_1h_curr)
+                and firtina_span_onay
+                and (plus_di_15m > 20.0)
+                and (mfi_15m > 50.0)
+            ):
+              if kayit_guncelle("firtina_1"):
+                tetiklenen_str.append("FIRTINA 1")
+                toplam_puan += 40.0
 
             # Strateji: TEHLİKELİ HİBRİT
             if (0.0 <= konum_1h <= 60.0) and di_sarti_1h and (close_curr_1h > hma20_1h_curr) and (mfi_15m > 50.0) and (plus_di_15m > 30.0) and ichimoku_hibrit_onay:
@@ -550,7 +574,9 @@ def run_scanner():
         
         for strat in item['stratejiler']:
           strat_upper = strat.upper()
-          if "TOPGUN" in strat_upper:
+          if "FIRTINA 1" in strat_upper:
+            mesaj_satirlari.append(f"• 🛡️ {strat} (15m MFI:{item['mfi_15m']:.1f} | 15m +DI:{item['plus_di_15m']:.1f} | 1s Konum:%{item['konum_1h']:.1f})")
+          elif "TOPGUN" in strat_upper:
             mesaj_satirlari.append(f"• 🦅🐴🦅 {strat} (1s RSI:{item['rsi_1h']:.1f} | 15m MFI:{item['mfi_15m']:.1f} | 15m +DI:{item['plus_di_15m']:.1f} | 1s Konum:%{item['konum_1h']:.1f})")
           elif "TEHLİKELİ HİBRİT" in strat_upper:
             mesaj_satirlari.append(f"• 🟢🟢🟢 {strat} (15m MFI:{item['mfi_15m']:.1f} | 15m +DI:{item['plus_di_15m']:.1f} | 1s Konum:%{item['konum_1h']:.1f})")
