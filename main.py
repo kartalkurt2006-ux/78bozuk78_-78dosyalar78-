@@ -87,7 +87,7 @@ def calculate_hma(series, period=20):
   return hma
 
 
-def calculate_mfi(high, low, close, volume, period=14):
+def calculate_mfi(high, low, close, volume, period=21):
   try:
     tp = (high + low + close) / 3
     rmf = tp * volume
@@ -365,8 +365,8 @@ def run_scanner():
             rs_1h = gain_1h / (loss_1h + 1e-10)
             rsi_1h = (100 - (100 / (1 + rs_1h))).iloc[-1]
 
-            # MFI (14) - 1s
-            mfi_ser_1h = calculate_mfi(high_1h, low_1h, close_1h, volume_1h, 14)
+            # MFI (21) - 1s
+            mfi_ser_1h = calculate_mfi(high_1h, low_1h, close_1h, volume_1h, 21)
             mfi_1h = mfi_ser_1h.iloc[-1]
 
             # +DI / -DI (14) - 1s
@@ -438,7 +438,8 @@ def run_scanner():
             cmf_ser_15m = mf_volume.rolling(20).sum() / (volume_15m.rolling(20).sum() + 1e-10)
             cmf_15m = cmf_ser_15m.iloc[-1]
 
-            mfi_ser_15m = calculate_mfi(high_15m, low_15m, close_15m, volume_15m, 14)
+            # MFI (21) - 15m
+            mfi_ser_15m = calculate_mfi(high_15m, low_15m, close_15m, volume_15m, 21)
             mfi_15m = mfi_ser_15m.iloc[-1]
 
             up_move_15m = high_15m.diff()
@@ -471,7 +472,7 @@ def run_scanner():
             daralan_trend_15m = (bulut_kalinligi_15m.iloc[-1] < bulut_kalinligi_15m.iloc[-2]) and (bulut_kalinligi_15m.iloc[-2] < bulut_kalinligi_15m.iloc[-3])
             daralan_bulut_onay_15m = cok_ince_bulut_15m or daralan_trend_15m
 
-            # --- FIRTINA 1 🛡️ STRATEJİSİ ---
+            # --- FIRTINA 1 🛡️ STRATEJİSİ (MFI 21 & Eşik 60) ---
             span_a_kirilimi_15m = (close_15m.iloc[-2] <= senkou_span_a.iloc[-2]) and (close_15m.iloc[-1] > senkou_span_a.iloc[-1])
             span_a_ustunde_15m = close_15m.iloc[-1] > senkou_span_a.iloc[-1]
             firtina_span_onay = span_a_kirilimi_15m or span_a_ustunde_15m
@@ -479,11 +480,11 @@ def run_scanner():
             firtina_bulut_sarti = firtina_span_onay or ichimoku_hibrit_onay or daralan_bulut_onay_15m
 
             mfi_window_12_firtina = mfi_ser_15m.iloc[-12:]
-            firtina_mfi_above = (mfi_window_12_firtina > 70).any()
+            firtina_mfi_above = (mfi_window_12_firtina > 60).any()
             firtina_mfi_cross = False
             for idx in range(len(mfi_ser_15m) - 11, len(mfi_ser_15m)):
                 if idx > 0:
-                    if mfi_ser_15m.iloc[idx - 1] <= 70 and mfi_ser_15m.iloc[idx] > 70:
+                    if mfi_ser_15m.iloc[idx - 1] <= 60 and mfi_ser_15m.iloc[idx] > 60:
                         firtina_mfi_cross = True
                         break
             firtina_mfi_onay = firtina_mfi_above or firtina_mfi_cross
@@ -500,15 +501,10 @@ def run_scanner():
                 toplam_puan += 40.0
 
             # ==========================================
-            # Strateji: TEHLİKELİ HİBRİT (GÜNCELLENDİ: Erken Giriş Modu)
+            # Strateji: TEHLİKELİ HİBRİT (MFI 21 & Erken İvme Modu)
             # ==========================================
-            # 1. Makro Katman: Konum %0-%50 daraltıldı (Dip / Orta bant odaklı)
             konum_1h_uygun_hibrit = (0.0 <= konum_1h <= 50.0)
-            
-            # 2. Mikro Katman: MFI 70 beklenmiyor, MFI >= 45 ve son 2 barda >= 12 delta (dikleşme)
-            mfi_diklesme_hibrit = (mfi_15m >= 45.0) and ((mfi_15m - mfi_ser_15m.shift(2).iloc[-1]) >= 12.0)
-            
-            # Kijun-sen üstü ilk kalkış ve daralan bulut (erken sıkışma)
+            mfi_diklesme_hibrit = (mfi_15m >= 45.0) and ((mfi_15m - mfi_ser_15m.shift(2).iloc[-1]) >= 10.0)
             fiyat_kalkis_hibrit = close_15m.iloc[-1] > kijun_26.iloc[-1]
             
             if (
@@ -524,29 +520,29 @@ def run_scanner():
                 tetiklenen_str.append("TEHLİKELİ HİBRİT")
                 toplam_puan += 30.0
 
-            # Strateji: TOPGUN
+            # Strateji: TOPGUN (MFI 21 & Eşik 60)
             mfi_window_12 = mfi_ser_15m.iloc[-12:]
-            is_above_70_3h = (mfi_window_12 > 70).any()
-            cross_70_count = 0
+            is_above_60_3h = (mfi_window_12 > 60).any()
+            cross_60_count = 0
             for idx in range(len(mfi_ser_15m) - 11, len(mfi_ser_15m)):
                 if idx > 0:
-                    if mfi_ser_15m.iloc[idx - 1] <= 70 and mfi_ser_15m.iloc[idx] > 70:
-                        cross_70_count += 1
-            topgun_mfi_onay = is_above_70_3h or (cross_70_count >= 2)
+                    if mfi_ser_15m.iloc[idx - 1] <= 60 and mfi_ser_15m.iloc[idx] > 60:
+                        cross_60_count += 1
+            topgun_mfi_onay = is_above_60_3h or (cross_60_count >= 2)
 
             if is_1h_yakala_valid and ichimoku_hibrit_onay and (plus_di_15m > 25.0) and topgun_mfi_onay and is_above_hma20_15m:
               if kayit_guncelle("topgun_strategy"):
                 tetiklenen_str.append("TOPGUN")
                 toplam_puan += 45.0
 
-            # Strateji: 🐒🐒 Çekirge 15 (Daralan Bulut + DI>25 + HMA20 üstü + CMF>0 + RSI>50 + MFI>55)
+            # Strateji: 🐒🐒 Çekirge 15 (MFI 21 uyumlu orta bant eşiği > 50)
             if (
                 daralan_bulut_onay_15m
                 and (plus_di_15m > 25.0)
                 and is_above_hma20_15m
                 and (cmf_15m > 0.0)
                 and (rsi_15m > 50.0)
-                and (mfi_15m > 55.0)
+                and (mfi_15m > 50.0)
             ):
               if kayit_guncelle("cekirge_15"):
                 tetiklenen_str.append("🐒🐒 Çekirge 15")
