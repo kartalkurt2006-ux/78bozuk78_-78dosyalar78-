@@ -451,7 +451,7 @@ def run_scanner():
 
             konum_15m = get_wave_position(df_15m)
 
-            # Ichimoku Bulut Sınırları ve Span A (15m)
+            # Ichimoku Bulut Sınırları ve Kijun / Span (15m)
             tenkan_9 = (high_15m.rolling(9).max() + low_15m.rolling(9).min()) / 2
             kijun_26 = (high_15m.rolling(26).max() + low_15m.rolling(26).min()) / 2
             senkou_span_a = (tenkan_9 + kijun_26) / 2
@@ -467,11 +467,11 @@ def run_scanner():
 
             # Daralan Bulut Tanımı (Ortak)
             bulut_kalinligi_15m = (senkou_span_a - senkou_span_b).abs()
-            cok_ince_bulut_15m = bulut_kalinligi_15m.iloc[-1] < (close_15m.iloc[-1] * 0.01)
+            cok_ince_bulut_15m = bulut_kalinligi_15m.iloc[-1] < (close_15m.iloc[-1] * 0.015)
             daralan_trend_15m = (bulut_kalinligi_15m.iloc[-1] < bulut_kalinligi_15m.iloc[-2]) and (bulut_kalinligi_15m.iloc[-2] < bulut_kalinligi_15m.iloc[-3])
             daralan_bulut_onay_15m = cok_ince_bulut_15m or daralan_trend_15m
 
-            # --- FIRTINA 1 🛡️ STRATEJİSİ (Güncellendi) ---
+            # --- FIRTINA 1 🛡️ STRATEJİSİ ---
             span_a_kirilimi_15m = (close_15m.iloc[-2] <= senkou_span_a.iloc[-2]) and (close_15m.iloc[-1] > senkou_span_a.iloc[-1])
             span_a_ustunde_15m = close_15m.iloc[-1] > senkou_span_a.iloc[-1]
             firtina_span_onay = span_a_kirilimi_15m or span_a_ustunde_15m
@@ -499,8 +499,27 @@ def run_scanner():
                 tetiklenen_str.append("FIRTINA 1")
                 toplam_puan += 40.0
 
-            # Strateji: TEHLİKELİ HİBRİT
-            if (0.0 <= konum_1h <= 60.0) and di_sarti_1h and (close_curr_1h > hma20_1h_curr) and (mfi_15m > 50.0) and (plus_di_15m > 30.0) and ichimoku_hibrit_onay:
+            # ==========================================
+            # Strateji: TEHLİKELİ HİBRİT (GÜNCELLENDİ: Erken Giriş Modu)
+            # ==========================================
+            # 1. Makro Katman: Konum %0-%50 daraltıldı (Dip / Orta bant odaklı)
+            konum_1h_uygun_hibrit = (0.0 <= konum_1h <= 50.0)
+            
+            # 2. Mikro Katman: MFI 70 beklenmiyor, MFI >= 45 ve son 2 barda >= 12 delta (dikleşme)
+            mfi_diklesme_hibrit = (mfi_15m >= 45.0) and ((mfi_15m - mfi_ser_15m.shift(2).iloc[-1]) >= 12.0)
+            
+            # Kijun-sen üstü ilk kalkış ve daralan bulut (erken sıkışma)
+            fiyat_kalkis_hibrit = close_15m.iloc[-1] > kijun_26.iloc[-1]
+            
+            if (
+                konum_1h_uygun_hibrit
+                and di_sarti_1h
+                and (close_curr_1h > hma20_1h_curr)
+                and mfi_diklesme_hibrit
+                and (plus_di_15m >= 28.0)
+                and fiyat_kalkis_hibrit
+                and daralan_bulut_onay_15m
+            ):
               if kayit_guncelle("dip_hibrit"):
                 tetiklenen_str.append("TEHLİKELİ HİBRİT")
                 toplam_puan += 30.0
