@@ -576,10 +576,17 @@ def run_scanner():
       for item in alt_grup:
         strats_upper = [s.upper() for s in item['stratejiler']]
         has_both_1h = ("1 SAAT YAKALA" in strats_upper) and ("DELİRDİ 1 SAAT" in strats_upper)
+        has_yakala_firtina = ("1 SAAT YAKALA" in strats_upper) and ("FIRTINA 1" in strats_upper)
         strat_count = len(item['stratejiler'])
+        is_konum_yuksek = item['konum_1h'] >= 85.0
 
         if has_both_1h:
           prefix = "👑🚨 DİKKAT: 1S ÇİFTE ALARM 🚨👑"
+        elif has_yakala_firtina:
+          if is_konum_yuksek:
+            prefix = "🐒🐒 DİKKAT 🐒🐒 DİKKAT 🐒🐒 (%85+ TEPE)"
+          else:
+            prefix = "🐒🐒 DİKKAT 🐒🐒 DİKKAT 🐒🐒"
         elif strat_count >= 3:
           prefix = "🚀🚀🚀 Hisse:"
         elif strat_count == 2:
