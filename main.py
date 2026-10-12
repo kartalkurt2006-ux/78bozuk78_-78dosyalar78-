@@ -15,10 +15,10 @@ COOLDOWN_SECONDS = 3600  # Aynı hisse için 1 saat bekleme süresi
 TZ_TR = pytz.timezone("Europe/Istanbul")
 
 # Ntfy Kanal Ayarı
-NTFY_URL = "https://ntfy.sh/borsa_senet"
+NTFY_URL = "https://ntfy.sh/kaplan_78borsa"
 
-# Tek Merkezi Hafıza Dosyası
-MERKEZI_HAFIZA_DOSYASI = "borsa_hafiza.json"
+# Merkezi Hafıza Dosyası
+MERKEZI_HAFIZA_DOSYASI = "borsa_hafiza_v2.json"
 
 # BIST Tüm Hisseler
 STOCKS = [
@@ -229,7 +229,7 @@ def download_with_retry(chunk, interval, period, max_retries=4):
         return df_all
     except Exception as e:
       print(f"  [Uyarı] İndirme hatası ({interval}, Deneme {attempt}/{max_retries}): {e}")
-      time.sleep(2 * attempt)
+    time.sleep(3 * attempt)  # Yahoo rate limit koruması
   return pd.DataFrame()
 
 
@@ -267,7 +267,7 @@ def run_scanner():
   is_manual_run = os.environ.get("FORCE_RUN", "false").lower() == "true"
   
   print(
-      f"[{datetime.now(TZ_TR).strftime('%Y-%m-%d %H:%M:%S')}] Erken Avcı (Hibrit TOPGUN) Sistemi Başlatıldı... (Manuel Mod: {is_manual_run})"
+      f"[{datetime.now(TZ_TR).strftime('%Y-%m-%d %H:%M:%S')}] Kaplan Senet Tarama Sistemi Başlatıldı... (Manuel Mod: {is_manual_run})"
   )
 
   tum_hafiza = hafiza_yukle()
@@ -294,6 +294,7 @@ def run_scanner():
   chunk_results.sort(key=lambda x: x[0])
 
   for chunk_idx, chunk, df_1h_all, df_15m_all in chunk_results:
+    time.sleep(0.5)  # Yahoo rate limit güvenli gecikmesi
     for clean_ticker in chunk:
       temiz_isim = clean_ticker.replace(".IS", "")
       tetiklenen_str = []
@@ -302,21 +303,19 @@ def run_scanner():
 
       # --- 1 SAATLİK (MAKRO) DEĞİŞKENLER ---
       rsi_1h = 0.0
-      mfi_1h = 50.0
       plus_di_1h = 0.0
       konum_1h = 50.0
       rvol_1h = 0.0
-      is_1h_yakala_valid = False
-      di_sarti_1h = False
       wave_breakout_1h = False
       hma20_1h_curr = 0.0
+      dalga_verimlilik_skoru_1h = 0.0
 
       # --- 15 DAKİKALIK (MİKRO) DEĞİŞKENLER ---
       mfi_15m = 50.0
       plus_di_15m = 0.0
-      konum_15m = 50.0
       rsi_15m = 50.0
       cmf_15m = 0.0
+      dalga_verimlilik_skoru_15m = 0.0
 
       try:
         def kayit_guncelle(kural_adi):
@@ -365,9 +364,18 @@ def run_scanner():
             rs_1h = gain_1h / (loss_1h + 1e-10)
             rsi_1h = (100 - (100 / (1 + rs_1h))).iloc[-1]
 
-            # MFI (14) - 1s
-            mfi_ser_1h = calculate_mfi(high_1h, low_1h, close_1h, volume_1h, 14)
-            mfi_1h = mfi_ser_1h.iloc[-1]
+            # 1s Dalga Verimlilik Skoru ((A1 * A2) / Hacim)
+            high_np_1h = high_1h.values
+            low_np_1h = low_1h.values
+            vol_np_1h = volume_1h.values
+            
+            a1_marj_1h = abs(high_np_1h[-1] - low_np_1h[-1])
+            a2_marj_1h = abs(high_np_1h[-5] - low_np_1h[-5]) if len(high_np_1h) >= 5 else a1_marj_1h
+            vol_sma_1h = np.mean(vol_np_1h[-20:]) if len(vol_np_1h) >= 20 else np.mean(vol_np_1h)
+            hacim_payda_1h = (vol_np_1h[-1] / (vol_sma_1h + 1e-10))
+            
+            if hacim_payda_1h > 0:
+              dalga_verimlilik_skoru_1h = (a1_marj_1h * a2_marj_1h) / hacim_payda_1h
 
             # +DI / -DI (14) - 1s
             up_move_1h = high_1h.diff()
@@ -377,13 +385,7 @@ def run_scanner():
             tr_1h = pd.concat([high_1h - low_1h, (high_1h - close_1h.shift()).abs(), (low_1h - close_1h.shift()).abs()], axis=1).max(axis=1)
             
             plus_di_ser_1h = 100 * (plus_dm_1h.rolling(14).sum() / (tr_1h.rolling(14).sum() + 1e-10))
-            minus_di_ser_1h = 100 * (minus_dm_1h.rolling(14).sum() / (tr_1h.rolling(14).sum() + 1e-10))
-            
             plus_di_1h = plus_di_ser_1h.iloc[-1]
-
-            di_kesisim_1h = (plus_di_ser_1h.iloc[-2] <= minus_di_ser_1h.iloc[-2]) and (plus_di_ser_1h.iloc[-1] > minus_di_ser_1h.iloc[-1])
-            di_ustunde_1h = plus_di_ser_1h.iloc[-1] > minus_di_ser_1h.iloc[-1]
-            di_sarti_1h = di_kesisim_1h or di_ustunde_1h
 
             # RVOL - 1s
             rvol_1h = (volume_1h / volume_1h.rolling(20).mean()).iloc[-1]
@@ -395,14 +397,13 @@ def run_scanner():
             hma20_1h = calculate_hma(close_1h, 20)
             hma20_1h_curr = hma20_1h.iloc[-1]
 
-            # Strateji: 1 Saat Yakala
+            # 1. Strateji: 1 Saat Yakala
             if (close_curr_1h > hma20_1h_curr) and (rsi_1h > 50) and (plus_di_1h > 25) and wave_breakout_1h:
-              is_1h_yakala_valid = True
               if kayit_guncelle("1h_dalga_gorsel"):
                 tetiklenen_str.append("1 Saat Yakala")
                 toplam_puan += 25.0
 
-            # Strateji: DELİRDİ 1 Saat
+            # 2. Strateji: DELİRDİ 1 Saat
             if (close_curr_1h > hma20_1h_curr) and (rvol_1h >= 2.0) and wave_breakout_1h:
               if kayit_guncelle("deli_gitan_1h"):
                 tetiklenen_str.append("DELİRDİ 1 Saat")
@@ -425,6 +426,19 @@ def run_scanner():
             if guncel_fiyat == 0.0:
               guncel_fiyat = close_15m.iloc[-1]
 
+            # 15m Mikro Dalga Verimlilik Skoru ((A1 * A2) / Hacim)
+            high_np_15m = high_15m.values
+            low_np_15m = low_15m.values
+            vol_np_15m = volume_15m.values
+            
+            a1_marj_15m = abs(high_np_15m[-1] - low_np_15m[-1])
+            a2_marj_15m = abs(high_np_15m[-5] - low_np_15m[-5]) if len(high_np_15m) >= 5 else a1_marj_15m
+            vol_sma_15m = np.mean(vol_np_15m[-20:]) if len(vol_np_15m) >= 20 else np.mean(vol_np_15m)
+            hacim_payda_15m = (vol_np_15m[-1] / (vol_sma_15m + 1e-10))
+            
+            if hacim_payda_15m > 0:
+              dalga_verimlilik_skoru_15m = (a1_marj_15m * a2_marj_15m) / hacim_payda_15m
+
             # RSI (14) - 15m
             delta_15m = close_15m.diff()
             gain_15m = (delta_15m.where(delta_15m > 0, 0)).rolling(14).mean()
@@ -444,12 +458,13 @@ def run_scanner():
             up_move_15m = high_15m.diff()
             down_move_15m = -low_15m.diff()
             plus_dm_15m = up_move_15m.where((up_move_15m > down_move_15m) & (up_move_15m > 0), 0)
+            minus_dm_15m = down_move_15m.where((down_move_15m > up_move_15m) & (down_move_15m > 0), 0)
             tr_15m = pd.concat([high_15m - low_15m, (high_15m - close_15m.shift()).abs(), (low_15m - close_15m.shift()).abs()], axis=1).max(axis=1)
             
             plus_di_ser_15m = 100 * (plus_dm_15m.rolling(14).sum() / (tr_15m.rolling(14).sum() + 1e-10))
+            minus_di_ser_15m = 100 * (minus_dm_15m.rolling(14).sum() / (tr_15m.rolling(14).sum() + 1e-10))
+            
             plus_di_15m = plus_di_ser_15m.iloc[-1]
-
-            konum_15m = get_wave_position(df_15m)
 
             # Ichimoku Bulut Sınırları ve Kijun / Span (15m)
             tenkan_9 = (high_15m.rolling(9).max() + low_15m.rolling(9).min()) / 2
@@ -471,11 +486,12 @@ def run_scanner():
             daralan_trend_15m = (bulut_kalinligi_15m.iloc[-1] < bulut_kalinligi_15m.iloc[-2]) and (bulut_kalinligi_15m.iloc[-2] < bulut_kalinligi_15m.iloc[-3])
             daralan_bulut_onay_15m = cok_ince_bulut_15m or daralan_trend_15m
 
-            # --- FIRTINA 1 🛡️ STRATEJİSİ ---
             span_a_kirilimi_15m = (close_15m.iloc[-2] <= senkou_span_a.iloc[-2]) and (close_15m.iloc[-1] > senkou_span_a.iloc[-1])
             span_a_ustunde_15m = close_15m.iloc[-1] > senkou_span_a.iloc[-1]
-            firtina_span_onay = span_a_kirilimi_15m or span_a_ustunde_15m
+            span_a_etkilesim_15m = span_a_kirilimi_15m or span_a_ustunde_15m
 
+            # --- 3. FIRTINA 1 🛡️ STRATEJİSİ ---
+            firtina_span_onay = span_a_kirilimi_15m or span_a_ustunde_15m
             firtina_bulut_sarti = firtina_span_onay or ichimoku_hibrit_onay or daralan_bulut_onay_15m
 
             mfi_window_12_firtina = mfi_ser_15m.iloc[-12:]
@@ -489,7 +505,8 @@ def run_scanner():
             firtina_mfi_onay = firtina_mfi_above or firtina_mfi_cross
 
             if (
-                wave_breakout_1h
+                not df_1h.empty and len(df_1h) >= 40
+                and wave_breakout_1h
                 and (close_curr_1h > hma20_1h_curr)
                 and firtina_bulut_sarti
                 and (plus_di_15m > 20.0)
@@ -499,47 +516,32 @@ def run_scanner():
                 tetiklenen_str.append("FIRTINA 1")
                 toplam_puan += 40.0
 
-            # ==========================================
-            # Strateji: TEHLİKELİ HİBRİT (GÜNCELLENDİ: Erken Giriş Modu)
-            # ==========================================
-            # 1. Makro Katman: Konum %0-%50 daraltıldı (Dip / Orta bant odaklı)
-            konum_1h_uygun_hibrit = (0.0 <= konum_1h <= 50.0)
-            
-            # 2. Mikro Katman: MFI 70 beklenmiyor, MFI >= 45 ve son 2 barda >= 12 delta (dikleşme)
-            mfi_diklesme_hibrit = (mfi_15m >= 45.0) and ((mfi_15m - mfi_ser_15m.shift(2).iloc[-1]) >= 12.0)
-            
-            # Kijun-sen üstü ilk kalkış ve daralan bulut (erken sıkışma)
-            fiyat_kalkis_hibrit = close_15m.iloc[-1] > kijun_26.iloc[-1]
-            
+            # --- 4. TEHLİKELİ HİBRİT STRATEJİSİ ---
+            hma9_15m = calculate_hma(close_15m, 9)
+            hma9_kesisir_span_a_15m = (hma9_15m.iloc[-2] <= senkou_span_a.iloc[-2]) and (hma9_15m.iloc[-1] > senkou_span_a.iloc[-1])
+            hma9_ustunde_span_a_15m = hma9_15m.iloc[-1] > senkou_span_a.iloc[-1]
+            hma9_span_a_sarti = hma9_kesisir_span_a_15m or hma9_ustunde_span_a_15m
+
+            di_kesisim_15m = (plus_di_ser_15m.iloc[-2] <= minus_di_ser_15m.iloc[-2]) and (plus_di_ser_15m.iloc[-1] > minus_di_ser_15m.iloc[-1])
+            di_15m_kosul = (plus_di_15m > 20.0) or di_kesisim_15m
+
+            mfi_12bar_70 = (mfi_ser_15m.iloc[-12:] > 70).any()
+            mfi_son_4bar_50 = (mfi_ser_15m.iloc[-4:] > 50).all()
+            mfi_son_bar_kosul = mfi_ser_15m.iloc[-1] > 50
+
+            hibrit_mfi_onay = mfi_12bar_70 and mfi_son_4bar_50 and mfi_son_bar_kosul
+
             if (
-                konum_1h_uygun_hibrit
-                and di_sarti_1h
-                and (close_curr_1h > hma20_1h_curr)
-                and mfi_diklesme_hibrit
-                and (plus_di_15m >= 28.0)
-                and fiyat_kalkis_hibrit
-                and daralan_bulut_onay_15m
+                (plus_di_1h > 25.0)
+                and hma9_span_a_sarti
+                and di_15m_kosul
+                and hibrit_mfi_onay
             ):
               if kayit_guncelle("dip_hibrit"):
                 tetiklenen_str.append("TEHLİKELİ HİBRİT")
                 toplam_puan += 30.0
 
-            # Strateji: TOPGUN
-            mfi_window_12 = mfi_ser_15m.iloc[-12:]
-            is_above_70_3h = (mfi_window_12 > 70).any()
-            cross_70_count = 0
-            for idx in range(len(mfi_ser_15m) - 11, len(mfi_ser_15m)):
-                if idx > 0:
-                    if mfi_ser_15m.iloc[idx - 1] <= 70 and mfi_ser_15m.iloc[idx] > 70:
-                        cross_70_count += 1
-            topgun_mfi_onay = is_above_70_3h or (cross_70_count >= 2)
-
-            if is_1h_yakala_valid and ichimoku_hibrit_onay and (plus_di_15m > 25.0) and topgun_mfi_onay and is_above_hma20_15m:
-              if kayit_guncelle("topgun_strategy"):
-                tetiklenen_str.append("TOPGUN")
-                toplam_puan += 45.0
-
-            # Strateji: 🐒🐒 Çekirge 15 (Daralan Bulut + DI>25 + HMA20 üstü + CMF>0 + RSI>50 + MFI>55)
+            # --- 5. ÇEKİRGE 15 STRATEJİSİ ---
             if (
                 daralan_bulut_onay_15m
                 and (plus_di_15m > 25.0)
@@ -552,13 +554,43 @@ def run_scanner():
                 tetiklenen_str.append("🐒🐒 Çekirge 15")
                 toplam_puan += 40.0
 
+            # --- 6. DALGA & SPAN-A DARALAN BULUT STRATEJİSİ ---
+            dalga_makro_uygun = wave_breakout_1h or (0.0 <= konum_1h <= 60.0)
+
+            if (
+                not df_1h.empty and len(df_1h) >= 40
+                and dalga_makro_uygun
+                and (close_curr_1h > hma20_1h_curr)
+                and daralan_bulut_onay_15m
+                and span_a_etkilesim_15m
+                and (plus_di_15m > 22.0)
+                and (dalga_verimlilik_skoru_1h > 0.5)
+            ):
+              if kayit_guncelle("dalga_span_a_daralan"):
+                tetiklenen_str.append("DALGA & SPAN-A DARALAN")
+                toplam_puan += 35.0
+
+            # --- 7. KUSURSUZ FIRTINA ⚡ ---
+            if (
+                not df_1h.empty and len(df_1h) >= 40
+                and wave_breakout_1h
+                and (close_curr_1h > hma20_1h_curr)
+                and firtina_bulut_sarti
+                and (plus_di_15m > 20.0)
+                and firtina_mfi_onay
+                and (dalga_verimlilik_skoru_15m > 0.5)
+            ):
+              if kayit_guncelle("kusursuz_firtina"):
+                tetiklenen_str.append("KUSURSUZ FIRTINA ⚡")
+                toplam_puan += 45.0
+
         if tetiklenen_str:
           if toplam_puan == 0:
             toplam_puan = 25.0
 
           try:
               live_tk = yf.Ticker(clean_ticker)
-              live_price = live_tk.fast_info['lastPrice']
+              live_price = live_tk.fast_info.get('lastPrice', None)
               if live_price is not None and not math.isnan(float(live_price)) and float(live_price) > 0:
                   guncel_fiyat = float(live_price)
           except Exception:
@@ -609,14 +641,16 @@ def run_scanner():
         
         for strat in item['stratejiler']:
           strat_upper = strat.upper()
-          if "FIRTINA 1" in strat_upper:
+          if "KUSURSUZ FIRTINA" in strat_upper:
+            mesaj_satirlari.append(f"• ⚡⚡ {strat} (15m Verimlilik Formülü Onaylı | MFI:{item['mfi_15m']:.1f} | +DI:{item['plus_di_15m']:.1f})")
+          elif "FIRTINA 1" in strat_upper:
             mesaj_satirlari.append(f"• 🛡️ {strat} (15m MFI:{item['mfi_15m']:.1f} | 15m +DI:{item['plus_di_15m']:.1f} | 1s Konum:%{item['konum_1h']:.1f})")
-          elif "TOPGUN" in strat_upper:
-            mesaj_satirlari.append(f"• 🦅🐴🦅 {strat} (1s RSI:{item['rsi_1h']:.1f} | 15m MFI:{item['mfi_15m']:.1f} | 15m +DI:{item['plus_di_15m']:.1f} | 1s Konum:%{item['konum_1h']:.1f})")
           elif "TEHLİKELİ HİBRİT" in strat_upper:
-            mesaj_satirlari.append(f"• 🟢🟢🟢 {strat} (15m MFI:{item['mfi_15m']:.1f} | 15m +DI:{item['plus_di_15m']:.1f} | 1s Konum:%{item['konum_1h']:.1f})")
+            mesaj_satirlari.append(f"• 🟢🟢🟢 {strat} (15m MFI:{item['mfi_15m']:.1f} | 15m +DI:{item['plus_di_15m']:.1f})")
           elif "ÇEKİRGE 15" in strat_upper:
             mesaj_satirlari.append(f"• 🐒🐒 {strat} (15m MFI:{item['mfi_15m']:.1f} | 15m RSI:{item['rsi_15m']:.1f} | 15m CMF:{item['cmf_15m']:.2f} | 15m +DI:{item['plus_di_15m']:.1f})")
+          elif "DALGA & SPAN-A DARALAN" in strat_upper:
+            mesaj_satirlari.append(f"• 🌊⚡ {strat} (15m Span-A Kesişim | 15m +DI:{item['plus_di_15m']:.1f} | 1s Konum:%{item['konum_1h']:.1f})")
           elif "DELİRDİ" in strat_upper and "1 SAAT" in strat_upper:
             mesaj_satirlari.append(f"• 💥💥💥 {strat} (1s RVOL:{item['rvol_1h']:.2f} | 1s RSI:{item['rsi_1h']:.1f} | 1s Konum:%{item['konum_1h']:.1f})")
           elif "1 SAAT YAKALA" in strat_upper:
@@ -627,12 +661,12 @@ def run_scanner():
         mesaj_satirlari.append("----------------------------------------")
 
       final_mesaj = "\n".join(mesaj_satirlari)
-      send_ntfy(final_mesaj, "borsa_senet")
+      send_ntfy(final_mesaj, "kaplan_78borsa")
       time.sleep(0.4)
 
   print("\nTüm Hisseler tarandı ve süreç tamamlandı.")
 
 
 if __name__ == "__main__":
-  print("Tarama Sistemi başlatıldı...")
+  print("Kaplan Senet Tarama Sistemi başlatıldı...")
   run_scanner()
