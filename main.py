@@ -576,9 +576,14 @@ def run_scanner():
       for item in alt_grup:
         strats_upper = [s.upper() for s in item['stratejiler']]
         has_both_1h = ("1 SAAT YAKALA" in strats_upper) and ("DELİRDİ 1 SAAT" in strats_upper)
+        strat_count = len(item['stratejiler'])
 
         if has_both_1h:
           prefix = "👑🚨 DİKKAT: 1S ÇİFTE ALARM 🚨👑"
+        elif strat_count >= 3:
+          prefix = "🚀🚀🚀 Hisse:"
+        elif strat_count == 2:
+          prefix = "🚀🚀 Hisse:"
         else:
           prefix = "📌 Hisse:"
         
