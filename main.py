@@ -404,7 +404,7 @@ def run_scanner():
                 tetiklenen_str.append("1 Saat Yakala")
                 toplam_puan += 25.0
 
-            # Strateji: KUSURSUZ YAKALA (YENİ EKLENEN BAĞIMSIZ FİLTRE)
+            # Strateji: Kusursuz Yakala
             if (close_curr_1h > hma20_1h_curr) and (rsi_1h > 50) and (plus_di_1h > 25) and wave_breakout_1h and (dalga_verimlilik_skoru_1h > 0.5):
               if kayit_guncelle("kusursuz_yakala"):
                 tetiklenen_str.append("Kusursuz Yakala")
@@ -443,6 +443,9 @@ def run_scanner():
             if hacim_payda_15m > 0:
               dalga_verimlilik_skoru_15m = (a1_marj_15m * a2_marj_15m) / hacim_payda_15m
 
+            wave_res_15m = check_wave_margins(df_15m, lookback=3, threshold_multiplier=0.80)
+            wave_breakout_15m = wave_res_15m[0]
+
             mfi_ser_15m = calculate_mfi(high_15m, low_15m, close_15m, volume_15m, 14)
             mfi_15m = mfi_ser_15m.iloc[-1]
 
@@ -475,6 +478,22 @@ def run_scanner():
             span_a_ustunde_15m = close_15m.iloc[-1] > senkou_span_a.iloc[-1]
             span_a_etkilesim_15m = span_a_kirilimi_15m or span_a_ustunde_15m
 
+            hma9_15m = calculate_hma(close_15m, 9)
+            hma9_kesisir_span_a_15m = (hma9_15m.iloc[-2] <= senkou_span_a.iloc[-2]) and (hma9_15m.iloc[-1] > senkou_span_a.iloc[-1])
+            hma9_ustunde_span_a_15m = hma9_15m.iloc[-1] > senkou_span_a.iloc[-1]
+            hma9_span_a_sarti = hma9_kesisir_span_a_15m or hma9_ustunde_span_a_15m
+
+            # --- STRATEJİ: 🦅 ÇEKİRGE 🦅 (YENİ EKLENEN MİKRO KUSURSUZ) ---
+            if (
+                wave_breakout_15m
+                and (dalga_verimlilik_skoru_15m > 0.5)
+                and span_a_etkilesim_15m
+                and hma9_span_a_sarti
+            ):
+              if kayit_guncelle("cekirge_15m"):
+                tetiklenen_str.append("ÇEKİRGE")
+                toplam_puan += 40.0
+
             # --- FIRTINA 1 STRATEJİSİ ---
             firtina_span_onay = span_a_kirilimi_15m or span_a_ustunde_15m
             firtina_bulut_sarti = firtina_span_onay or ichimoku_hibrit_onay or daralan_bulut_onay_15m
@@ -502,11 +521,6 @@ def run_scanner():
                 toplam_puan += 40.0
 
             # --- TEHLİKELİ HİBRİT STRATEJİSİ ---
-            hma9_15m = calculate_hma(close_15m, 9)
-            hma9_kesisir_span_a_15m = (hma9_15m.iloc[-2] <= senkou_span_a.iloc[-2]) and (hma9_15m.iloc[-1] > senkou_span_a.iloc[-1])
-            hma9_ustunde_span_a_15m = hma9_15m.iloc[-1] > senkou_span_a.iloc[-1]
-            hma9_span_a_sarti = hma9_kesisir_span_a_15m or hma9_ustunde_span_a_15m
-
             di_kesisim_15m = (plus_di_ser_15m.iloc[-2] <= minus_di_ser_15m.iloc[-2]) and (plus_di_ser_15m.iloc[-1] > minus_di_ser_15m.iloc[-1])
             di_15m_kosul = (plus_di_15m > 20.0) or di_kesisim_15m
 
@@ -608,6 +622,8 @@ def run_scanner():
             mesaj_satirlari.append(f"• ⚡⚡ {strat} (15m MFI:{item['mfi_15m']:.1f} | +DI:{item['plus_di_15m']:.1f})")
           elif "KUSURSUZ YAKALA" in strat_upper:
             mesaj_satirlari.append(f"• 💎💎 {strat} (1s RSI:{item['rsi_1h']:.1f} | 1s Konum:%{item['konum_1h']:.1f})")
+          elif "ÇEKİRGE" in strat_upper:
+            mesaj_satirlari.append(f"• 🦅🦅 {strat} (15m Mikro Kırılım | +DI:{item['plus_di_15m']:.1f})")
           elif "FIRTINA 1" in strat_upper:
             mesaj_satirlari.append(f"• 🛡️ {strat} (15m MFI:{item['mfi_15m']:.1f} | 15m +DI:{item['plus_di_15m']:.1f} | 1s Konum:%{item['konum_1h']:.1f})")
           elif "TEHLİKELİ HİBRİT" in strat_upper:
