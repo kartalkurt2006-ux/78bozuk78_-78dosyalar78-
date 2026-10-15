@@ -26,5 +26,7 @@ jobs:
           pip install pandas numpy yfinance pytz requests
 
       - name: Tarama Scriptini Çalıştır
+        env:
+          FORCE_RUN: "true"
         run: |
           python main.py
