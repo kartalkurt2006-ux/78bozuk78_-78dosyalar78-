@@ -2,7 +2,7 @@ name: BIST Tarama Sistemi
 
 on:
   schedule:
-    # Her 15 dakikada bir çalışır (UTC saat dilimine göredir, Türkiye saati için GitHub cron zamanlamasını dikkate alır)
+    # Her 15 dakikada bir çalışır
     - cron: '*/15 * * * *'
   workflow_dispatch: # Manuel olarak GitHub panelinden tetiklenebilmesini sağlar
 
@@ -27,4 +27,4 @@ jobs:
 
       - name: Tarama Scriptini Çalıştır
         run: |
-          python scanner.py
+          python main.py
