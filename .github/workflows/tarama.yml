@@ -1,43 +1,30 @@
-name: BIST Tarama Botu
+name: BIST Tarama Sistemi
 
 on:
   schedule:
-    # Türkiye saati ile 09:00 - 18:30 arası her 15 dakikada bir (UTC 06:00 - 15:30)
-    - cron: '*/15 6-15 * * 1-5'
-  workflow_dispatch:
-
-permissions:
-  contents: write
+    # Her 15 dakikada bir çalışır (UTC saat dilimine göredir, Türkiye saati için GitHub cron zamanlamasını dikkate alır)
+    - cron: '*/15 * * * *'
+  workflow_dispatch: # Manuel olarak GitHub panelinden tetiklenebilmesini sağlar
 
 jobs:
-  tarama_yap:
+  tarama:
     runs-on: ubuntu-latest
+
     steps:
-      - name: Kodları Kopyala
+      - name: Kodları Depodan Çek
         uses: actions/checkout@v4
 
-      - name: Python Kur
+      - name: Python Ortamını Kur
         uses: actions/setup-python@v5
         with:
           python-version: '3.10'
+          cache: 'pip'
 
-      - name: Kütüphaneleri Yükle
+      - name: Gerekli Kütüphaneleri Yükle
         run: |
           python -m pip install --upgrade pip
-          pip install --no-cache-dir requests yfinance pandas pytz numpy
+          pip install pandas numpy yfinance pytz requests
 
-      - name: Botu Çalıştır
-        env:
-          FORCE_RUN: ${{ github.event_name == 'workflow_dispatch' && 'true' || 'false' }}
+      - name: Tarama Scriptini Çalıştır
         run: |
-          python main.py
-
-      - name: Hafıza Dosyasını Kaydet ve Push Yap
-        run: |
-          git config --global user.name "github-actions[bot]"
-          git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          touch borsa_hafiza.json
-          git add borsa_hafiza.json
-          git commit -m "Otomatik hafiza guncellemesi [skip ci]" || echo "Degisiklik yok"
-          git pull origin main --rebase || echo "Pull atlanıyor"
-          git push origin main || echo "Push atlanıyor"
+          python scanner.py
