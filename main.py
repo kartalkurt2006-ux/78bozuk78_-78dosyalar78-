@@ -163,7 +163,6 @@ def check_wave_margins(df, lookback=3, threshold_multiplier=0.80):
 # KARTAL MİMARİSİ TARAMA FONKSİYONLARI
 # ==========================================
 def scan_kartal_15dk(df):
-    """KARTAL 15dk: Esnek RVOL (>=0.6) + %80 eşik + 0.35 Verimlilik + +DI > 30 + MFI Son 12b > 70"""
     try:
         triggered, _ = check_wave_margins(df, lookback=3, threshold_multiplier=0.80)
         if not triggered or df.empty or len(df) < 35:
@@ -205,7 +204,6 @@ def scan_kartal_15dk(df):
 
 
 def scan_kartal_1s(df):
-    """KARTAL 1 S: Saatlik %80 eşik kırılımı + 0.35 Dalga Verimliliği Onayı"""
     try:
         triggered, _ = check_wave_margins(df, lookback=3, threshold_multiplier=0.80)
         if not triggered or df.empty or len(df) < 35:
@@ -234,7 +232,6 @@ def scan_kartal_1s(df):
 
 
 def scan_kartal_ozel(df_15m, df_1s):
-    """KARTAL ÖZEL: 15dk Erken Tetik + 1s Saatlik 0.35 Dalga Verimliliği Onayı (Master Hibrit)"""
     try:
         tetik_15m = scan_kartal_15dk(df_15m)
         if not tetik_15m or df_1s.empty or len(df_1s) < 35:
@@ -370,7 +367,7 @@ def run_scanner():
   is_manual_run = os.environ.get("FORCE_RUN", "false").lower() == "true"
   
   print(
-      f"[{datetime.now(TZ_TR).strftime('%Y-%m-%d %H:%M:%S')}] Güncellenmiş Tarama Sistemi Başlatıldı (Kartal Stratejileri Entegre)... (Manuel Mod: {is_manual_run})"
+      f"[{datetime.now(TZ_TR).strftime('%Y-%m-%d %H:%M:%S')}] Tarama Sistemi Başlatıldı... (Manuel Mod: {is_manual_run})"
   )
 
   tum_hafiza = hafiza_yukle()
@@ -433,7 +430,7 @@ def run_scanner():
             return simdi_epoch - son_zaman > COOLDOWN_SECONDS
 
         # ==========================================
-        # 1. 1 SAATLİK VERİ ANALİZİ (Aktif)
+        # 1. 1 SAATLİK VERİ ANALİZİ
         # ==========================================
         df_1h = extract_ticker_df(df_1h_all, clean_ticker, chunk)
         if not df_1h.empty and len(df_1h) >= 40:
@@ -449,7 +446,6 @@ def run_scanner():
             close_curr_1h = close_1h.iloc[-1]
             guncel_fiyat = close_curr_1h
 
-            # RSI (14)
             delta_1h = close_1h.diff()
             gain_1h = (delta_1h.where(delta_1h > 0, 0)).rolling(14).mean()
             loss_1h = (-delta_1h.where(delta_1h < 0, 0)).rolling(14).mean()
@@ -457,11 +453,9 @@ def run_scanner():
             rsi_curr_1h = (100 - (100 / (1 + rs_1h))).iloc[-1]
             son_rsi = rsi_curr_1h
 
-            # MFI (14)
             mfi_1h = calculate_mfi(high_1h, low_1h, close_1h, volume_1h, 14)
             son_mfi = mfi_1h.iloc[-1]
 
-            # +DI (14)
             up_move_1h = high_1h.diff()
             down_move_1h = -low_1h.diff()
             plus_dm_1h = up_move_1h.where((up_move_1h > down_move_1h) & (up_move_1h > 0), 0)
@@ -469,7 +463,6 @@ def run_scanner():
             plus_di_curr_1h = (100 * (plus_dm_1h.rolling(14).sum() / (tr_1h.rolling(14).sum() + 1e-10))).iloc[-1]
             son_plus_di = plus_di_curr_1h
 
-            # RVOL (1h)
             rvol_curr_1h = (volume_1h / volume_1h.rolling(20).mean()).iloc[-1]
             son_rvol = rvol_curr_1h
 
@@ -479,20 +472,18 @@ def run_scanner():
 
             hma20_1h = calculate_hma(close_1h, 20)
 
-            # Strateji: 1 Saat Yakala
             if (close_curr_1h > hma20_1h.iloc[-1]) and (rsi_curr_1h > 50) and (plus_di_curr_1h > 25) and wave_breakout_1h:
               if kayit_guncelle("1h_dalga_gorsel"):
                 tetiklenen_str.append("1 Saat Yakala")
                 toplam_puan += 25.0
 
-            # Strateji: DELİRDİ 1 Saat
             if (close_curr_1h > hma20_1h.iloc[-1]) and (rvol_curr_1h >= 2.0) and wave_breakout_1h:
               if kayit_guncelle("deli_gitan_1h"):
                 tetiklenen_str.append("DELİRDİ 1 Saat")
                 toplam_puan += 35.0
 
         # ==========================================
-        # 2. 15 DAKİKALIK VERİ ANALİZİ (TEHLİKELİ HİBRİT)
+        # 2. 15 DAKİKALIK VERİ ANALİZİ
         # ==========================================
         df_15m = extract_ticker_df(df_15m_all, clean_ticker, chunk)
         if not df_15m.empty and len(df_15m) >= 40:
@@ -540,9 +531,6 @@ def run_scanner():
                 tetiklenen_str.append("TEHLİKELİ HİBRİT")
                 toplam_puan += 30.0
 
-            # ==========================================
-            # KARTAL MİMARİSİ TARAMA KONTROLLERİ
-            # ==========================================
             if scan_kartal_15dk(df_15m):
               if kayit_guncelle("kartal_15dk"):
                 tetiklenen_str.append("KARTAL 15dk")
