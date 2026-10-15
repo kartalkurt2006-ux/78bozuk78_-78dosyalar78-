@@ -483,7 +483,7 @@ def run_scanner():
             hma9_ustunde_span_a_15m = hma9_15m.iloc[-1] > senkou_span_a.iloc[-1]
             hma9_span_a_sarti = hma9_kesisir_span_a_15m or hma9_ustunde_span_a_15m
 
-            # --- STRATEJİ: 🦅 ÇEKİRGE 🦅 (YENİ EKLENEN MİKRO KUSURSUZ) ---
+            # --- STRATEJİ: 🦅 ÇEKİRGE 🦅 ---
             if (
                 wave_breakout_15m
                 and (dalga_verimlilik_skoru_15m > 0.5)
