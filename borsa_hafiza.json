@@ -5,7 +5,7 @@
                 "zaman": 1792147828.0081408,
                 "ilk_fiyat": 4.159999847412109,
                 "son_fiyat": 4.159999847412109,
-                "tekrar_sayisi": 1
+                "tekrar_sayisi": 2
             },
             "BRKO.IS": {
                 "zaman": 1792147828.0081408,
@@ -16,46 +16,46 @@
             "DOCO.IS": {
                 "zaman": 1792147828.0081408,
                 "ilk_fiyat": 11252.5,
-                "son_fiyat": 11252.5,
-                "tekrar_sayisi": 1
+                "son_fiyat": 11232.5,
+                "tekrar_sayisi": 2
             },
             "HEDEF.IS": {
                 "zaman": 1792147828.0081408,
                 "ilk_fiyat": 22.059999465942383,
                 "son_fiyat": 22.059999465942383,
-                "tekrar_sayisi": 1
+                "tekrar_sayisi": 2
             },
             "IZFAS.IS": {
                 "zaman": 1792147828.0081408,
                 "ilk_fiyat": 22.31999969482422,
-                "son_fiyat": 22.31999969482422,
-                "tekrar_sayisi": 1
+                "son_fiyat": 22.34000015258789,
+                "tekrar_sayisi": 2
             },
             "SAHOL.IS": {
                 "zaman": 1792147828.0081408,
                 "ilk_fiyat": 86.1500015258789,
-                "son_fiyat": 86.1500015258789,
-                "tekrar_sayisi": 1
+                "son_fiyat": 85.8499984741211,
+                "tekrar_sayisi": 2
             },
             "TMPOL.IS": {
                 "zaman": 1792147828.0081408,
                 "ilk_fiyat": 155.6999969482422,
                 "son_fiyat": 155.6999969482422,
-                "tekrar_sayisi": 1
+                "tekrar_sayisi": 2
             }
         },
         "kusursuz_yakala": {
             "DOCO.IS": {
                 "zaman": 1792147828.0081408,
                 "ilk_fiyat": 11252.5,
-                "son_fiyat": 11252.5,
-                "tekrar_sayisi": 1
+                "son_fiyat": 11232.5,
+                "tekrar_sayisi": 2
             },
             "SAHOL.IS": {
                 "zaman": 1792147828.0081408,
                 "ilk_fiyat": 86.1500015258789,
-                "son_fiyat": 86.1500015258789,
-                "tekrar_sayisi": 1
+                "son_fiyat": 85.8499984741211,
+                "tekrar_sayisi": 2
             }
         },
         "dip_hibrit": {
@@ -68,13 +68,19 @@
             "KLRHO.IS": {
                 "zaman": 1792147828.0081408,
                 "ilk_fiyat": 10.84000015258789,
-                "son_fiyat": 10.84000015258789,
-                "tekrar_sayisi": 1
+                "son_fiyat": 10.960000038146973,
+                "tekrar_sayisi": 2
             },
             "MAKIM.IS": {
                 "zaman": 1792147828.0081408,
                 "ilk_fiyat": 12.760000228881836,
-                "son_fiyat": 12.760000228881836,
+                "son_fiyat": 12.529999732971191,
+                "tekrar_sayisi": 2
+            },
+            "SAHOL.IS": {
+                "zaman": 1792149348.1786346,
+                "ilk_fiyat": 85.8499984741211,
+                "son_fiyat": 85.8499984741211,
                 "tekrar_sayisi": 1
             }
         },
@@ -82,7 +88,29 @@
             "SAHOL.IS": {
                 "zaman": 1792147828.0081408,
                 "ilk_fiyat": 86.1500015258789,
-                "son_fiyat": 86.1500015258789,
+                "son_fiyat": 85.8499984741211,
+                "tekrar_sayisi": 2
+            }
+        },
+        "deli_gitan_1h": {
+            "IZFAS.IS": {
+                "zaman": 1792149348.1786346,
+                "ilk_fiyat": 22.34000015258789,
+                "son_fiyat": 22.34000015258789,
+                "tekrar_sayisi": 1
+            },
+            "SAHOL.IS": {
+                "zaman": 1792149348.1786346,
+                "ilk_fiyat": 85.8499984741211,
+                "son_fiyat": 85.8499984741211,
+                "tekrar_sayisi": 1
+            }
+        },
+        "kusursuz_firtina": {
+            "SAHOL.IS": {
+                "zaman": 1792149348.1786346,
+                "ilk_fiyat": 85.8499984741211,
+                "son_fiyat": 85.8499984741211,
                 "tekrar_sayisi": 1
             }
         }
