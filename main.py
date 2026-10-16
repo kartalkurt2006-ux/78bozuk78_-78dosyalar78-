@@ -1,4 +1,4 @@
-from datetime import datetime
+From datetime import datetime
 import json
 import os
 import time
@@ -404,12 +404,6 @@ def run_scanner():
                 tetiklenen_str.append("1 Saat Yakala")
                 toplam_puan += 25.0
 
-            # Strateji: KUSURSUZ YAKALA (YENİ EKLENEN BAĞIMSIZ FİLTRE)
-            if (close_curr_1h > hma20_1h_curr) and (rsi_1h > 50) and (plus_di_1h > 25) and wave_breakout_1h and (dalga_verimlilik_skoru_1h > 0.5):
-              if kayit_guncelle("kusursuz_yakala"):
-                tetiklenen_str.append("Kusursuz Yakala")
-                toplam_puan += 35.0
-
             # Strateji: DELİRDİ 1 Saat
             if (close_curr_1h > hma20_1h_curr) and (rvol_1h >= 2.0) and wave_breakout_1h:
               if kayit_guncelle("deli_gitan_1h"):
@@ -606,8 +600,6 @@ def run_scanner():
           strat_upper = strat.upper()
           if "KUSURSUZ FIRTINA" in strat_upper:
             mesaj_satirlari.append(f"• ⚡⚡ {strat} (15m MFI:{item['mfi_15m']:.1f} | +DI:{item['plus_di_15m']:.1f})")
-          elif "KUSURSUZ YAKALA" in strat_upper:
-            mesaj_satirlari.append(f"• 💎💎 {strat} (1s RSI:{item['rsi_1h']:.1f} | 1s Konum:%{item['konum_1h']:.1f})")
           elif "FIRTINA 1" in strat_upper:
             mesaj_satirlari.append(f"• 🛡️ {strat} (15m MFI:{item['mfi_15m']:.1f} | 15m +DI:{item['plus_di_15m']:.1f} | 1s Konum:%{item['konum_1h']:.1f})")
           elif "TEHLİKELİ HİBRİT" in strat_upper:
