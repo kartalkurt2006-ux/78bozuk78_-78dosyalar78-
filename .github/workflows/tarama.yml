@@ -1,4 +1,4 @@
-name: BIST Tarama Botu
+Name: BIST Tarama Botu
 
 on:
   schedule:
@@ -15,7 +15,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Kodları Kopyala
-        uses: actions/checkout@v4
+        uses: actions/checkout@v3
 
       - name: Python Kur
         uses: actions/setup-python@v4
