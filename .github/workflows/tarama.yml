@@ -1,7 +1,9 @@
-name: BIST Tarama Botu
+Name: BIST Tarama Botu
 
 on:
   schedule:
+    # Hafta içi her gün UTC 06:00 - 15:30 arası her 15 dakikada bir çalışır 
+    # (Türkiye saati ile 09:00 - 18:30 arasıdır)
     - cron: '*/15 6-15 * * 1-5'
   workflow_dispatch:
 
@@ -25,6 +27,8 @@ jobs:
           pip install --no-cache-dir requests yfinance pandas pytz numpy
 
       - name: Botu Çalıştır
+        env:
+          FORCE_RUN: ${{ github.event_name == 'workflow_dispatch' && 'true' || 'false' }}
         run: |
           python main.py
 
