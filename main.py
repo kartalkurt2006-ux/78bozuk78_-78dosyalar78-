@@ -437,8 +437,6 @@ def run_scanner():
             tenkan_9 = (high_15m.rolling(9).max() + low_15m.rolling(9).min()) / 2
             kijun_26 = (high_15m.rolling(26).max() + low_15m.rolling(26).min()) / 2
 
-            # Kesişim veya Üstünde Olma Koşulu
-            # Tenkan'ın Kijun'u yeni kestiği an VEYA Tenkan'ın zaten Kijun'un üzerinde seyrettiği durum
             ichimoku_kesisim = (tenkan_9.iloc[-2] <= kijun_26.iloc[-2]) and (tenkan_9.iloc[-1] > kijun_26.iloc[-1])
             ichimoku_ustunde = tenkan_9.iloc[-1] >= kijun_26.iloc[-1]
             ichimoku_trigger = ichimoku_kesisim or ichimoku_ustunde
@@ -468,20 +466,16 @@ def run_scanner():
             bb_upper_s15 = bb_middle_s15 + (2 * bb_std_s15)
             bb_lower_s15 = bb_middle_s15 - (2 * bb_std_s15)
 
-            # 22 Barlık Bant Genişliği ve Sıkışma Kontrolü
             bb_width_s15 = bb_upper_s15 - bb_lower_s15
             is_squeezed_s15 = bb_width_s15.iloc[-2] <= bb_width_s15.rolling(22).min().iloc[-2] * 1.15
 
-            # ROC (Rate of Change) - Son 2 barda %1.5 ve üzeri ani fiyat ivmelenmesi (Erken Avcı Atılımı)
             roc_s15 = close_s15.pct_change(periods=2) * 100
             roc_curr_s15 = roc_s15.iloc[-1]
             son_roc = max(son_roc, roc_curr_s15)
             is_sudden_burst = roc_curr_s15 >= 1.5
 
-            # Üst Bant Kırılımı veya Teması
             is_bb_breakout = close_s15.iloc[-1] >= bb_upper_s15.iloc[-1]
 
-            # MFI desteği (katı 60 yerine esnetilmiş hafif para akışı kontrolü)
             mfi_s15 = calculate_mfi(high_s15, low_s15, close_s15, volume_s15, 14)
             mfi_curr_s15 = mfi_s15.iloc[-1]
             son_mfi = max(son_mfi, mfi_curr_s15)
@@ -495,7 +489,6 @@ def run_scanner():
         # 4. 🛡️ DENİZ DALGASI MODÜLÜ (HİBRİT YAPI: 1S Trend + 15M Hacim/MFI/Hull20/+DI)
         # ==========================================
         if not df_1h.empty and not df_15m.empty and len(df_1h) >= 40 and len(df_15m) >= 40:
-          # --- A) 1 SAATLİK BÜYÜK RESİM KONTROLÜ ---
           close_1h_dd = df_1h["Close"]
           high_1h_dd = df_1h["High"]
           low_1h_dd = df_1h["Low"]
@@ -519,7 +512,6 @@ def run_scanner():
           is_1h_rsi_valid = rsi_1h_curr >= 50.0
 
           if is_1h_di_bullish and is_1h_rsi_valid:
-            # --- B) 15 DAKİKALIK ANLIK TETİK VE ZAMANLAMA KONTROLÜ ---
             close_dd = df_15m["Close"]
             high_dd = df_15m["High"]
             low_dd = df_15m["Low"]
@@ -529,24 +521,21 @@ def run_scanner():
               if guncel_fiyat == 0.0:
                 guncel_fiyat = close_dd.iloc[-1]
 
-              # Şart 1: RVOL (Ani Hacim Çarpanı) >= 2.5
               rvol_15m = volume_dd / volume_dd.rolling(20).mean()
               is_rvol_burst = rvol_15m.iloc[-1] >= 2.5
               son_rvol = max(son_rvol, rvol_15m.iloc[-1])
 
-              # Şart 2: MFI > 60 (Net Para Akışı)
               mfi_dd = calculate_mfi(high_dd, low_dd, close_dd, volume_dd, 14)
               mfi_curr_dd = mfi_dd.iloc[-1]
               is_mfi_valid = mfi_curr_dd > 60.0
               son_mfi = max(son_mfi, mfi_curr_dd)
 
-              # Şart 3: Fiyat > Hull 20 (Hızlı Trend Onayı)
               hma20_15m = calculate_hma(close_dd, 20)
               is_above_hull = close_dd.iloc[-1] > hma20_15m.iloc[-1]
 
-              # Şart 4: 15m +DI > 20
               up_15 = high_dd.diff()
-              down_15 = -low_15m.diff() if 'low_15m' in locals() else -low_dd.diff()
+              # HATALI -low_15m.df ifadesi şuradaydı ve düzeltildi:
+              down_15 = -low_dd.diff()
               p_dm_15 = up_15.where((up_15 > down_15) & (up_15 > 0), 0)
               tr_15 = pd.concat([high_dd - low_dd, (high_dd - close_dd.shift()).abs(), (low_dd - close_dd.shift()).abs()], axis=1).max(axis=1)
               p_di_15_series = 100 * (p_dm_15.rolling(14).sum() / (tr_15.rolling(14).sum() + 1e-10))
@@ -565,7 +554,6 @@ def run_scanner():
           if toplam_puan == 0:
             toplam_puan = 25.0
 
-          # --- HİBRİT CANLI FİYAT GÜNCELLEMESİ (Güvenli fast_info) ---
           try:
               live_tk = yf.Ticker(clean_ticker)
               live_price = live_tk.fast_info['lastPrice']
