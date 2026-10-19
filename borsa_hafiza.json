@@ -59,13 +59,13 @@
                 "zaman": 1792408810.0709326,
                 "ilk_fiyat": 66.75,
                 "son_fiyat": 66.75,
-                "tekrar_sayisi": 1
+                "tekrar_sayisi": 2
             },
             "ENJSA.IS": {
                 "zaman": 1792408810.0709326,
                 "ilk_fiyat": 114.5999984741211,
-                "son_fiyat": 114.5999984741211,
-                "tekrar_sayisi": 1
+                "son_fiyat": 114.30000305175781,
+                "tekrar_sayisi": 2
             },
             "LIDFA.IS": {
                 "zaman": 1792408810.0709326,
@@ -83,6 +83,12 @@
                 "zaman": 1792408810.0709326,
                 "ilk_fiyat": 109.4000015258789,
                 "son_fiyat": 109.4000015258789,
+                "tekrar_sayisi": 1
+            },
+            "ATLAS.IS": {
+                "zaman": 1792410829.8501725,
+                "ilk_fiyat": 4.869999885559082,
+                "son_fiyat": 4.869999885559082,
                 "tekrar_sayisi": 1
             }
         },
@@ -454,6 +460,18 @@
                 "ilk_fiyat": 171.1999969482422,
                 "son_fiyat": 171.1999969482422,
                 "tekrar_sayisi": 1
+            },
+            "GENTS.IS": {
+                "zaman": 1792410829.8501725,
+                "ilk_fiyat": 3.5899999141693115,
+                "son_fiyat": 3.5899999141693115,
+                "tekrar_sayisi": 1
+            },
+            "OZGYO.IS": {
+                "zaman": 1792410829.8501725,
+                "ilk_fiyat": 1.3899999856948853,
+                "son_fiyat": 1.3899999856948853,
+                "tekrar_sayisi": 1
             }
         },
         "firtina_1": {
@@ -560,6 +578,12 @@
                 "ilk_fiyat": 11.670000076293945,
                 "son_fiyat": 11.670000076293945,
                 "tekrar_sayisi": 1
+            },
+            "BALAT.IS": {
+                "zaman": 1792410829.8501725,
+                "ilk_fiyat": 66.75,
+                "son_fiyat": 66.75,
+                "tekrar_sayisi": 1
             }
         },
         "kusursuz_firtina": {
@@ -579,6 +603,14 @@
                 "zaman": 1792408810.0709326,
                 "ilk_fiyat": 109.4000015258789,
                 "son_fiyat": 109.4000015258789,
+                "tekrar_sayisi": 1
+            }
+        },
+        "deniz_dalgasi_hibrit": {
+            "BMSTL.IS": {
+                "zaman": 1792410829.8501725,
+                "ilk_fiyat": 39.2400016784668,
+                "son_fiyat": 39.2400016784668,
                 "tekrar_sayisi": 1
             }
         }
