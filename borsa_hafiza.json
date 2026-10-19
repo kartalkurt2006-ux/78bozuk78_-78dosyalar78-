@@ -96,6 +96,12 @@
                 "ilk_fiyat": 133.10000610351562,
                 "son_fiyat": 133.10000610351562,
                 "tekrar_sayisi": 1
+            },
+            "DMRGD.IS": {
+                "zaman": 1792424864.4811602,
+                "ilk_fiyat": 6.860000133514404,
+                "son_fiyat": 6.860000133514404,
+                "tekrar_sayisi": 1
             }
         },
         "kusursuz_yakala": {
@@ -484,6 +490,18 @@
                 "ilk_fiyat": 30.299999237060547,
                 "son_fiyat": 30.299999237060547,
                 "tekrar_sayisi": 1
+            },
+            "AEFES.IS": {
+                "zaman": 1792424864.4811602,
+                "ilk_fiyat": 17.3799991607666,
+                "son_fiyat": 17.3799991607666,
+                "tekrar_sayisi": 1
+            },
+            "ARTMS.IS": {
+                "zaman": 1792424864.4811602,
+                "ilk_fiyat": 31.520000457763672,
+                "son_fiyat": 31.520000457763672,
+                "tekrar_sayisi": 1
             }
         },
         "firtina_1": {
@@ -596,6 +614,12 @@
                 "ilk_fiyat": 66.75,
                 "son_fiyat": 66.75,
                 "tekrar_sayisi": 2
+            },
+            "DMRGD.IS": {
+                "zaman": 1792424864.4811602,
+                "ilk_fiyat": 6.860000133514404,
+                "son_fiyat": 6.860000133514404,
+                "tekrar_sayisi": 1
             }
         },
         "kusursuz_firtina": {
@@ -623,6 +647,24 @@
                 "zaman": 1792410829.8501725,
                 "ilk_fiyat": 39.2400016784668,
                 "son_fiyat": 39.2400016784668,
+                "tekrar_sayisi": 1
+            },
+            "DMRGD.IS": {
+                "zaman": 1792424864.4811602,
+                "ilk_fiyat": 6.860000133514404,
+                "son_fiyat": 6.860000133514404,
+                "tekrar_sayisi": 1
+            },
+            "RNPOL.IS": {
+                "zaman": 1792424864.4811602,
+                "ilk_fiyat": 1.6399999856948853,
+                "son_fiyat": 1.6399999856948853,
+                "tekrar_sayisi": 1
+            },
+            "SOKM.IS": {
+                "zaman": 1792424864.4811602,
+                "ilk_fiyat": 58.5,
+                "son_fiyat": 58.5,
                 "tekrar_sayisi": 1
             }
         }
