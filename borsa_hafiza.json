@@ -59,7 +59,7 @@
                 "zaman": 1792408810.0709326,
                 "ilk_fiyat": 66.75,
                 "son_fiyat": 66.75,
-                "tekrar_sayisi": 2
+                "tekrar_sayisi": 3
             },
             "ENJSA.IS": {
                 "zaman": 1792408810.0709326,
@@ -88,7 +88,13 @@
             "ATLAS.IS": {
                 "zaman": 1792410829.8501725,
                 "ilk_fiyat": 4.869999885559082,
-                "son_fiyat": 4.869999885559082,
+                "son_fiyat": 4.96999979019165,
+                "tekrar_sayisi": 2
+            },
+            "GARAN.IS": {
+                "zaman": 1792414490.0228958,
+                "ilk_fiyat": 133.10000610351562,
+                "son_fiyat": 133.10000610351562,
                 "tekrar_sayisi": 1
             }
         },
@@ -464,13 +470,19 @@
             "GENTS.IS": {
                 "zaman": 1792410829.8501725,
                 "ilk_fiyat": 3.5899999141693115,
-                "son_fiyat": 3.5899999141693115,
-                "tekrar_sayisi": 1
+                "son_fiyat": 3.619999885559082,
+                "tekrar_sayisi": 2
             },
             "OZGYO.IS": {
                 "zaman": 1792410829.8501725,
                 "ilk_fiyat": 1.3899999856948853,
                 "son_fiyat": 1.3899999856948853,
+                "tekrar_sayisi": 1
+            },
+            "AGHOL.IS": {
+                "zaman": 1792414490.0228958,
+                "ilk_fiyat": 30.299999237060547,
+                "son_fiyat": 30.299999237060547,
                 "tekrar_sayisi": 1
             }
         },
@@ -583,7 +595,7 @@
                 "zaman": 1792410829.8501725,
                 "ilk_fiyat": 66.75,
                 "son_fiyat": 66.75,
-                "tekrar_sayisi": 1
+                "tekrar_sayisi": 2
             }
         },
         "kusursuz_firtina": {
