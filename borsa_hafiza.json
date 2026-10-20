@@ -64,8 +64,8 @@
             "ENJSA.IS": {
                 "zaman": 1792408810.0709326,
                 "ilk_fiyat": 114.5999984741211,
-                "son_fiyat": 114.30000305175781,
-                "tekrar_sayisi": 2
+                "son_fiyat": 115.5999984741211,
+                "tekrar_sayisi": 3
             },
             "LIDFA.IS": {
                 "zaman": 1792408810.0709326,
@@ -82,8 +82,8 @@
             "TGSAS.IS": {
                 "zaman": 1792408810.0709326,
                 "ilk_fiyat": 109.4000015258789,
-                "son_fiyat": 109.4000015258789,
-                "tekrar_sayisi": 1
+                "son_fiyat": 118.0,
+                "tekrar_sayisi": 2
             },
             "ATLAS.IS": {
                 "zaman": 1792410829.8501725,
@@ -100,8 +100,8 @@
             "DMRGD.IS": {
                 "zaman": 1792424864.4811602,
                 "ilk_fiyat": 6.860000133514404,
-                "son_fiyat": 6.760000228881836,
-                "tekrar_sayisi": 2
+                "son_fiyat": 6.860000133514404,
+                "tekrar_sayisi": 3
             },
             "BORLS.IS": {
                 "zaman": 1792482086.0921364,
@@ -131,6 +131,42 @@
                 "zaman": 1792482086.0921364,
                 "ilk_fiyat": 59.099998474121094,
                 "son_fiyat": 59.099998474121094,
+                "tekrar_sayisi": 1
+            },
+            "ADGYO.IS": {
+                "zaman": 1792493802.0890527,
+                "ilk_fiyat": 44.0,
+                "son_fiyat": 44.0,
+                "tekrar_sayisi": 1
+            },
+            "AKFYE.IS": {
+                "zaman": 1792493802.0890527,
+                "ilk_fiyat": 3.950000047683716,
+                "son_fiyat": 3.950000047683716,
+                "tekrar_sayisi": 1
+            },
+            "ATAKP.IS": {
+                "zaman": 1792493802.0890527,
+                "ilk_fiyat": 34.900001525878906,
+                "son_fiyat": 34.900001525878906,
+                "tekrar_sayisi": 1
+            },
+            "CMBTN.IS": {
+                "zaman": 1792493802.0890527,
+                "ilk_fiyat": 1249.0,
+                "son_fiyat": 1249.0,
+                "tekrar_sayisi": 1
+            },
+            "KOPOL.IS": {
+                "zaman": 1792493802.0890527,
+                "ilk_fiyat": 3.1600000858306885,
+                "son_fiyat": 3.1600000858306885,
+                "tekrar_sayisi": 1
+            },
+            "LKMNH.IS": {
+                "zaman": 1792493802.0890527,
+                "ilk_fiyat": 11.569999694824219,
+                "son_fiyat": 11.569999694824219,
                 "tekrar_sayisi": 1
             }
         },
