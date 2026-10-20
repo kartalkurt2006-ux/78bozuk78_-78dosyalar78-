@@ -288,7 +288,9 @@ def run_scanner():
 
   def fetch_chunk_data(chunk_idx, chunk):
     print(f"Grup {chunk_idx}/{len(stock_chunks)} verileri indiriliyor ({len(chunk)} hisse)...")
+    time.sleep(0.5)  # Yahoo rate-limit koruması için kısa es
     df_1h_all = download_with_retry(chunk, "1h", "2mo")
+    time.sleep(0.3)  # 1 saatlik ve 15 dakikalık istekler arası minik es
     df_15m_all = download_with_retry(chunk, "15m", "10d")
     return chunk_idx, chunk, df_1h_all, df_15m_all
 
@@ -534,7 +536,6 @@ def run_scanner():
               is_above_hull = close_dd.iloc[-1] > hma20_15m.iloc[-1]
 
               up_15 = high_dd.diff()
-              # HATALI -low_15m.df ifadesi şuradaydı ve düzeltildi:
               down_15 = -low_dd.diff()
               p_dm_15 = up_15.where((up_15 > down_15) & (up_15 > 0), 0)
               tr_15 = pd.concat([high_dd - low_dd, (high_dd - close_dd.shift()).abs(), (low_dd - close_dd.shift()).abs()], axis=1).max(axis=1)
