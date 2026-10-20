@@ -36,7 +36,8 @@ jobs:
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git status
           git add borsa_hafiza.json
           git commit -m "Otomatik hafiza guncellemesi [skip ci]" || echo "Degisiklik yok"
-          git pull origin main --rebase
-          git push origin main
+          git pull origin main --rebase || echo "Pull yapilamadi veya gerek yok"
+          git push origin main || echo "Push yapilamadi"
