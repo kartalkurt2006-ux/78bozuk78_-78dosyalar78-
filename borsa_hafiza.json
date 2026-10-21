@@ -70,8 +70,8 @@
             "LIDFA.IS": {
                 "zaman": 1792408810.0709326,
                 "ilk_fiyat": 1.7000000476837158,
-                "son_fiyat": 1.75,
-                "tekrar_sayisi": 3
+                "son_fiyat": 1.7599999904632568,
+                "tekrar_sayisi": 4
             },
             "MANAS.IS": {
                 "zaman": 1792408810.0709326,
@@ -274,8 +274,8 @@
             "YKBNK.IS": {
                 "zaman": 1792507939.6164184,
                 "ilk_fiyat": 36.58000183105469,
-                "son_fiyat": 36.400001525878906,
-                "tekrar_sayisi": 3
+                "son_fiyat": 36.619998931884766,
+                "tekrar_sayisi": 4
             },
             "ADEL.IS": {
                 "zaman": 1792510487.2104661,
@@ -322,8 +322,8 @@
             "AVGYO.IS": {
                 "zaman": 1792567172.6678312,
                 "ilk_fiyat": 15.039999961853027,
-                "son_fiyat": 14.979999542236328,
-                "tekrar_sayisi": 2
+                "son_fiyat": 15.3100004196167,
+                "tekrar_sayisi": 3
             },
             "DURDO.IS": {
                 "zaman": 1792567172.6678312,
@@ -359,6 +359,24 @@
                 "zaman": 1792568637.0312982,
                 "ilk_fiyat": 22.34000015258789,
                 "son_fiyat": 22.34000015258789,
+                "tekrar_sayisi": 1
+            },
+            "BOBET.IS": {
+                "zaman": 1792578406.5382197,
+                "ilk_fiyat": 14.829999923706055,
+                "son_fiyat": 14.829999923706055,
+                "tekrar_sayisi": 1
+            },
+            "ISCTR.IS": {
+                "zaman": 1792578406.5382197,
+                "ilk_fiyat": 13.0600004196167,
+                "son_fiyat": 13.0600004196167,
+                "tekrar_sayisi": 1
+            },
+            "KLKIM.IS": {
+                "zaman": 1792578406.5382197,
+                "ilk_fiyat": 20.520000457763672,
+                "son_fiyat": 20.520000457763672,
                 "tekrar_sayisi": 1
             }
         },
@@ -1238,6 +1256,12 @@
                 "ilk_fiyat": 121.9000015258789,
                 "son_fiyat": 121.9000015258789,
                 "tekrar_sayisi": 1
+            },
+            "BOBET.IS": {
+                "zaman": 1792578406.5382197,
+                "ilk_fiyat": 14.829999923706055,
+                "son_fiyat": 14.829999923706055,
+                "tekrar_sayisi": 1
             }
         },
         "kusursuz_firtina": {
@@ -1493,6 +1517,12 @@
                 "zaman": 1792568637.0312982,
                 "ilk_fiyat": 286.75,
                 "son_fiyat": 286.75,
+                "tekrar_sayisi": 1
+            },
+            "FLAP.IS": {
+                "zaman": 1792578406.5382197,
+                "ilk_fiyat": 10.220000267028809,
+                "son_fiyat": 10.220000267028809,
                 "tekrar_sayisi": 1
             }
         },
