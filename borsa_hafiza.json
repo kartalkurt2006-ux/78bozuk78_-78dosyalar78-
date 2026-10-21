@@ -16,8 +16,8 @@
             "DOCO.IS": {
                 "zaman": 1792147828.0081408,
                 "ilk_fiyat": 11252.5,
-                "son_fiyat": 11135.0,
-                "tekrar_sayisi": 4
+                "son_fiyat": 11257.5,
+                "tekrar_sayisi": 5
             },
             "HEDEF.IS": {
                 "zaman": 1792147828.0081408,
@@ -830,8 +830,8 @@
             "POLTK.IS": {
                 "zaman": 1792510487.2104661,
                 "ilk_fiyat": 2995.0,
-                "son_fiyat": 2995.0,
-                "tekrar_sayisi": 2
+                "son_fiyat": 2910.0,
+                "tekrar_sayisi": 3
             },
             "SUNTK.IS": {
                 "zaman": 1792510487.2104661,
@@ -896,8 +896,8 @@
             "MOBTL.IS": {
                 "zaman": 1792567172.6678312,
                 "ilk_fiyat": 9.380000114440918,
-                "son_fiyat": 9.270000457763672,
-                "tekrar_sayisi": 2
+                "son_fiyat": 9.229999542236328,
+                "tekrar_sayisi": 3
             },
             "NATEN.IS": {
                 "zaman": 1792567172.6678312,
@@ -975,6 +975,18 @@
                 "zaman": 1792568637.0312982,
                 "ilk_fiyat": 9.3100004196167,
                 "son_fiyat": 9.3100004196167,
+                "tekrar_sayisi": 1
+            },
+            "EBEBK.IS": {
+                "zaman": 1792591684.0603478,
+                "ilk_fiyat": 76.9000015258789,
+                "son_fiyat": 76.9000015258789,
+                "tekrar_sayisi": 1
+            },
+            "RTALB.IS": {
+                "zaman": 1792591684.0603478,
+                "ilk_fiyat": 2.0299999713897705,
+                "son_fiyat": 2.0299999713897705,
                 "tekrar_sayisi": 1
             }
         },
@@ -1261,6 +1273,12 @@
                 "zaman": 1792578406.5382197,
                 "ilk_fiyat": 14.829999923706055,
                 "son_fiyat": 14.829999923706055,
+                "tekrar_sayisi": 1
+            },
+            "BORLS.IS": {
+                "zaman": 1792591684.0603478,
+                "ilk_fiyat": 2.9700000286102295,
+                "son_fiyat": 2.9700000286102295,
                 "tekrar_sayisi": 1
             }
         },
@@ -1567,6 +1585,12 @@
                 "zaman": 1792568637.0312982,
                 "ilk_fiyat": 13.9399995803833,
                 "son_fiyat": 13.9399995803833,
+                "tekrar_sayisi": 1
+            },
+            "AZTEK.IS": {
+                "zaman": 1792591684.0603478,
+                "ilk_fiyat": 2.869999885559082,
+                "son_fiyat": 2.869999885559082,
                 "tekrar_sayisi": 1
             }
         }
