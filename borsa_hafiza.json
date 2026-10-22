@@ -364,8 +364,8 @@
             "BOBET.IS": {
                 "zaman": 1792578406.5382197,
                 "ilk_fiyat": 14.829999923706055,
-                "son_fiyat": 15.369999885559082,
-                "tekrar_sayisi": 3
+                "son_fiyat": 15.670000076293945,
+                "tekrar_sayisi": 4
             },
             "ISCTR.IS": {
                 "zaman": 1792578406.5382197,
@@ -377,6 +377,12 @@
                 "zaman": 1792578406.5382197,
                 "ilk_fiyat": 20.520000457763672,
                 "son_fiyat": 20.520000457763672,
+                "tekrar_sayisi": 1
+            },
+            "CEOEM.IS": {
+                "zaman": 1792656865.3185818,
+                "ilk_fiyat": 19.100000381469727,
+                "son_fiyat": 19.100000381469727,
                 "tekrar_sayisi": 1
             }
         },
@@ -854,8 +860,8 @@
             "BUCIM.IS": {
                 "zaman": 1792567172.6678312,
                 "ilk_fiyat": 4.340000152587891,
-                "son_fiyat": 4.260000228881836,
-                "tekrar_sayisi": 3
+                "son_fiyat": 4.300000190734863,
+                "tekrar_sayisi": 4
             },
             "EDIP.IS": {
                 "zaman": 1792567172.6678312,
@@ -1004,8 +1010,8 @@
             "VERTU.IS": {
                 "zaman": 1792653378.120944,
                 "ilk_fiyat": 22.100000381469727,
-                "son_fiyat": 22.100000381469727,
-                "tekrar_sayisi": 1
+                "son_fiyat": 21.799999237060547,
+                "tekrar_sayisi": 2
             }
         },
         "firtina_1": {
@@ -1565,6 +1571,12 @@
                 "zaman": 1792653378.120944,
                 "ilk_fiyat": 2.4800000190734863,
                 "son_fiyat": 2.4800000190734863,
+                "tekrar_sayisi": 1
+            },
+            "ASUZU.IS": {
+                "zaman": 1792656865.3185818,
+                "ilk_fiyat": 40.099998474121094,
+                "son_fiyat": 40.099998474121094,
                 "tekrar_sayisi": 1
             }
         },
