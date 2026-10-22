@@ -394,8 +394,8 @@
             "KRGYO.IS": {
                 "zaman": 1792662949.7168076,
                 "ilk_fiyat": 3.1500000953674316,
-                "son_fiyat": 3.1500000953674316,
-                "tekrar_sayisi": 1
+                "son_fiyat": 3.200000047683716,
+                "tekrar_sayisi": 2
             }
         },
         "kusursuz_yakala": {
@@ -794,8 +794,8 @@
             "ARTMS.IS": {
                 "zaman": 1792424864.4811602,
                 "ilk_fiyat": 31.520000457763672,
-                "son_fiyat": 31.520000457763672,
-                "tekrar_sayisi": 1
+                "son_fiyat": 30.0,
+                "tekrar_sayisi": 2
             },
             "AKGRT.IS": {
                 "zaman": 1792482086.0921364,
@@ -830,8 +830,8 @@
             "BIENY.IS": {
                 "zaman": 1792510487.2104661,
                 "ilk_fiyat": 11.489999771118164,
-                "son_fiyat": 11.4399995803833,
-                "tekrar_sayisi": 3
+                "son_fiyat": 11.149999618530273,
+                "tekrar_sayisi": 4
             },
             "BINHO.IS": {
                 "zaman": 1792510487.2104661,
@@ -1035,6 +1035,12 @@
                 "zaman": 1792662949.7168076,
                 "ilk_fiyat": 567.5,
                 "son_fiyat": 567.5,
+                "tekrar_sayisi": 1
+            },
+            "EMKEL.IS": {
+                "zaman": 1792667458.0641656,
+                "ilk_fiyat": 5.829999923706055,
+                "son_fiyat": 5.829999923706055,
                 "tekrar_sayisi": 1
             }
         },
@@ -1620,6 +1626,12 @@
                 "ilk_fiyat": 1.2200000286102295,
                 "son_fiyat": 1.2200000286102295,
                 "tekrar_sayisi": 1
+            },
+            "DURDO.IS": {
+                "zaman": 1792667458.0641656,
+                "ilk_fiyat": 6.230000019073486,
+                "son_fiyat": 6.230000019073486,
+                "tekrar_sayisi": 1
             }
         },
         "super_15_bb_cross": {
@@ -1669,6 +1681,12 @@
                 "zaman": 1792591684.0603478,
                 "ilk_fiyat": 2.869999885559082,
                 "son_fiyat": 2.869999885559082,
+                "tekrar_sayisi": 1
+            },
+            "DURDO.IS": {
+                "zaman": 1792667458.0641656,
+                "ilk_fiyat": 6.230000019073486,
+                "son_fiyat": 6.230000019073486,
                 "tekrar_sayisi": 1
             }
         }
