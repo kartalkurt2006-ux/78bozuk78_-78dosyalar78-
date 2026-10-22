@@ -220,8 +220,8 @@
             "RNPOL.IS": {
                 "zaman": 1792503506.7209387,
                 "ilk_fiyat": 1.7599999904632568,
-                "son_fiyat": 1.850000023841858,
-                "tekrar_sayisi": 5
+                "son_fiyat": 1.840000033378601,
+                "tekrar_sayisi": 6
             },
             "AFYON.IS": {
                 "zaman": 1792507939.6164184,
@@ -962,8 +962,8 @@
             "MRGYO.IS": {
                 "zaman": 1792568637.0312982,
                 "ilk_fiyat": 1.1699999570846558,
-                "son_fiyat": 1.1699999570846558,
-                "tekrar_sayisi": 1
+                "son_fiyat": 1.149999976158142,
+                "tekrar_sayisi": 2
             },
             "NIBAS.IS": {
                 "zaman": 1792568637.0312982,
@@ -1041,6 +1041,12 @@
                 "zaman": 1792667458.0641656,
                 "ilk_fiyat": 5.829999923706055,
                 "son_fiyat": 5.829999923706055,
+                "tekrar_sayisi": 1
+            },
+            "QUAGR.IS": {
+                "zaman": 1792670787.4777071,
+                "ilk_fiyat": 1.3799999952316284,
+                "son_fiyat": 1.3799999952316284,
                 "tekrar_sayisi": 1
             }
         },
