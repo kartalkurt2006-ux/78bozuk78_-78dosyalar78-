@@ -220,8 +220,8 @@
             "RNPOL.IS": {
                 "zaman": 1792503506.7209387,
                 "ilk_fiyat": 1.7599999904632568,
-                "son_fiyat": 1.840000033378601,
-                "tekrar_sayisi": 7
+                "son_fiyat": 1.9700000286102295,
+                "tekrar_sayisi": 8
             },
             "AFYON.IS": {
                 "zaman": 1792507939.6164184,
@@ -396,6 +396,12 @@
                 "ilk_fiyat": 3.1500000953674316,
                 "son_fiyat": 3.200000047683716,
                 "tekrar_sayisi": 2
+            },
+            "PKENT.IS": {
+                "zaman": 1792695437.2318008,
+                "ilk_fiyat": 110.0,
+                "son_fiyat": 110.0,
+                "tekrar_sayisi": 1
             }
         },
         "kusursuz_yakala": {
@@ -1638,6 +1644,30 @@
                 "ilk_fiyat": 6.230000019073486,
                 "son_fiyat": 6.230000019073486,
                 "tekrar_sayisi": 1
+            },
+            "ANGEN.IS": {
+                "zaman": 1792695437.2318008,
+                "ilk_fiyat": 6.920000076293945,
+                "son_fiyat": 6.920000076293945,
+                "tekrar_sayisi": 1
+            },
+            "HUBVC.IS": {
+                "zaman": 1792695437.2318008,
+                "ilk_fiyat": 1.9500000476837158,
+                "son_fiyat": 1.9500000476837158,
+                "tekrar_sayisi": 1
+            },
+            "OZRDN.IS": {
+                "zaman": 1792695437.2318008,
+                "ilk_fiyat": 9.470000267028809,
+                "son_fiyat": 9.470000267028809,
+                "tekrar_sayisi": 1
+            },
+            "RTALB.IS": {
+                "zaman": 1792695437.2318008,
+                "ilk_fiyat": 2.180000066757202,
+                "son_fiyat": 2.180000066757202,
+                "tekrar_sayisi": 1
             }
         },
         "super_15_bb_cross": {
@@ -1693,6 +1723,24 @@
                 "zaman": 1792667458.0641656,
                 "ilk_fiyat": 6.230000019073486,
                 "son_fiyat": 6.230000019073486,
+                "tekrar_sayisi": 1
+            },
+            "GLBMD.IS": {
+                "zaman": 1792695437.2318008,
+                "ilk_fiyat": 8.289999961853027,
+                "son_fiyat": 8.289999961853027,
+                "tekrar_sayisi": 1
+            },
+            "OZRDN.IS": {
+                "zaman": 1792695437.2318008,
+                "ilk_fiyat": 9.470000267028809,
+                "son_fiyat": 9.470000267028809,
+                "tekrar_sayisi": 1
+            },
+            "SONME.IS": {
+                "zaman": 1792695437.2318008,
+                "ilk_fiyat": 105.0,
+                "son_fiyat": 105.0,
                 "tekrar_sayisi": 1
             }
         }
