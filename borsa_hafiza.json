@@ -346,8 +346,8 @@
             "VERUS.IS": {
                 "zaman": 1792567172.6678312,
                 "ilk_fiyat": 500.5,
-                "son_fiyat": 500.5,
-                "tekrar_sayisi": 1
+                "son_fiyat": 492.75,
+                "tekrar_sayisi": 2
             },
             "ARDYZ.IS": {
                 "zaman": 1792568637.0312982,
@@ -401,6 +401,18 @@
                 "zaman": 1792695437.2318008,
                 "ilk_fiyat": 110.0,
                 "son_fiyat": 110.0,
+                "tekrar_sayisi": 1
+            },
+            "ERSU.IS": {
+                "zaman": 1792741428.882043,
+                "ilk_fiyat": 17.06999969482422,
+                "son_fiyat": 17.06999969482422,
+                "tekrar_sayisi": 1
+            },
+            "SELEC.IS": {
+                "zaman": 1792741428.882043,
+                "ilk_fiyat": 72.9000015258789,
+                "son_fiyat": 72.9000015258789,
                 "tekrar_sayisi": 1
             }
         },
@@ -746,8 +758,8 @@
             "KRONT.IS": {
                 "zaman": 1792408810.0709326,
                 "ilk_fiyat": 17.899999618530273,
-                "son_fiyat": 17.899999618530273,
-                "tekrar_sayisi": 1
+                "son_fiyat": 16.34000015258789,
+                "tekrar_sayisi": 2
             },
             "LIDFA.IS": {
                 "zaman": 1792408810.0709326,
@@ -1054,6 +1066,24 @@
                 "ilk_fiyat": 1.3799999952316284,
                 "son_fiyat": 1.3799999952316284,
                 "tekrar_sayisi": 1
+            },
+            "ATLAS.IS": {
+                "zaman": 1792741428.882043,
+                "ilk_fiyat": 4.400000095367432,
+                "son_fiyat": 4.400000095367432,
+                "tekrar_sayisi": 1
+            },
+            "AYEN.IS": {
+                "zaman": 1792741428.882043,
+                "ilk_fiyat": 23.579999923706055,
+                "son_fiyat": 23.579999923706055,
+                "tekrar_sayisi": 1
+            },
+            "OZRDN.IS": {
+                "zaman": 1792741428.882043,
+                "ilk_fiyat": 8.279999732971191,
+                "son_fiyat": 8.279999732971191,
+                "tekrar_sayisi": 1
             }
         },
         "firtina_1": {
@@ -1345,6 +1375,18 @@
                 "zaman": 1792591684.0603478,
                 "ilk_fiyat": 2.9700000286102295,
                 "son_fiyat": 2.9700000286102295,
+                "tekrar_sayisi": 1
+            },
+            "ERSU.IS": {
+                "zaman": 1792741428.882043,
+                "ilk_fiyat": 17.06999969482422,
+                "son_fiyat": 17.06999969482422,
+                "tekrar_sayisi": 1
+            },
+            "SELEC.IS": {
+                "zaman": 1792741428.882043,
+                "ilk_fiyat": 72.9000015258789,
+                "son_fiyat": 72.9000015258789,
                 "tekrar_sayisi": 1
             }
         },
@@ -1654,8 +1696,8 @@
             "HUBVC.IS": {
                 "zaman": 1792695437.2318008,
                 "ilk_fiyat": 1.9500000476837158,
-                "son_fiyat": 1.9500000476837158,
-                "tekrar_sayisi": 1
+                "son_fiyat": 2.0899999141693115,
+                "tekrar_sayisi": 2
             },
             "OZRDN.IS": {
                 "zaman": 1792695437.2318008,
@@ -1667,6 +1709,18 @@
                 "zaman": 1792695437.2318008,
                 "ilk_fiyat": 2.180000066757202,
                 "son_fiyat": 2.180000066757202,
+                "tekrar_sayisi": 1
+            },
+            "ERSU.IS": {
+                "zaman": 1792741428.882043,
+                "ilk_fiyat": 17.06999969482422,
+                "son_fiyat": 17.06999969482422,
+                "tekrar_sayisi": 1
+            },
+            "PASEU.IS": {
+                "zaman": 1792741428.882043,
+                "ilk_fiyat": 31.700000762939453,
+                "son_fiyat": 31.700000762939453,
                 "tekrar_sayisi": 1
             }
         },
@@ -1741,6 +1795,18 @@
                 "zaman": 1792695437.2318008,
                 "ilk_fiyat": 105.0,
                 "son_fiyat": 105.0,
+                "tekrar_sayisi": 1
+            },
+            "HUBVC.IS": {
+                "zaman": 1792741428.882043,
+                "ilk_fiyat": 2.0899999141693115,
+                "son_fiyat": 2.0899999141693115,
+                "tekrar_sayisi": 1
+            },
+            "KARTN.IS": {
+                "zaman": 1792741428.882043,
+                "ilk_fiyat": 81.05000305175781,
+                "son_fiyat": 81.05000305175781,
                 "tekrar_sayisi": 1
             }
         }
