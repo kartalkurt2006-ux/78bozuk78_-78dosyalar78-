@@ -2,9 +2,8 @@ name: BIST Tarama Botu
 
 on:
   schedule:
-    # Pazartesi - Cuma günleri arası, saat 09:00 - 19:30 (UTC saati ile 06:00 - 16:30 arası) 
-    # ve her 15 dakikada bir çalışacak şekilde ayarlandı:
-    - cron: '*/15 6-16 * * 1-5'
+    # Pazartesi - Cuma günleri arası, her 15 dakikada bir çalışacak şekilde ayarlandı:
+    - cron: '*/15 9-19 * * 1-5'
   workflow_dispatch:
 
 permissions:
