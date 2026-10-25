@@ -486,69 +486,65 @@ def run_scanner():
                 toplam_puan += 40.0
 
         # ==========================================
-        # 4. 🛡️ DENİZ DALGASI MODÜLÜ (HİBRİT YAPI: 1S Trend + 15M Hacim/MFI/Hull20/+DI)
+        # 4. 🛡️ DENİZ DALGASI MODÜLÜ (YENİ HİBRİT: Dalga Dip Konumu + MFI/CMF/+DI + Hull 9/Span A + Verimlilik Puanı)
         # ==========================================
-        if not df_1h.empty and not df_15m.empty and len(df_1h) >= 40 and len(df_15m) >= 40:
-          close_1h_dd = df_1h["Close"]
-          high_1h_dd = df_1h["High"]
-          low_1h_dd = df_1h["Low"]
-          
-          up_1h = high_1h_dd.diff()
-          down_1h = -low_1h_dd.diff()
-          p_dm_1h = up_1h.where((up_1h > down_1h) & (up_1h > 0), 0)
-          n_dm_1h = down_1h.where((down_1h > up_1h) & (down_1h > 0), 0)
-          tr_val_1h = pd.concat([high_1h_dd - low_1h_dd, (high_1h_dd - close_1h_dd.shift()).abs(), (low_1h_dd - close_1h_dd.shift()).abs()], axis=1).max(axis=1)
-          
-          p_di_1h_series = 100 * (p_dm_1h.rolling(14).sum() / (tr_val_1h.rolling(14).sum() + 1e-10))
-          n_di_1h_series = 100 * (n_dm_1h.rolling(14).sum() / (tr_val_1h.rolling(14).sum() + 1e-10))
-          
-          is_1h_di_bullish = p_di_1h_series.iloc[-1] >= n_di_1h_series.iloc[-1]
-          
-          delta_1h_dd = close_1h_dd.diff()
-          g_1h = (delta_1h_dd.where(delta_1h_dd > 0, 0)).rolling(14).mean()
-          l_1h = (-delta_1h_dd.where(delta_1h_dd < 0, 0)).rolling(14).mean()
-          rs_1h_dd = g_1h / (l_1h + 1e-10)
-          rsi_1h_curr = (100 - (100 / (1 + rs_1h_dd))).iloc[-1]
-          is_1h_rsi_valid = rsi_1h_curr >= 50.0
+        if not df_15m.empty and len(df_15m) >= 40:
+          close_dd = df_15m["Close"]
+          high_dd = df_15m["High"]
+          low_dd = df_15m["Low"]
+          volume_dd = df_15m["Volume"]
 
-          if is_1h_di_bullish and is_1h_rsi_valid:
-            close_dd = df_15m["Close"]
-            high_dd = df_15m["High"]
-            low_dd = df_15m["Low"]
-            volume_dd = df_15m["Volume"]
+          if not close_dd.isna().iloc[-1] and not volume_dd.isna().iloc[-1]:
+            if guncel_fiyat == 0.0:
+              guncel_fiyat = close_dd.iloc[-1]
 
-            if not close_dd.isna().iloc[-1] and not volume_dd.isna().iloc[-1]:
-              if guncel_fiyat == 0.0:
-                guncel_fiyat = close_dd.iloc[-1]
+            # 1. Dalga Konumu (4-8-5-8-9 Dip Bölgesi: %0 - %15)
+            mevcut_dalga_konumu = get_wave_position(df_15m)
+            son_konum = max(son_konum, mevcut_dalga_konumu)
+            is_dalga_dip = (0.0 <= mevcut_dalga_konumu <= 15.0)
 
-              rvol_15m = volume_dd / volume_dd.rolling(20).mean()
-              is_rvol_burst = rvol_15m.iloc[-1] >= 2.5
-              son_rvol = max(son_rvol, rvol_15m.iloc[-1])
+            # 2. Para Akışı ve Güç Filtreleri (MFI, CMF, +DI)
+            mfi_dd = calculate_mfi(high_dd, low_dd, close_dd, volume_dd, 14)
+            mfi_curr_dd = mfi_dd.iloc[-1]
+            son_mfi = max(son_mfi, mfi_curr_dd)
+            is_mfi_valid = mfi_curr_dd > 50.0
 
-              mfi_dd = calculate_mfi(high_dd, low_dd, close_dd, volume_dd, 14)
-              mfi_curr_dd = mfi_dd.iloc[-1]
-              is_mfi_valid = mfi_curr_dd > 60.0
-              son_mfi = max(son_mfi, mfi_curr_dd)
+            cmf_dd = calculate_cmf(high_dd, low_dd, close_dd, volume_dd, 20)
+            cmf_curr_dd = cmf_dd.iloc[-1]
+            son_cmf = max(son_cmf, cmf_curr_dd)
+            is_cmf_valid = cmf_curr_dd > 0.0
 
-              hma20_15m = calculate_hma(close_dd, 20)
-              is_above_hull = close_dd.iloc[-1] > hma20_15m.iloc[-1]
+            up_15_dd = high_dd.diff()
+            down_15_dd = -low_dd.diff()
+            p_dm_15_dd = up_15_dd.where((up_15_dd > down_15_dd) & (up_15_dd > 0), 0)
+            tr_15_dd = pd.concat([high_dd - low_dd, (high_dd - close_dd.shift()).abs(), (low_dd - close_dd.shift()).abs()], axis=1).max(axis=1)
+            p_di_15_series_dd = 100 * (p_dm_15_dd.rolling(14).sum() / (tr_15_dd.rolling(14).sum() + 1e-10))
+            p_di_15_curr_dd = p_di_15_series_dd.iloc[-1]
+            son_plus_di = max(son_plus_di, p_di_15_curr_dd)
+            is_di_valid = p_di_15_curr_dd > 20.0
 
-              up_15 = high_dd.diff()
-              # HATALI -low_15m.df ifadesi şuradaydı ve düzeltildi:
-              down_15 = -low_dd.diff()
-              p_dm_15 = up_15.where((up_15 > down_15) & (up_15 > 0), 0)
-              tr_15 = pd.concat([high_dd - low_dd, (high_dd - close_dd.shift()).abs(), (low_dd - close_dd.shift()).abs()], axis=1).max(axis=1)
-              p_di_15_series = 100 * (p_dm_15.rolling(14).sum() / (tr_15.rolling(14).sum() + 1e-10))
-              p_di_15_curr = p_di_15_series.iloc[-1]
-              is_15_di_valid = p_di_15_curr > 20.0
-              son_plus_di = max(son_plus_di, p_di_15_curr)
+            # 3. Trend ve Denge Onayı (Hull 9 ve Ichimoku Span A - 15m)
+            hull_9_dd = calculate_hma(close_dd, 9)
+            span_a_dd = ((high_dd.rolling(9).max() + low_dd.rolling(9).min()) / 2 + 
+                         (high_dd.rolling(26).max() + low_dd.rolling(26).min()) / 2) / 2
+            
+            is_hull_span_valid = hull_9_dd.iloc[-1] >= span_a_dd.iloc[-1]
 
-              son_konum = max(son_konum, get_wave_position(df_15m))
+            # 4. Hacim Çarpanı (RVOL)
+            rvol_15m_dd = volume_dd / volume_dd.rolling(20).mean()
+            rvol_curr_dd = rvol_15m_dd.iloc[-1]
+            son_rvol = max(son_rvol, rvol_curr_dd)
+            is_rvol_burst = rvol_curr_dd >= 2.5
 
-              if is_rvol_burst and is_mfi_valid and is_above_hull and is_15_di_valid:
-                if kayit_guncelle("deniz_dalgasi_hibrit"):
-                  tetiklenen_str.append("DENİZ DALGASI (HİBRİT)")
-                  toplam_puan += 50.0
+            # Tüm Koşulların Sağlanması Halinde Tetiklenme ve Verimlilik Puanı Hesaplama
+            if is_dalga_dip and is_mfi_valid and is_cmf_valid and is_di_valid and is_hull_span_valid:
+              modul_puani = 25.0
+              if is_rvol_burst:
+                modul_puani += 15.0  # Hacim patlaması ek bonus puanı
+
+              if kayit_guncelle("deniz_dalgasi_hibrit"):
+                tetiklenen_str.append("DENİZ DALGASI")
+                toplam_puan += modul_puani
 
         if tetiklenen_str:
           if toplam_puan == 0:
