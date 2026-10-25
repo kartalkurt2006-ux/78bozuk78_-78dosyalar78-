@@ -18,7 +18,7 @@ TZ_TR = pytz.timezone("Europe/Istanbul")
 NTFY_URL = "https://ntfy.sh/borsa_senet"
 
 # Tek Merkezi Hafıza Dosyası
-MERKEZI_HAFIZA_DOSYASI = "borsa_hafiza_v2.json"
+MERKEZI_HAFIZA_DOSYASI = "borsa_hafiza.json"
 
 # BIST Hisseleri (Hatalı/Delist olan 6 hisse temizlendi, toplam 441 hisse)
 STOCKS = [
