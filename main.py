@@ -735,7 +735,6 @@ def run_scanner():
           has_kartal15_chk = "KARTAL 15DK" in strats_upper_chk
           strat_count_chk = len(tetiklenen_str)
 
-          # Öncelik Sıralaması: 1. Kartal Dalgası (En üstte), 2. Çifte Alarm, vb.
           if has_kartal_dalgasi_chk:
               ozel_oncelik = 5
           elif has_both_1h_chk:
@@ -773,8 +772,8 @@ def run_scanner():
         continue
 
   if toplanan_sinyaller:
-    # Sıralamayı tersine çevirerek en yüksek önceliği en tepeye yerleştiriyoruz
-    toplanan_sinyaller.sort(key=lambda x: (x['ozel_oncelik'], len(x['stratejiler']), x['puan']), reverse=True)
+    # Akış sırasını tam tersine çevirdik (reverse=True -> reverse=False)
+    toplanan_sinyaller.sort(key=lambda x: (x['ozel_oncelik'], len(x['stratejiler']), x['puan']), reverse=False)
 
     grup_boyutu = 3
     for i in range(0, len(toplanan_sinyaller), grup_boyutu):
