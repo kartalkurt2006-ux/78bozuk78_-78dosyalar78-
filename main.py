@@ -231,17 +231,20 @@ def scan_kartal_15dk(df_15m, df_1h):
         return False
 
 
-def scan_kartal_1s(df):
+# =========================================================================
+# 🦅 KARTAL DALGASI (YENİ MODÜL)
+# =========================================================================
+def scan_kartal_dalgasi(df_1s):
     try:
-        triggered, _ = check_wave_margins(df, lookback=3, threshold_multiplier=0.80)
-        if not triggered or df.empty or len(df) < 35:
+        triggered, _ = check_wave_margins(df_1s, lookback=3, threshold_multiplier=0.80)
+        if not triggered or df_1s.empty or len(df_1s) < 35:
             return False
         
         wave_sequence = [4, 8, 5, 8, 9]
         total_cycle = sum(wave_sequence)
-        high = df['High'].values
-        low = df['Low'].values
-        volume = df['Volume'].values
+        high = df_1s['High'].values
+        low = df_1s['Low'].values
+        volume = df_1s['Volume'].values
         
         if len(high) < total_cycle:
             return False
@@ -631,6 +634,16 @@ def run_scanner():
             # =========================================================================
 
             # =========================================================================
+            # 🦅 KARTAL DALGASI KONTROLÜ (YENİ)
+            # =========================================================================
+            if not df_1h.empty:
+                if scan_kartal_dalgasi(df_1h):
+                    if kayit_guncelle("kartal_dalgasi"):
+                        tetiklenen_str.append("KARTAL DALGASI")
+                        toplam_puan += 35.0
+            # =========================================================================
+
+            # =========================================================================
             # 🎯 SÜPER 15 CROSS (ROC) MODÜLÜ
             # =========================================================================
             bb_middle_s15 = close_15m.rolling(22).mean()
@@ -670,11 +683,6 @@ def run_scanner():
               if kayit_guncelle("dip_hibrit"):
                 tetiklenen_str.append("TEHLİKELİ HİBRİT")
                 toplam_puan += 30.0
-
-            if not df_1h.empty and scan_kartal_1s(df_1h):
-              if kayit_guncelle("kartal_1s"):
-                tetiklenen_str.append("KARTAL 1 S")
-                toplam_puan += 35.0
 
             if not df_1h.empty and scan_kartal_ozel(df_15m, df_1h):
               if kayit_guncelle("kartal_ozel"):
@@ -767,7 +775,7 @@ def run_scanner():
             mesaj_satirlari.append(f"• 🦅⚡ {strat} (MFI:{item['mfi_15m']:.1f} | +DI:{item['plus_di_15m']:.1f})")
           elif "KARTAL ÖZEL" in strat_upper:
             mesaj_satirlari.append(f"• 🦅🎯 {strat} (MFI:{item['mfi_15m']:.1f} | +DI:{item['plus_di_15m']:.1f})")
-          elif "KARTAL 1 S" in strat_upper:
+          elif "KARTAL DALGASI" in strat_upper:
             mesaj_satirlari.append(f"• 🦅📊 {strat} (MFI:{item['mfi_15m']:.1f} | +DI:{item['plus_di_15m']:.1f})")
           elif "ÇEKİRGE" in strat_upper:
             mesaj_satirlari.append(f"• 🌿🚀🐕 {strat} (MFI:{item['mfi_15m']:.1f} | +DI:{item['plus_di_15m']:.1f})")
