@@ -406,8 +406,8 @@
             "ERSU.IS": {
                 "zaman": 1792741428.882043,
                 "ilk_fiyat": 17.06999969482422,
-                "son_fiyat": 17.100000381469727,
-                "tekrar_sayisi": 3
+                "son_fiyat": 17.31999969482422,
+                "tekrar_sayisi": 4
             },
             "SELEC.IS": {
                 "zaman": 1792741428.882043,
@@ -454,8 +454,8 @@
             "ONCSM.IS": {
                 "zaman": 1792939722.903771,
                 "ilk_fiyat": 91.0,
-                "son_fiyat": 94.5,
-                "tekrar_sayisi": 22
+                "son_fiyat": 93.9000015258789,
+                "tekrar_sayisi": 23
             },
             "SAFKR.IS": {
                 "zaman": 1792939722.903771,
@@ -496,8 +496,8 @@
             "AYGAZ.IS": {
                 "zaman": 1792999859.1068769,
                 "ilk_fiyat": 275.5,
-                "son_fiyat": 273.5,
-                "tekrar_sayisi": 10
+                "son_fiyat": 271.0,
+                "tekrar_sayisi": 11
             },
             "DOGUB.IS": {
                 "zaman": 1792999859.1068769,
@@ -514,8 +514,8 @@
             "TUPRS.IS": {
                 "zaman": 1792999859.1068769,
                 "ilk_fiyat": 366.5,
-                "son_fiyat": 365.0,
-                "tekrar_sayisi": 10
+                "son_fiyat": 364.0,
+                "tekrar_sayisi": 11
             },
             "RYSAS.IS": {
                 "zaman": 1793000752.761083,
@@ -2447,7 +2447,7 @@
                 "zaman": 1792998943.8958278,
                 "ilk_fiyat": 9.979999542236328,
                 "son_fiyat": 9.789999961853027,
-                "tekrar_sayisi": 5
+                "tekrar_sayisi": 6
             },
             "EGEPO.IS": {
                 "zaman": 1792998943.8958278,
@@ -2829,6 +2829,32 @@
                 "zaman": 1793007947.9181097,
                 "ilk_fiyat": 9.170000076293945,
                 "son_fiyat": 9.170000076293945,
+                "tekrar_sayisi": 1
+            }
+        },
+        "kartal_dalgasi": {
+            "AYGAZ.IS": {
+                "zaman": 1793008875.0243914,
+                "ilk_fiyat": 271.0,
+                "son_fiyat": 271.0,
+                "tekrar_sayisi": 1
+            },
+            "ERSU.IS": {
+                "zaman": 1793008875.0243914,
+                "ilk_fiyat": 17.31999969482422,
+                "son_fiyat": 17.31999969482422,
+                "tekrar_sayisi": 1
+            },
+            "ONCSM.IS": {
+                "zaman": 1793008875.0243914,
+                "ilk_fiyat": 93.9000015258789,
+                "son_fiyat": 93.9000015258789,
+                "tekrar_sayisi": 1
+            },
+            "TUPRS.IS": {
+                "zaman": 1793008875.0243914,
+                "ilk_fiyat": 364.0,
+                "son_fiyat": 364.0,
                 "tekrar_sayisi": 1
             }
         }
