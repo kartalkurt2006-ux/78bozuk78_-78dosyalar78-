@@ -20,7 +20,7 @@ NTFY_URL = "https://ntfy.sh/borsa_senet"
 # Tek Merkezi Hafıza Dosyası
 MERKEZI_HAFIZA_DOSYASI = "borsa_hafiza.json"
 
-# BIST Hisseleri (Hatalı/Delist olan 6 hisse temizlendi, toplam 441 hisse)
+# BIST Hisseleri
 STOCKS = [
     "ACSEL.IS", "ADEL.IS", "ADESE.IS", "ADGYO.IS", "AEFES.IS", "AFYON.IS", "AGESA.IS", "AGHOL.IS", "AGROT.IS",
     "AKBNK.IS", "AKENR.IS", "AKFGY.IS", "AKFYE.IS", "AKGRT.IS", "AKMGY.IS", "AKSA.IS", "AKSEN.IS", "AKSGY.IS", "ALARK.IS",
@@ -34,7 +34,7 @@ STOCKS = [
     "BURVA.IS", "BVSAN.IS", "BYDNR.IS", "CANTE.IS", "CCOLA.IS", "CELHA.IS", "CEMAS.IS", "CEMTS.IS", "CEOEM.IS",
     "CGCAM.IS", "CIMSA.IS", "CLEBI.IS", "CMBTN.IS", "CMENT.IS", "CONSE.IS", "COSMO.IS", "CRDFA.IS", "CRFSA.IS", "CUSAN.IS",
     "CVKMD.IS", "CWENE.IS", "DAGI.IS", "DAPGM.IS", "DARDL.IS", "DENGE.IS", "DERHL.IS", "DERIM.IS", "DESA.IS", "DESPC.IS",
-    "DEVA.IS", "DIRIT.IS", "DITAS.IS", "DMRGD.IS", "DMSAS.IS", "DNISI.IS", "DOAS.IS", "DOCO.IS", "DOGUB.IS",
+    "DEVA.IS", "DIRIT.IS", "DITAS.IS", "DMRGD.IS", "DMSAS.IS", "DNISI.IS", "DOAS.IS", "DOBUR.IS", "DOGUB.IS",
     "DOHOL.IS", "DURDO.IS", "DYOBY.IS", "DZGYO.IS", "EBEBK.IS", "ECILC.IS", "ECZYT.IS", "EDIP.IS",
     "EGEEN.IS", "EGEPO.IS", "EGGUB.IS", "EGPRO.IS", "EGSER.IS", "EKGYO.IS", "EKOS.IS", "EKSUN.IS", "ELITE.IS", "EMKEL.IS",
     "ENERY.IS", "ENKAI.IS", "ENJSA.IS", "EPLAS.IS", "ERBOS.IS", "EREGL.IS", "ERSU.IS", "ESCAR.IS", "ESCOM.IS", "ESEN.IS",
@@ -242,7 +242,7 @@ def scan_kartal_15dk(df_15m, df_1h):
 
 
 # =========================================================================
-# 🦅 KARTAL DALGASI (15DK - SON 12 BAR MFI 70+ İŞTAHLI YENİ MODÜL)
+# 🦅 KARTAL DALGASI (15DK - SON 12 BAR MFI 70+ İŞTAHLI MODÜL)
 # =========================================================================
 def scan_kartal_dalgasi(df_15m, df_1h):
     try:
@@ -654,7 +654,7 @@ def run_scanner():
             # =========================================================================
 
             # =========================================================================
-            # 🦅 KARTAL DALGASI KONTROLÜ (YENİ MODÜL)
+            # 🦅 KARTAL DALGASI KONTROLÜ
             # =========================================================================
             if not df_1h.empty:
                 if scan_kartal_dalgasi(df_15m, df_1h):
@@ -694,7 +694,7 @@ def run_scanner():
             # =========================================================================
 
             # =========================================================================
-            # 🟢 TEHLİKELİ HİBRİT (ORİJİNAL İSTEDİĞİN YAPIDA) KONTROLÜ
+            # 🟢 TEHLİKELİ HİBRİT KONTROLÜ
             # =========================================================================
             konum_yuzde_1h_curr = check_wave_margins(df_1h, lookback=1)[1] if not df_1h.empty else get_wave_position(df_15m)
             is_mfi_ok = mfi_15m > 50.0
@@ -729,12 +729,16 @@ def run_scanner():
               pass
 
           strats_upper_chk = [s.upper() for s in tetiklenen_str]
+          has_kartal_dalgasi_chk = "KARTAL DALGASI" in strats_upper_chk
           has_both_1h_chk = ("1 SAAT YAKALA" in strats_upper_chk) and ("DELİRDİ 1 SAAT" in strats_upper_chk)
           has_cekirge_hibrit_chk = ("ÇEKİRGE" in strats_upper_chk) and ("TEHLİKELİ HİBRİT" in strats_upper_chk)
           has_kartal15_chk = "KARTAL 15DK" in strats_upper_chk
           strat_count_chk = len(tetiklenen_str)
 
-          if has_both_1h_chk:
+          # Öncelik Sıralaması: 1. Kartal Dalgası (En üstte), 2. Çifte Alarm, vb.
+          if has_kartal_dalgasi_chk:
+              ozel_oncelik = 5
+          elif has_both_1h_chk:
               ozel_oncelik = 4
           elif has_cekirge_hibrit_chk:
               ozel_oncelik = 3
@@ -769,7 +773,8 @@ def run_scanner():
         continue
 
   if toplanan_sinyaller:
-    toplanan_sinyaller.sort(key=lambda x: (x['ozel_oncelik'], len(x['stratejiler']), x['puan']), reverse=False)
+    # Sıralamayı tersine çevirerek en yüksek önceliği en tepeye yerleştiriyoruz
+    toplanan_sinyaller.sort(key=lambda x: (x['ozel_oncelik'], len(x['stratejiler']), x['puan']), reverse=True)
 
     grup_boyutu = 3
     for i in range(0, len(toplanan_sinyaller), grup_boyutu):
@@ -778,11 +783,14 @@ def run_scanner():
 
       for item in alt_grup:
         strats_upper = [s.upper() for s in item['stratejiler']]
+        has_kartal_dalgasi = "KARTAL DALGASI" in strats_upper
         has_both_1h = ("1 SAAT YAKALA" in strats_upper) and ("DELİRDİ 1 SAAT" in strats_upper)
         has_cekirge_hibrit = ("ÇEKİRGE" in strats_upper) and ("TEHLİKELİ HİBRİT" in strats_upper)
         strat_count = len(item['stratejiler'])
 
-        if has_both_1h:
+        if has_kartal_dalgasi:
+          prefix = "🦅🌊 **KARTAL DALGASI YAKALANDI!** 🌊🦅\n🚀 Hisse:"
+        elif has_both_1h:
           prefix = "👑🚨 DİKKAT: 1S ÇİFTE ALARM 👑🚨"
         elif has_cekirge_hibrit:
           prefix = "💎🔥 ALTIN KESİŞİM: ÇEKİRGE + HİBRİT 🔥💎"
@@ -791,7 +799,7 @@ def run_scanner():
         elif strat_count == 2:
           prefix = "🚀🚀 Hisse:"
         else:
-          prefix = "📌 Hisse:"
+          prefix = "🚀 Hisse:"
         
         mesaj_satirlari.append(f"{prefix} 🟦 {item['temiz_isim']} 🟦 | Fiyat: ₺{item['fiyat']:.2f}")
         
