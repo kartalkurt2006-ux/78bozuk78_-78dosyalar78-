@@ -346,8 +346,8 @@
             "KRGYO.IS": {
                 "zaman": 1792662949.7168076,
                 "ilk_fiyat": 3.1500000953674316,
-                "son_fiyat": 3.180000066757202,
-                "tekrar_sayisi": 5
+                "son_fiyat": 3.190000057220459,
+                "tekrar_sayisi": 6
             },
             "PKENT.IS": {
                 "zaman": 1792695437.2318008,
@@ -400,8 +400,8 @@
             "KARTN.IS": {
                 "zaman": 1792939722.903771,
                 "ilk_fiyat": 83.4000015258789,
-                "son_fiyat": 90.5,
-                "tekrar_sayisi": 26
+                "son_fiyat": 89.9000015258789,
+                "tekrar_sayisi": 27
             },
             "ONCSM.IS": {
                 "zaman": 1792939722.903771,
@@ -2523,8 +2523,8 @@
             "YEOTK.IS": {
                 "zaman": 1793000752.761083,
                 "ilk_fiyat": 23.399999618530273,
-                "son_fiyat": 23.360000610351562,
-                "tekrar_sayisi": 5
+                "son_fiyat": 23.420000076293945,
+                "tekrar_sayisi": 6
             },
             "GRSEL.IS": {
                 "zaman": 1793001673.192985,
@@ -2655,8 +2655,8 @@
             "SUWEN.IS": {
                 "zaman": 1793014258.4252887,
                 "ilk_fiyat": 4.409999847412109,
-                "son_fiyat": 4.5,
-                "tekrar_sayisi": 3
+                "son_fiyat": 4.46999979019165,
+                "tekrar_sayisi": 4
             },
             "ENKAI.IS": {
                 "zaman": 1793015148.1517494,
@@ -2728,6 +2728,12 @@
                 "zaman": 1793018746.711369,
                 "ilk_fiyat": 6.269999980926514,
                 "son_fiyat": 6.269999980926514,
+                "tekrar_sayisi": 1
+            },
+            "DZGYO.IS": {
+                "zaman": 1793019671.5277348,
+                "ilk_fiyat": 6.639999866485596,
+                "son_fiyat": 6.639999866485596,
                 "tekrar_sayisi": 1
             }
         },
