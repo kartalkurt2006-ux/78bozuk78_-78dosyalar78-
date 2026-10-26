@@ -224,7 +224,7 @@ def scan_kartal_15dk(df_15m, df_1h):
         rvol_check = rvol_curr >= 0.6
         
         mfi_ser = calculate_mfi(high_15m, low_15m, close_15m, volume_15m, 14)
-        mfi_check = (mfi_ser.iloc[-12:] > 70).any()
+        mfi_check = (mfi_ser.iloc[-12:] >= 70.0).any()
         
         return wave_triggered and rvol_check and (wave_efficiency > 0.35) and mfi_check
     except Exception:
@@ -232,32 +232,51 @@ def scan_kartal_15dk(df_15m, df_1h):
 
 
 # =========================================================================
-# 🦅 KARTAL DALGASI (YENİ MODÜL)
+# 🦅 KARTAL DALGASI (15DK - SON 12 BAR MFI 70+ İŞTAHLI YENİ MODÜL)
 # =========================================================================
-def scan_kartal_dalgasi(df_1s):
+def scan_kartal_dalgasi(df_15m, df_1h):
     try:
-        triggered, _ = check_wave_margins(df_1s, lookback=3, threshold_multiplier=0.80)
-        if not triggered or df_1s.empty or len(df_1s) < 35:
+        if df_15m is None or df_1h is None or len(df_15m) < 35 or len(df_1h) < 35:
             return False
+
+        # 1 Saatlik Trend Filtresi (Çatı Uyumu)
+        close_1h = df_1h['Close']
+        hma20_1h = calculate_hma(close_1h, 20)
+        if hma20_1h.empty or close_1h.iloc[-1] <= hma20_1h.iloc[-1]:
+            return False
+
+        # 15 Dakikalık Dalga Dip Konumu
+        wave_triggered, _ = check_wave_margins(df_15m, lookback=3, threshold_multiplier=0.80)
+        if not wave_triggered:
+            return False
+            
+        high_15m = df_15m['High']
+        low_15m = df_15m['Low']
+        close_15m = df_15m['Close']
+        volume_15m = df_15m['Volume']
         
         wave_sequence = [4, 8, 5, 8, 9]
         total_cycle = sum(wave_sequence)
-        high = df_1s['High'].values
-        low = df_1s['Low'].values
-        volume = df_1s['Volume'].values
-        
-        if len(high) < total_cycle:
+        if len(close_15m) < total_cycle:
             return False
             
-        recent_high = np.max(high[-total_cycle:])
-        recent_low = np.min(low[-total_cycle:])
+        recent_high = high_15m.iloc[-total_cycle:].max()
+        recent_low = low_15m.iloc[-total_cycle:].min()
         margin_range = recent_high - recent_low
         
-        rvol = volume / pd.Series(volume).rolling(window=20).mean().values
-        rvol_curr = rvol[-1] if not np.isnan(rvol[-1]) and rvol[-1] > 0 else 1e-5
+        # RVOL (Hacim Çarpanı) Şartı
+        rvol = volume_15m / volume_15m.rolling(window=20).mean()
+        rvol_curr = rvol.iloc[-1] if not pd.isna(rvol.iloc[-1]) and rvol.iloc[-1] > 0 else 1e-5
+        rvol_check = rvol_curr >= 0.6
         
         wave_efficiency = margin_range / rvol_curr
-        return triggered and (wave_efficiency > 0.35)
+        efficiency_check = wave_efficiency > 0.35
+
+        # SENİN İSTEDİĞİN KRİTİK ŞART: Son 12 barda MFI en az bir kez 70 ve üstünü görmüş olmalı!
+        mfi_ser_15m = calculate_mfi(high_15m, low_15m, close_15m, volume_15m, 14)
+        mfi_spike_check = (mfi_ser_15m.iloc[-12:] >= 70.0).any()
+        
+        return wave_triggered and rvol_check and efficiency_check and mfi_spike_check
     except Exception:
         return False
 
@@ -563,7 +582,7 @@ def run_scanner():
             di_kesisim_15m = (plus_di_ser_15m.iloc[-2] <= minus_di_ser_15m.iloc[-2]) and (plus_di_ser_15m.iloc[-1] > minus_di_ser_15m.iloc[-1])
             di_15m_kosul = (plus_di_15m > 20.0) or di_kesisim_15m
 
-            hibrit_mfi_onay = (mfi_ser_15m.iloc[-12:] > 70).any() and (mfi_ser_15m.iloc[-4:] > 50).all() and (mfi_ser_15m.iloc[-1] > 50)
+            hibrit_mfi_onay = (mfi_ser_15m.iloc[-12:] >= 70.0).any() and (mfi_ser_15m.iloc[-4:] > 50).all() and (mfi_ser_15m.iloc[-1] > 50)
 
             rvol_15m_dip = (volume_15m / volume_15m.rolling(20).mean()).iloc[-1]
             hacim_erken_dip_06 = (rvol_15m_dip >= 0.6)
@@ -596,7 +615,7 @@ def run_scanner():
                     
                     makro_cekirge_onay = makro_verimlilik_1h and makro_di_1h and makro_hma20_1h
 
-            mfi_60_sarti_15m = (mfi_ser_15m.iloc[-12:] > 60.0).any()
+            mfi_60_sarti_15m = (mfi_ser_15m.iloc[-12:] >= 60.0).any()
 
             lowest_k_15m = low_15m.rolling(14).min()
             highest_k_15m = high_15m.rolling(14).max()
@@ -634,10 +653,10 @@ def run_scanner():
             # =========================================================================
 
             # =========================================================================
-            # 🦅 KARTAL DALGASI KONTROLÜ (YENİ)
+            # 🦅 KARTAL DALGASI KONTROLÜ (YENİ MODÜL)
             # =========================================================================
             if not df_1h.empty:
-                if scan_kartal_dalgasi(df_1h):
+                if scan_kartal_dalgasi(df_15m, df_1h):
                     if kayit_guncelle("kartal_dalgasi"):
                         tetiklenen_str.append("KARTAL DALGASI")
                         toplam_puan += 35.0
