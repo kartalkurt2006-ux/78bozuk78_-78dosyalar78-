@@ -468,6 +468,7 @@ def run_scanner():
       plus_di_15m = 0.0
       son_roc = 0.0
       son_cmf = 0.0
+      rvol_15m = 1.0
 
       try:
         def kayit_guncelle(kural_adi):
@@ -564,6 +565,9 @@ def run_scanner():
             mfi_ser_15m = calculate_mfi(high_15m, low_15m, close_15m, volume_15m, 14)
             mfi_15m = mfi_ser_15m.iloc[-1]
 
+            rvol_ser_15m = volume_15m / volume_15m.rolling(window=20).mean()
+            rvol_15m = rvol_ser_15m.iloc[-1] if not pd.isna(rvol_ser_15m.iloc[-1]) else 1.0
+
             up_move_15m = high_15m.diff()
             down_move_15m = -low_15m.diff()
             plus_dm_15m = up_move_15m.where((up_move_15m > down_move_15m) & (up_move_15m > 0), 0)
@@ -582,7 +586,7 @@ def run_scanner():
             senkou_span_a = (tenkan_9 + kijun_26) / 2
 
             # =========================================================================
-            # 🌿 ÇEKİRGE STRATEJİSİ
+            # 🌿 ÇEKİRGE STRATEJİSİ (MFI 70+ & RVOL 1.2+ GÜNCELLENMİŞ)
             # =========================================================================
             makro_cekirge_onay = False
             if not df_1h.empty and len(df_1h) >= 35:
@@ -609,7 +613,8 @@ def run_scanner():
                     
                     makro_cekirge_onay = makro_verimlilik_1h and makro_di_1h and makro_hma20_1h
 
-            mfi_60_sarti_15m = (mfi_ser_15m.iloc[-12:] >= 60.0).any()
+            mfi_70_sarti_15m = (mfi_ser_15m.iloc[-12:] >= 70.0).any()
+            rvol_12_sarti_15m = rvol_15m >= 1.2
 
             lowest_k_15m = low_15m.rolling(14).min()
             highest_k_15m = high_15m.rolling(14).max()
@@ -635,7 +640,7 @@ def run_scanner():
               hma9_ustunde_span_a_15m = hma9_15m.iloc[-1] > senkou_span_a.iloc[-1]
               hma9_esnek_sarti = hma9_kesisir_span_a_15m or hma9_ustunde_span_a_15m
 
-            mikro_cekirge_tetik = (bb_squeeze_15m or bb_orta_ustu_15m or daralan_bulut_15m) and hma9_esnek_sarti and mfi_60_sarti_15m and stoch_esnek_dip
+            mikro_cekirge_tetik = (bb_squeeze_15m or bb_orta_ustu_15m or daralan_bulut_15m) and hma9_esnek_sarti and mfi_70_sarti_15m and rvol_12_sarti_15m and stoch_esnek_dip
 
             if makro_cekirge_onay and mikro_cekirge_tetik:
               if kayit_guncelle("cekirge_15m"):
@@ -760,7 +765,8 @@ def run_scanner():
               "mfi_15m": mfi_15m,
               "plus_di_15m": plus_di_15m,
               "roc": son_roc,
-              "cmf": son_cmf
+              "cmf": son_cmf,
+              "rvol_15m": rvol_15m
           })
           hafiza_kaydet(tum_hafiza)
           print(f"  > {clean_ticker} inceleniyor... 🎯 Sinyal Yakalandı! (Fiyat: ₺{guncel_fiyat:.2f})")
@@ -772,7 +778,6 @@ def run_scanner():
         continue
 
   if toplanan_sinyaller:
-    # Akış sırasını tam tersine çevirdik (reverse=True -> reverse=False)
     toplanan_sinyaller.sort(key=lambda x: (x['ozel_oncelik'], len(x['stratejiler']), x['puan']), reverse=False)
 
     grup_boyutu = 3
@@ -813,7 +818,7 @@ def run_scanner():
           elif "KARTAL DALGASI" in strat_upper:
             mesaj_satirlari.append(f"• 🦅📊 {strat} (MFI:{item['mfi_15m']:.1f} | +DI:{item['plus_di_15m']:.1f})")
           elif "ÇEKİRGE" in strat_upper:
-            mesaj_satirlari.append(f"• 🌿🚀🐕 {strat} (MFI:{item['mfi_15m']:.1f} | +DI:{item['plus_di_15m']:.1f})")
+            mesaj_satirlari.append(f"• 🌿🚀🐕 {strat} (MFI:{item['mfi_15m']:.1f} | RVOL:{item['rvol_15m']:.1f} | +DI:{item['plus_di_15m']:.1f})")
           elif "TEHLİKELİ HİBRİT" in strat_upper:
             mesaj_satirlari.append(f"• 🟢🟢🟢 {strat} (MFI:{item['mfi_15m']:.1f} | CMF:{item['cmf']:.2f} | Konum:%{item['konum_1h']:.1f})")
           elif "DELİRDİ" in strat_upper and "1 SAAT" in strat_upper:
