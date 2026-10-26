@@ -586,7 +586,7 @@ def run_scanner():
             senkou_span_a = (tenkan_9 + kijun_26) / 2
 
             # =========================================================================
-            # 🌿 ÇEKİRGE STRATEJİSİ (MFI 70+ & RVOL 1.2+ GÜNCELLENMİŞ)
+            # 🌿 ÇEKİRGE STRATEJİSİ (MFI 70+ & RVOL 1.2+ SON 12 BAR GÜNCELLENMİŞ)
             # =========================================================================
             makro_cekirge_onay = False
             if not df_1h.empty and len(df_1h) >= 35:
@@ -614,7 +614,7 @@ def run_scanner():
                     makro_cekirge_onay = makro_verimlilik_1h and makro_di_1h and makro_hma20_1h
 
             mfi_70_sarti_15m = (mfi_ser_15m.iloc[-12:] >= 70.0).any()
-            rvol_12_sarti_15m = rvol_15m >= 1.2
+            rvol_12_sarti_15m = (rvol_ser_15m.iloc[-12:] >= 1.2).any()
 
             lowest_k_15m = low_15m.rolling(14).min()
             highest_k_15m = high_15m.rolling(14).max()
