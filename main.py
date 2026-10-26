@@ -105,6 +105,16 @@ def calculate_mfi(high, low, close, volume, period=14):
     return pd.Series(50.0, index=close.index)
 
 
+def calculate_cmf(high, low, close, volume, period=20):
+  try:
+    mf_multiplier = ((close - low) - (high - close)) / (high - low + 1e-10)
+    mf_volume = mf_multiplier * volume
+    cmf = mf_volume.rolling(period).sum() / (volume.rolling(period).sum() + 1e-10)
+    return cmf
+  except:
+    return pd.Series(0.0, index=close.index)
+
+
 def get_wave_position(df):
   try:
     close = df["Close"].values
@@ -239,13 +249,11 @@ def scan_kartal_dalgasi(df_15m, df_1h):
         if df_15m is None or df_1h is None or len(df_15m) < 35 or len(df_1h) < 35:
             return False
 
-        # 1 Saatlik Trend Filtresi (Çatı Uyumu)
         close_1h = df_1h['Close']
         hma20_1h = calculate_hma(close_1h, 20)
         if hma20_1h.empty or close_1h.iloc[-1] <= hma20_1h.iloc[-1]:
             return False
 
-        # 15 Dakikalık Dalga Dip Konumu
         wave_triggered, _ = check_wave_margins(df_15m, lookback=3, threshold_multiplier=0.80)
         if not wave_triggered:
             return False
@@ -264,7 +272,6 @@ def scan_kartal_dalgasi(df_15m, df_1h):
         recent_low = low_15m.iloc[-total_cycle:].min()
         margin_range = recent_high - recent_low
         
-        # RVOL (Hacim Çarpanı) Şartı
         rvol = volume_15m / volume_15m.rolling(window=20).mean()
         rvol_curr = rvol.iloc[-1] if not pd.isna(rvol.iloc[-1]) and rvol.iloc[-1] > 0 else 1e-5
         rvol_check = rvol_curr >= 0.6
@@ -272,7 +279,6 @@ def scan_kartal_dalgasi(df_15m, df_1h):
         wave_efficiency = margin_range / rvol_curr
         efficiency_check = wave_efficiency > 0.35
 
-        # SENİN İSTEDİĞİN KRİTİK ŞART: Son 12 barda MFI en az bir kez 70 ve üstünü görmüş olmalı!
         mfi_ser_15m = calculate_mfi(high_15m, low_15m, close_15m, volume_15m, 14)
         mfi_spike_check = (mfi_ser_15m.iloc[-12:] >= 70.0).any()
         
@@ -461,6 +467,7 @@ def run_scanner():
       mfi_15m = 50.0
       plus_di_15m = 0.0
       son_roc = 0.0
+      son_cmf = 0.0
 
       try:
         def kayit_guncelle(kural_adi):
@@ -567,25 +574,12 @@ def run_scanner():
             minus_di_ser_15m = 100 * (minus_dm_15m.rolling(14).sum() / (tr_15m.rolling(14).sum() + 1e-10))
             plus_di_15m = plus_di_ser_15m.iloc[-1]
 
+            cmf_15m = calculate_cmf(high_15m, low_15m, close_15m, volume_15m, 20)
+            son_cmf = cmf_15m.iloc[-1]
+
             tenkan_9 = (high_15m.rolling(9).max() + low_15m.rolling(9).min()) / 2
             kijun_26 = (high_15m.rolling(26).max() + low_15m.rolling(26).min()) / 2
             senkou_span_a = (tenkan_9 + kijun_26) / 2
-
-            hma9_15m = calculate_hma(close_15m, 9)
-            if not hma9_15m.empty:
-              hma9_kesisir_span_a_15m = (hma9_15m.iloc[-2] <= senkou_span_a.iloc[-2]) and (hma9_15m.iloc[-1] > senkou_span_a.iloc[-1])
-              hma9_ustunde_span_a_15m = hma9_15m.iloc[-1] > senkou_span_a.iloc[-1]
-              hma9_esnek_sarti = hma9_kesisir_span_a_15m or hma9_ustunde_span_a_15m
-            else:
-              hma9_esnek_sarti = False
-
-            di_kesisim_15m = (plus_di_ser_15m.iloc[-2] <= minus_di_ser_15m.iloc[-2]) and (plus_di_ser_15m.iloc[-1] > minus_di_ser_15m.iloc[-1])
-            di_15m_kosul = (plus_di_15m > 20.0) or di_kesisim_15m
-
-            hibrit_mfi_onay = (mfi_ser_15m.iloc[-12:] >= 70.0).any() and (mfi_ser_15m.iloc[-4:] > 50).all() and (mfi_ser_15m.iloc[-1] > 50)
-
-            rvol_15m_dip = (volume_15m / volume_15m.rolling(20).mean()).iloc[-1]
-            hacim_erken_dip_06 = (rvol_15m_dip >= 0.6)
 
             # =========================================================================
             # 🌿 ÇEKİRGE STRATEJİSİ
@@ -633,6 +627,13 @@ def run_scanner():
             band_width_15m = (upper_bb_15m - lower_bb_15m) / (sma20_15m + 1e-10)
             bb_squeeze_15m = band_width_15m.iloc[-1] < band_width_15m.rolling(20).mean().iloc[-1]
             bb_orta_ustu_15m = close_15m.iloc[-1] >= sma20_15m.iloc[-1]
+
+            hma9_15m = calculate_hma(close_15m, 9)
+            hma9_esnek_sarti = False
+            if not hma9_15m.empty:
+              hma9_kesisir_span_a_15m = (hma9_15m.iloc[-2] <= senkou_span_a.iloc[-2]) and (hma9_15m.iloc[-1] > senkou_span_a.iloc[-1])
+              hma9_ustunde_span_a_15m = hma9_15m.iloc[-1] > senkou_span_a.iloc[-1]
+              hma9_esnek_sarti = hma9_kesisir_span_a_15m or hma9_ustunde_span_a_15m
 
             mikro_cekirge_tetik = (bb_squeeze_15m or bb_orta_ustu_15m or daralan_bulut_15m) and hma9_esnek_sarti and mfi_60_sarti_15m and stoch_esnek_dip
 
@@ -692,16 +693,23 @@ def run_scanner():
                 toplam_puan += 40.0
             # =========================================================================
 
-            if (
-                (plus_di_1h > 25.0)
-                and hma9_esnek_sarti
-                and di_15m_kosul
-                and hibrit_mfi_onay
-                and hacim_erken_dip_06
-            ):
+            # =========================================================================
+            # 🟢 TEHLİKELİ HİBRİT (ORİJİNAL İSTEDİĞİN YAPIDA) KONTROLÜ
+            # =========================================================================
+            konum_yuzde_1h_curr = check_wave_margins(df_1h, lookback=1)[1] if not df_1h.empty else get_wave_position(df_15m)
+            is_mfi_ok = mfi_15m > 50.0
+            is_di_ok = plus_di_15m > 20.0 if 'plus_di_15m' in locals() else True
+            is_cmf_ok = son_cmf > 0.0
+            
+            ichimoku_kesisim = (tenkan_9.iloc[-2] <= kijun_26.iloc[-2]) and (tenkan_9.iloc[-1] > kijun_26.iloc[-1])
+            ichimoku_ustunde = tenkan_9.iloc[-1] >= kijun_26.iloc[-1]
+            ichimoku_trigger = ichimoku_kesisim or ichimoku_ustunde
+
+            if (0.0 <= konum_yuzde_1h_curr <= 15.0) and is_mfi_ok and is_di_ok and is_cmf_ok and ichimoku_trigger:
               if kayit_guncelle("dip_hibrit"):
                 tetiklenen_str.append("TEHLİKELİ HİBRİT")
                 toplam_puan += 30.0
+            # =========================================================================
 
             if not df_1h.empty and scan_kartal_ozel(df_15m, df_1h):
               if kayit_guncelle("kartal_ozel"):
@@ -748,7 +756,8 @@ def run_scanner():
               "konum_1h": konum_1h,
               "mfi_15m": mfi_15m,
               "plus_di_15m": plus_di_15m,
-              "roc": son_roc
+              "roc": son_roc,
+              "cmf": son_cmf
           })
           hafiza_kaydet(tum_hafiza)
           print(f"  > {clean_ticker} inceleniyor... 🎯 Sinyal Yakalandı! (Fiyat: ₺{guncel_fiyat:.2f})")
@@ -799,7 +808,7 @@ def run_scanner():
           elif "ÇEKİRGE" in strat_upper:
             mesaj_satirlari.append(f"• 🌿🚀🐕 {strat} (MFI:{item['mfi_15m']:.1f} | +DI:{item['plus_di_15m']:.1f})")
           elif "TEHLİKELİ HİBRİT" in strat_upper:
-            mesaj_satirlari.append(f"• 🟢🟢🟢 {strat} (15m MFI:{item['mfi_15m']:.1f} | 15m +DI:{item['plus_di_15m']:.1f})")
+            mesaj_satirlari.append(f"• 🟢🟢🟢 {strat} (MFI:{item['mfi_15m']:.1f} | CMF:{item['cmf']:.2f} | Konum:%{item['konum_1h']:.1f})")
           elif "DELİRDİ" in strat_upper and "1 SAAT" in strat_upper:
             mesaj_satirlari.append(f"• 💥💥💥 {strat} (1s RVOL:{item['rvol_1h']:.2f} | 1s RSI:{item['rsi_1h']:.1f} | 1s Konum:%{item['konum_1h']:.1f})")
           elif "1 SAAT YAKALA" in strat_upper:
