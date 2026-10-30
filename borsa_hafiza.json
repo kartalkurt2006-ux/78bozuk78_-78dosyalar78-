@@ -136,8 +136,8 @@
             "MTRYO.IS": {
                 "zaman": 1792510487.2104661,
                 "ilk_fiyat": 8.100000381469727,
-                "son_fiyat": 7.480000019073486,
-                "tekrar_sayisi": 19
+                "son_fiyat": 7.360000133514404,
+                "tekrar_sayisi": 20
             },
             "PENGD.IS": {
                 "zaman": 1792510487.2104661,
@@ -809,13 +809,13 @@
                 "zaman": 1793344557.303773,
                 "ilk_fiyat": 6.440000057220459,
                 "son_fiyat": 6.440000057220459,
-                "tekrar_sayisi": 17
+                "tekrar_sayisi": 18
             },
             "KONTR.IS": {
                 "zaman": 1793344557.303773,
                 "ilk_fiyat": 1.8300000429153442,
                 "son_fiyat": 1.8300000429153442,
-                "tekrar_sayisi": 17
+                "tekrar_sayisi": 18
             },
             "CELHA.IS": {
                 "zaman": 1793345471.7803822,
@@ -863,7 +863,7 @@
                 "zaman": 1793357154.7363894,
                 "ilk_fiyat": 13.520000457763672,
                 "son_fiyat": 13.649999618530273,
-                "tekrar_sayisi": 3
+                "tekrar_sayisi": 4
             }
         },
         "kusursuz_yakala": {},
@@ -2147,7 +2147,7 @@
                 "zaman": 1793358954.1043365,
                 "ilk_fiyat": 13.649999618530273,
                 "son_fiyat": 13.649999618530273,
-                "tekrar_sayisi": 1
+                "tekrar_sayisi": 2
             }
         },
         "kusursuz_firtina": {},
@@ -3704,7 +3704,7 @@
                 "zaman": 1793085345.0076432,
                 "ilk_fiyat": 128.89999389648438,
                 "son_fiyat": 149.1999969482422,
-                "tekrar_sayisi": 14
+                "tekrar_sayisi": 15
             },
             "GLBMD.IS": {
                 "zaman": 1793085345.0076432,
@@ -5786,6 +5786,12 @@
                 "zaman": 1793354475.0799065,
                 "ilk_fiyat": 65.0999984741211,
                 "son_fiyat": 65.0999984741211,
+                "tekrar_sayisi": 1
+            },
+            "HTTBT.IS": {
+                "zaman": 1793359864.0651636,
+                "ilk_fiyat": 28.920000076293945,
+                "son_fiyat": 28.920000076293945,
                 "tekrar_sayisi": 1
             }
         }
