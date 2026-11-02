@@ -17,7 +17,7 @@ TZ_TR = pytz.timezone("Europe/Istanbul")
 # Ntfy Kanal Ayarı
 NTFY_URL = "https://ntfy.sh/borsa_senet"
 
-# Tek Merkezi Hafıza Dosyasi
+# Tek Merkezi Hafıza Dosyası
 MERKEZI_HAFIZA_DOSYASI = "borsa_hafiza.json"
 
 # BIST Hisseleri
@@ -175,7 +175,7 @@ def check_wave_margins(df, lookback=3, threshold_multiplier=0.80):
 
 
 # =========================================================================
-# 🦅 KARTAL 15dk MOTORU
+# 🦅 KARTAL 15dk MOTORU (GÜNCELLENDİ)
 # =========================================================================
 def scan_kartal_15dk(df_15m, df_1h):
     try:
@@ -217,6 +217,21 @@ def scan_kartal_15dk(df_15m, df_1h):
         low_15m = df_15m['Low']
         close_15m = df_15m['Close']
         volume_15m = df_15m['Volume']
+        
+        # 15 Dakikalık +DI Hesaplaması ve Yeni Kural Kontrolü
+        up_move_15m = high_15m.diff()
+        down_move_15m = -low_15m.diff()
+        plus_dm_15m = up_move_15m.where((up_move_15m > down_move_15m) & (up_move_15m > 0), 0)
+        tr_15m = pd.concat([high_15m - low_15m, (high_15m - close_15m.shift()).abs(), (low_15m - close_15m.shift()).abs()], axis=1).max(axis=1)
+        plus_di_ser_15m = 100 * (plus_dm_15m.rolling(14).sum() / (tr_15m.rolling(14).sum() + 1e-10))
+        
+        # Yeni Kural: Son 12 barda 30'un üzerinde VEYA 30'u yukarı kesmiş OLMALI VE son bar 25'in üzerinde OLMALI
+        di_12bar_above_or_cross = (plus_di_ser_15m.iloc[-12:] >= 30.0).any() or \
+                                  ((plus_di_ser_15m.iloc[-12:-1] <= 30.0).any() & (plus_di_ser_15m.iloc[-1] > 30.0))
+        di_last_bar_above_25 = plus_di_ser_15m.iloc[-1] > 25.0
+        
+        if not (di_12bar_above_or_cross and di_last_bar_above_25):
+            return False
         
         wave_sequence = [4, 8, 5, 8, 9]
         total_cycle = sum(wave_sequence)
@@ -805,10 +820,7 @@ def run_scanner():
         else:
           prefix = "🚀 Hisse:"
         
-        if has_kartal_dalgasi and not has_both_1h:
-          mesaj_satirlari.append(f"{prefix} 🟦 {item['temiz_isim']} 🟦 | Fiyat: ₺{item['fiyat']:.2f}")
-        else:
-          mesaj_satirlari.append(f"{prefix} 🟦 {item['temiz_isim']} 🟦 | Fiyat: ₺{item['fiyat']:.2f}")
+        mesaj_satirlari.append(f"{prefix} 🟦 {item['temiz_isim']} 🟦 | Fiyat: ₺{item['fiyat']:.2f}")
         
         for strat in item['stratejiler']:
           strat_upper = strat.upper()
