@@ -170,38 +170,16 @@ def check_wave_margins(df, lookback=3, threshold_multiplier=0.80):
 
 
 # =========================================================================
-# 🦅 KARTAL 15DK MOTORU
+# 🦅 KARTAL DALGASI MOTORU (15DK - MFI 70+ İŞTAHLI MODÜL)
 # =========================================================================
-def scan_kartal_15dk(df_15m, df_1h):
+def scan_kartal_dalgasi(df_15m, df_1h):
     try:
         if df_15m is None or df_1h is None or len(df_15m) < 35 or len(df_1h) < 35:
             return False
 
         close_1h = df_1h['Close']
-        high_1h = df_1h['High']
-        low_1h = df_1h['Low']
-        
         hma20_1h = calculate_hma(close_1h, 20)
         if hma20_1h.empty or close_1h.iloc[-1] <= hma20_1h.iloc[-1]:
-            return False
-
-        up_move_1h = high_1h.diff()
-        down_move_1h = -low_1h.diff()
-        plus_dm_1h = up_move_1h.where((up_move_1h > down_move_1h) & (up_move_1h > 0), 0)
-        minus_dm_1h = down_move_1h.where((down_move_1h > up_move_1h) & (down_move_1h > 0), 0)
-        tr_1h = pd.concat([high_1h - low_1h, (high_1h - close_1h.shift()).abs(), (low_1h - close_1h.shift()).abs()], axis=1).max(axis=1)
-        
-        plus_di_ser_1h = 100 * (plus_dm_1h.rolling(14).sum() / (tr_1h.rolling(14).sum() + 1e-10))
-        minus_di_ser_1h = 100 * (minus_dm_1h.rolling(14).sum() / (tr_1h.rolling(14).sum() + 1e-10))
-        
-        plus_di_1h = plus_di_ser_1h.iloc[-1]
-        minus_di_1h = minus_di_ser_1h.iloc[-1]
-        
-        di_plus_value_check = plus_di_1h > 25.0
-        di_crossover = (plus_di_ser_1h.iloc[-2] <= minus_di_ser_1h.iloc[-2]) and (plus_di_ser_1h.iloc[-1] > minus_di_ser_1h.iloc[-1])
-        di_above = plus_di_1h > minus_di_1h
-        
-        if not (di_plus_value_check and (di_crossover or di_above)):
             return False
 
         wave_triggered, _ = check_wave_margins(df_15m, lookback=3, threshold_multiplier=0.80)
@@ -212,20 +190,6 @@ def scan_kartal_15dk(df_15m, df_1h):
         low_15m = df_15m['Low']
         close_15m = df_15m['Close']
         volume_15m = df_15m['Volume']
-        
-        # 15 Dakikalık +DI Hesaplaması ve Yeni Kural Kontrolü
-        up_move_15m = high_15m.diff()
-        down_move_15m = -low_15m.diff()
-        plus_dm_15m = up_move_15m.where((up_move_15m > down_move_15m) & (up_move_15m > 0), 0)
-        tr_15m = pd.concat([high_15m - low_15m, (high_15m - close_15m.shift()).abs(), (low_15m - close_15m.shift()).abs()], axis=1).max(axis=1)
-        plus_di_ser_15m = 100 * (plus_dm_15m.rolling(14).sum() / (tr_15m.rolling(14).sum() + 1e-10))
-        
-        di_12bar_above_or_cross = (plus_di_ser_15m.iloc[-12:] >= 30.0).any() or \
-                                  ((plus_di_ser_15m.iloc[-12:-1] <= 30.0).any() & (plus_di_ser_15m.iloc[-1] > 30.0))
-        di_last_bar_above_25 = plus_di_ser_15m.iloc[-1] > 25.0
-        
-        if not (di_12bar_above_or_cross and di_last_bar_above_25):
-            return False
         
         wave_sequence = [4, 8, 5, 8, 9]
         total_cycle = sum(wave_sequence)
@@ -238,14 +202,15 @@ def scan_kartal_15dk(df_15m, df_1h):
         
         rvol = volume_15m / volume_15m.rolling(window=20).mean()
         rvol_curr = rvol.iloc[-1] if not pd.isna(rvol.iloc[-1]) and rvol.iloc[-1] > 0 else 1e-5
-        
-        wave_efficiency = margin_range / rvol_curr
         rvol_check = rvol_curr >= 0.6
         
-        mfi_ser = calculate_mfi(high_15m, low_15m, close_15m, volume_15m, 14)
-        mfi_check = (mfi_ser.iloc[-12:] >= 70.0).any()
+        wave_efficiency = margin_range / rvol_curr
+        efficiency_check = wave_efficiency > 0.35
+
+        mfi_ser_15m = calculate_mfi(high_15m, low_15m, close_15m, volume_15m, 14)
+        mfi_spike_check = (mfi_ser_15m.iloc[-12:] >= 70.0).any()
         
-        return wave_triggered and rvol_check and (wave_efficiency > 0.35) and mfi_check
+        return wave_triggered and rvol_check and efficiency_check and mfi_spike_check
     except Exception:
         return False
 
@@ -529,12 +494,12 @@ def run_scanner():
                 tetiklenen_str.append("TEHLİKELİ HİBRİT")
                 toplam_puan += 30.0
 
-            # Strateji: KARTAL 15dk
+            # Strateji: KARTAL DALGASI
             if not df_1h.empty:
-                if scan_kartal_15dk(df_15m, df_1h):
-                    if kayit_guncelle("kartal_15dk"):
-                        tetiklenen_str.append("KARTAL 15dk")
-                        toplam_puan += 45.0
+                if scan_kartal_dalgasi(df_15m, df_1h):
+                    if kayit_guncelle("kartal_dalgasi"):
+                        tetiklenen_str.append("KARTAL DALGASI")
+                        toplam_puan += 35.0
 
         # ==========================================
         # 3. SÜPER 15 CROSS MODÜLÜ (22 Periyot Bollinger Sıkışması + Üst Bant Cross + ROC Erken İvme)
@@ -632,8 +597,8 @@ def run_scanner():
           strat_upper = strat.upper()
           if "TEHLİKELİ HİBRİT" in strat_upper:
             mesaj_satirlari.append(f"• 🟢🟢🟢 {strat} (MFI:{item['mfi']:.1f} | +DI:{item['plus_di']:.1f} | CMF:{item['cmf']:.2f} | Konum:%{item['konum']:.1f})")
-          elif "KARTAL 15DK" in strat_upper:
-            mesaj_satirlari.append(f"• 🦅⚡ {strat} (MFI:{item['mfi']:.1f} | +DI:{item['plus_di']:.1f} | Konum:%{item['konum']:.1f})")
+          elif "KARTAL DALGASI" in strat_upper:
+            mesaj_satirlari.append(f"• 🦅📊 {strat} (MFI:{item['mfi']:.1f} | +DI:{item['plus_di']:.1f} | Konum:%{item['konum']:.1f})")
           elif "DELİRDİ" in strat_upper and "1 SAAT" in strat_upper:
             mesaj_satirlari.append(f"• 💥💥💥 {strat} (RVOL:{item['rvol']:.2f} | MFI:{item['mfi']:.1f} | +DI:{item['plus_di']:.1f} | Konum:%{item['konum']:.1f})")
           elif "SÜPER 15 CROSS" in strat_upper:
