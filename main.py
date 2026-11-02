@@ -740,9 +740,9 @@ def run_scanner():
           has_kartal15_chk = "KARTAL 15DK" in strats_upper_chk
           strat_count_chk = len(tetiklenen_str)
 
-          if has_kartal_dalgasi_chk:
+          if has_both_1h_chk:
               ozel_oncelik = 5
-          elif has_both_1h_chk:
+          elif has_kartal_dalgasi_chk:
               ozel_oncelik = 4
           elif has_cekirge_hibrit_chk:
               ozel_oncelik = 3
@@ -792,10 +792,10 @@ def run_scanner():
         has_cekirge_hibrit = ("ÇEKİRGE" in strats_upper) and ("TEHLİKELİ HİBRİT" in strats_upper)
         strat_count = len(item['stratejiler'])
 
-        if has_kartal_dalgasi:
-          prefix = "🦅🌊 **KARTAL DALGASI YAKALANDI!** 🌊🦅\n🚀 Hisse:"
-        elif has_both_1h:
+        if has_both_1h:
           prefix = "👑🚨 DİKKAT: 1S ÇİFTE ALARM 👑🚨"
+        elif has_kartal_dalgasi:
+          prefix = "🦅🌊 **KARTAL DALGASI YAKALANDI!** 🌊🦅\n🚀 Hisse:"
         elif has_cekirge_hibrit:
           prefix = "💎🔥 ALTIN KESİŞİM: ÇEKİRGE + HİBRİT 🔥💎"
         elif strat_count >= 3:
