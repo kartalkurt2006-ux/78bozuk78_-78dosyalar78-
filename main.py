@@ -17,7 +17,7 @@ TZ_TR = pytz.timezone("Europe/Istanbul")
 # Ntfy Kanal Ayarı
 NTFY_URL = "https://ntfy.sh/borsa_senet"
 
-# Tek Merkezi Hafıza Dosyası
+# Tek Merkezi Hafıza Dosyasi
 MERKEZI_HAFIZA_DOSYASI = "borsa_hafiza.json"
 
 # BIST Hisseleri
@@ -795,7 +795,7 @@ def run_scanner():
         if has_both_1h:
           prefix = "👑🚨 DİKKAT: 1S ÇİFTE ALARM 👑🚨"
         elif has_kartal_dalgasi:
-          prefix = "🦅🌊 **KARTAL DALGASI YAKALANDI!** 🌊🦅\n🚀 Hisse:"
+          prefix = "🦅🔥📊 KARTAL DALGASI YAKALANDI! 🌊🦅\n📊🔥 🦅 Hisse:"
         elif has_cekirge_hibrit:
           prefix = "💎🔥 ALTIN KESİŞİM: ÇEKİRGE + HİBRİT 🔥💎"
         elif strat_count >= 3:
@@ -805,7 +805,10 @@ def run_scanner():
         else:
           prefix = "🚀 Hisse:"
         
-        mesaj_satirlari.append(f"{prefix} 🟦 {item['temiz_isim']} 🟦 | Fiyat: ₺{item['fiyat']:.2f}")
+        if has_kartal_dalgasi and not has_both_1h:
+          mesaj_satirlari.append(f"{prefix} 🟦 {item['temiz_isim']} 🟦 | Fiyat: ₺{item['fiyat']:.2f}")
+        else:
+          mesaj_satirlari.append(f"{prefix} 🟦 {item['temiz_isim']} 🟦 | Fiyat: ₺{item['fiyat']:.2f}")
         
         for strat in item['stratejiler']:
           strat_upper = strat.upper()
