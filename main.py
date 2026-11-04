@@ -100,16 +100,6 @@ def calculate_mfi(high, low, close, volume, period=14):
     return pd.Series(50.0, index=close.index)
 
 
-def calculate_cmf(high, low, close, volume, period=20):
-  try:
-    mf_multiplier = ((close - low) - (high - close)) / (high - low + 1e-10)
-    mf_volume = mf_multiplier * volume
-    cmf = mf_volume.rolling(period).sum() / (volume.rolling(period).sum() + 1e-10)
-    return cmf
-  except:
-    return pd.Series(0.0, index=close.index)
-
-
 def get_wave_position(df):
   try:
     close = df["Close"].values
@@ -360,7 +350,6 @@ def run_scanner():
       son_mfi = 50.0
       son_plus_di = 0.0
       son_konum = 50.0
-      son_cmf = 0.0
       son_roc = 0.0
       
       plus_di_curr_1h = 0.0
@@ -468,7 +457,7 @@ def run_scanner():
                 toplam_puan += 35.0
 
         # ==========================================
-        # 2. 15 DAKİKALIK VERİ ANALİZİ (YAKALA 15 DK + DELİRDİ 15 DK [HA Entegreli] + TEHLİKELİ HİBRİT + KARTAL DALGASI)
+        # 2. 15 DAKİKALIK VERİ ANALİZİ (YAKALA 15 DK + DELİRDİ 15 DK + TEHLİKELİ HİBRİT [CMF Yok, HA & HMA Destekli] + KARTAL DALGASI)
         # ==========================================
         df_15m = extract_ticker_df(df_15m_all, clean_ticker, chunk)
         if not df_15m.empty and len(df_15m) >= 40:
@@ -496,10 +485,6 @@ def run_scanner():
             plus_di_series_15m = 100 * (plus_dm_15m.rolling(14).sum() / (tr_15m.rolling(14).sum() + 1e-10))
             plus_di_curr_15 = plus_di_series_15m.iloc[-1] if not plus_di_series_15m.empty else 0.0
             son_plus_di = max(son_plus_di, plus_di_curr_15)
-
-            cmf_15m = calculate_cmf(high_15m, low_15m, close_15m, volume_15m, 20)
-            cmf_curr_15 = cmf_15m.iloc[-1]
-            son_cmf = max(son_cmf, cmf_curr_15)
 
             son_konum = max(son_konum, get_wave_position(df_15m))
 
@@ -529,7 +514,7 @@ def run_scanner():
                 toplam_puan += 30.0
 
             # ------------------------------------------
-            # YENİ STRATEJİ 2: DELİRDİ 15 DK (HA Entegreli Güncellendi)
+            # YENİ STRATEJİ 2: DELİRDİ 15 DK (HA Entegreli)
             # ------------------------------------------
             wave_breakout_15m, _ = check_wave_margins(df_15m, lookback=3, threshold_multiplier=0.80)
             deli_hma_check = close_15m.iloc[-1] > hma20_15m_val
@@ -550,9 +535,15 @@ def run_scanner():
             ichimoku_ustunde = tenkan_9.iloc[-1] >= kijun_26.iloc[-1]
             ichimoku_trigger = ichimoku_kesisim or ichimoku_ustunde
 
-            # Strateji: TEHLİKELİ HİBRİT
+            # ------------------------------------------
+            # YENİ STRATEJİ 3: TEHLİKELİ HİBRİT (CMF Kaldırıldı, HA + 1s HMA Desteği Eklendi)
+            # ------------------------------------------
             konum_yuzde_1h_curr = check_wave_margins(df_1h, lookback=1)[1] if not df_15m.empty else get_wave_position(df_15m)
-            if (0.0 <= konum_yuzde_1h_curr <= 15.0) and (mfi_curr_15 > 50.0) and (plus_di_curr_15 > 20.0) and (cmf_curr_15 > 0.0) and ichimoku_trigger:
+            
+            # HMA 20 Trend Desteği Şartı (CMF yerine tamamen bu geçerli)
+            hma_trend_support = (hma20_1h_val <= close_curr_1h) or ((close_1h.iloc[-2] >= hma20_1h_val) and (close_1h.iloc[-1] < hma20_1h_val)) if not hma20_1h.empty else True
+
+            if (0.0 <= konum_yuzde_1h_curr <= 15.0) and ha_trend_ok and ha_breakout_check and (mfi_curr_15 > 50.0) and (plus_di_curr_15 > 20.0) and hma_trend_support and ichimoku_trigger:
               if kayit_guncelle("dip_hibrit"):
                 tetiklenen_str.append("TEHLİKELİ HİBRİT")
                 toplam_puan += 30.0
@@ -652,7 +643,6 @@ def run_scanner():
               "mfi": son_mfi,
               "plus_di": son_plus_di,
               "konum": son_konum,
-              "cmf": son_cmf,
               "roc": son_roc
           })
           hafiza_kaydet(tum_hafiza)
@@ -692,7 +682,7 @@ def run_scanner():
           elif "YAKALA 15 DK" in strat_upper:
             mesaj_satirlari.append(f"• 🎯⚡ {strat} (MFI:{item['mfi']:.1f} | +DI:{item['plus_di']:.1f} | Konum:%{item['konum']:.1f})")
           elif "TEHLİKELİ HİBRİT" in strat_upper:
-            mesaj_satirlari.append(f"• 🟢🟢🟢 {strat} (MFI:{item['mfi']:.1f} | +DI:{item['plus_di']:.1f} | CMF:{item['cmf']:.2f} | Konum:%{item['konum']:.1f})")
+            mesaj_satirlari.append(f"• 🟢🟢🟢 {strat} (MFI:{item['mfi']:.1f} | +DI:{item['plus_di']:.1f} | Konum:%{item['konum']:.1f})")
           elif "KARTAL DALGASI" in strat_upper:
             mesaj_satirlari.append(f"• 🦅📊 {strat} (MFI:{item['mfi']:.1f} | +DI:{item['plus_di']:.1f} | Konum:%{item['konum']:.1f})")
           elif "DELİRDİ" in strat_upper and "1 SAAT" in strat_upper:
