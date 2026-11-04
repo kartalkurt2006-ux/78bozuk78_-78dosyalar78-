@@ -20,70 +20,53 @@ NTFY_URL = "https://ntfy.sh/borsa_senet"
 # Tek Merkezi Hafıza Dosyası
 MERKEZI_HAFIZA_DOSYASI = "borsa_hafiza.json"
 
-# BIST Tüm Hisseler (Verdiğiniz Güncel Liste ile Güncellendi)
+# BIST Tüm Hisseler
 STOCKS = [
-    "A1CAP.IS", "A1YEN.IS", "AAGYO.IS", "ACSEL.IS", "ADEL.IS", "ADESE.IS", "ADGYO.IS", "AEFES.IS", "AFYON.IS", "AGESA.IS",
-    "AGHOL.IS", "AGROT.IS", "AGYO.IS", "AHGAZ.IS", "AHSGY.IS", "AKBNK.IS", "AKCNS.IS", "AKENR.IS", "AKFGY.IS", "AKFIS.IS",
-    "AKFYE.IS", "AKGRT.IS", "AKHAN.IS", "AKMGY.IS", "AKSA.IS", "AKSEN.IS", "AKSGY.IS", "AKSUE.IS", "AKYHO.IS", "ALARK.IS",
-    "ALBRK.IS", "ALBTN.IS", "ALCAR.IS", "ALCTL.IS", "ALFAS.IS", "ALGYO.IS", "ALKA.IS", "ALKIM.IS", "ALKLC.IS", "ALTIN.IS",
-    "ALTNY.IS", "ALVES.IS", "ANELE.IS", "ANGEN.IS", "ANHYT.IS", "ANSGR.IS", "ARASE.IS", "ARCLK.IS", "ARDYZ.IS", "ARENA.IS",
-    "ARFYE.IS", "ARMGD.IS", "ARSAN.IS", "ARTMS.IS", "ARZUM.IS", "ASELS.IS", "ASGYO.IS", "ASTOR.IS", "ASUZU.IS", "ATAGY.IS",
-    "ATAKP.IS", "ATATP.IS", "ATATR.IS", "ATEKS.IS", "ATLAS.IS", "ATSYH.IS", "AVGYO.IS", "AVHOL.IS", "AVOD.IS", "AVPGY.IS",
-    "AYCES.IS", "AYDEM.IS", "AYEN.IS", "AYES.IS", "AYGAZ.IS", "AZTEK.IS", "BAGFS.IS", "BAHKM.IS", "BAKAB.IS", "BALAT.IS",
-    "BALSU.IS", "BANVT.IS", "BARMA.IS", "BASCM.IS", "BASGZ.IS", "BAYRK.IS", "BEGYO.IS", "BERA.IS", "BESLR.IS", "BESTE.IS",
-    "BETAE.IS", "BEYAZ.IS", "BFREN.IS", "BIENY.IS", "BIGCH.IS", "BIGEN.IS", "BIGTK.IS", "BIMAS.IS", "BINBN.IS", "BINHO.IS",
-    "BIOEN.IS", "BIZIM.IS", "BJKAS.IS", "BKRGY.IS", "BLCYT.IS", "BLUME.IS", "BMSCH.IS", "BMSTL.IS", "BNTAS.IS", "BOBET.IS",
-    "BORLS.IS", "BORSK.IS", "BOSSA.IS", "BRISA.IS", "BRKO.IS", "BRKSN.IS", "BRLSM.IS", "BRMEN.IS", "BRSAN.IS", "BRYAT.IS",
-    "BSOKE.IS", "BTCIM.IS", "BUCIM.IS", "BULGS.IS", "BURCE.IS", "BURVA.IS", "BVSAN.IS", "BYDNR.IS", "CANTE.IS", "CASA.IS",
-    "CATES.IS", "CCOLA.IS", "CELHA.IS", "CEMAS.IS", "CEMTS.IS", "CEMZY.IS", "CEOEM.IS", "CGCAM.IS", "CIMSA.IS", "CITAS.IS",
-    "CLEBI.IS", "CMBTN.IS", "CMENT.IS", "CONSE.IS", "COSMO.IS", "CRDFA.IS", "CRFSA.IS", "CUSAN.IS", "CVKMD.IS", "CWENE.IS",
-    "DAGI.IS", "DAPGM.IS", "DARDL.IS", "DCTTR.IS", "DENGE.IS", "DERHL.IS", "DERIM.IS", "DESA.IS", "DESPC.IS", "DEVA.IS",
-    "DGATE.IS", "DGGYO.IS", "DGNMO.IS", "DIRIT.IS", "DITAS.IS", "DMLKT.IS", "DMRGD.IS", "DMSAS.IS", "DNISI.IS", "DOAS.IS",
-    "DOFER.IS", "DOFRB.IS", "DOGUB.IS", "DOHOL.IS", "DOKTA.IS", "DSTKF.IS", "DUNYH.IS", "DURDO.IS", "DURKN.IS", "DYOBY.IS",
-    "DZGYO.IS", "EBEBK.IS", "ECILC.IS", "ECOGR.IS", "ECZYT.IS", "EDATA.IS", "EDIP.IS", "EFOR.IS", "EGEEN.IS", "EGEGY.IS",
-    "EGEPO.IS", "EGGUB.IS", "EGPRO.IS", "EGSER.IS", "EKDMR.IS", "EKIM.IS", "EKIZ.IS", "EKOS.IS", "EKSUN.IS", "ELITE.IS",
-    "EMKEL.IS", "EMNIS.IS", "EMPAE.IS", "ENDAE.IS", "ENERY.IS", "ENJSA.IS", "ENKAI.IS", "ENPRA.IS", "ENSRI.IS", "ENTRA.IS",
-    "EPLAS.IS", "ERBOS.IS", "ERCB.IS", "EREGL.IS", "ERSU.IS", "ESCAR.IS", "ESCOM.IS", "ESEN.IS", "ETILR.IS", "ETYAT.IS",
-    "EUHOL.IS", "EUKYO.IS", "EUPWR.IS", "EUREN.IS", "EUYO.IS", "EYGYO.IS", "FADE.IS", "FENER.IS", "FLAP.IS", "FMIZP.IS",
-    "FONET.IS", "FORMT.IS", "FORTE.IS", "FRIGO.IS", "FRMPL.IS", "FROTO.IS", "FZLGY.IS", "GARAN.IS", "GARFA.IS", "GATEG.IS",
-    "GEDIK.IS", "GEDZA.IS", "GENIL.IS", "GENKM.IS", "GENTS.IS", "GEREL.IS", "GESAN.IS", "GIPTA.IS", "GLBMD.IS", "GLCVY.IS",
-    "GLRMK.IS", "GLRYH.IS", "GLYHO.IS", "GMTAS.IS", "GOKNR.IS", "GOLDA.IS", "GOLTS.IS", "GOODY.IS", "GOZDE.IS", "GRNYO.IS",
-    "GRSEL.IS", "GRTHO.IS", "GSDDE.IS", "GSDHO.IS", "GSRAY.IS", "GUBRF.IS", "GUNDG.IS", "GWIND.IS", "GZNMI.IS", "HALKB.IS",
-    "HATEK.IS", "HATSN.IS", "HDFGS.IS", "HEDEF.IS", "HEKTS.IS", "HKTM.IS", "HLGYO.IS", "HOROZ.IS", "HRKET.IS", "HTTBT.IS",
-    "HUBVC.IS", "HUNER.IS", "HURGZ.IS", "ICBCT.IS", "ICUGS.IS", "IDGYO.IS", "IEYHO.IS", "IHAAS.IS", "IHEVA.IS", "IHGZT.IS",
-    "IHLAS.IS", "IHLGM.IS", "IHYAY.IS", "IMASM.IS", "INDES.IS", "INFO.IS", "INGRM.IS", "INTEK.IS", "INTEM.IS", "INTET.IS",
-    "INVEO.IS", "INVES.IS", "ISBIR.IS", "ISDMR.IS", "ISFIN.IS", "ISGYO.IS", "ISKPL.IS", "ISMEN.IS", "ISSEN.IS", "ISVEA.IS",
-    "IZENR.IS", "IZFAS.IS", "IZINV.IS", "IZMDC.IS", "JANTS.IS", "KAPLM.IS", "KARCL.IS", "KAREL.IS", "KARSN.IS", "KARTN.IS",
-    "KATMR.IS", "KAYSE.IS", "KBORU.IS", "KCAER.IS", "KCHOL.IS", "KENT.IS", "KERVN.IS", "KFEIN.IS", "KGYO.IS", "KIMMR.IS",
-    "KLGYO.IS", "KLKIM.IS", "KLMSN.IS", "KLNMA.IS", "KLRHO.IS", "KLSER.IS", "KLSYN.IS", "KLYPV.IS", "KMPUR.IS", "KNFRT.IS",
-    "KOCMT.IS", "KONKA.IS", "KONTR.IS", "KONYA.IS", "KOPOL.IS", "KORDS.IS", "KOTON.IS", "KPEKS.IS", "KRDMA.IS", "KRGYO.IS",
-    "KRONT.IS", "KRPLS.IS", "KRSTL.IS", "KRTEK.IS", "KRVGD.IS", "KSTUR.IS", "KTLEV.IS", "KTSKR.IS", "KUTPO.IS", "KUVVA.IS",
-    "KUYAS.IS", "KZBGY.IS", "KZGYO.IS", "LIDER.IS", "LIDFA.IS", "LILAK.IS", "LINK.IS", "LKMNH.IS", "LMKDC.IS", "LOGO.IS",
-    "LRSHO.IS", "LUKSK.IS", "LXGYO.IS", "LYDHO.IS", "LYDYE.IS", "MAALT.IS", "MACKO.IS", "MAGEN.IS", "MAKIM.IS", "MAKTK.IS",
-    "MANAS.IS", "MARBL.IS", "MARMR.IS", "MARTI.IS", "MASFN.IS", "MAVI.IS", "MCARD.IS", "MEDTR.IS", "MEGAP.IS", "MEGMT.IS",
-    "MEKAG.IS", "MEPET.IS", "MERCN.IS", "MERIT.IS", "MERKO.IS", "METEN.IS", "METRO.IS", "MEYSU.IS", "MGROS.IS", "MHRGY.IS",
-    "MIATK.IS", "MMCAS.IS", "MNDRS.IS", "MNDTR.IS", "MOBTL.IS", "MOGAN.IS", "MOPAS.IS", "MPARK.IS", "MRGYO.IS", "MRSHL.IS",
-    "MSGYO.IS", "MTRKS.IS", "MTRYO.IS", "MZHLD.IS", "NATEN.IS", "NETAS.IS", "NETCD.IS", "NETGL.IS", "NIBAS.IS", "NTGAZ.IS",
-    "NTHOL.IS", "NUGYO.IS", "NUHCM.IS", "OBAMS.IS", "OBASE.IS", "ODAS.IS", "ODINE.IS", "OFSYM.IS", "ONCSM.IS", "ONRYT.IS",
-    "ORCAY.IS", "ORGE.IS", "ORMA.IS", "ORZAX.IS", "OSMEN.IS", "OSTIM.IS", "OTKAR.IS", "OTTO.IS", "OYAKC.IS", "OYAYO.IS",
-    "OYLUM.IS", "OYYAT.IS", "OZATD.IS", "OZGYO.IS", "OZKGY.IS", "OZRDN.IS", "OZSUB.IS", "OZYSR.IS", "PAGYO.IS", "PAHOL.IS",
-    "PAMEL.IS", "PAPIL.IS", "PARSN.IS", "PASEU.IS", "PATEK.IS", "PCILT.IS", "PEKGY.IS", "PENGD.IS", "PENTA.IS", "PETKM.IS",
-    "PETUN.IS", "PGSUS.IS", "PINSU.IS", "PKART.IS", "PKENT.IS", "PLTUR.IS", "PNLSN.IS", "PNSUT.IS", "POLHO.IS", "POLTK.IS",
-    "PRDGS.IS", "PRKAB.IS", "PRKME.IS", "PRZMA.IS", "PSDTC.IS", "PSGYO.IS", "QNBFK.IS", "QNBTR.IS", "QUAGR.IS", "QUICK.IS",
-    "RALYH.IS", "RAYSG.IS", "REEDR.IS", "RGYAS.IS", "RNPOL.IS", "RODRG.IS", "RTALB.IS", "RUBNS.IS", "RUZYE.IS", "RYGYO.IS",
-    "RYSAS.IS", "SAFKR.IS", "SAHOL.IS", "SAMAT.IS", "SANEL.IS", "SANFM.IS", "SANKO.IS", "SARAE.IS", "SARKY.IS", "SASA.IS",
-    "SAYAS.IS", "SDTTR.IS", "SEGMN.IS", "SEGYO.IS", "SEKFK.IS", "SEKUR.IS", "SELEC.IS", "SELVA.IS", "SERNT.IS", "SEYKM.IS",
-    "SILVR.IS", "SISE.IS", "SKBNK.IS", "SKTAS.IS", "SKYLP.IS", "SKYMD.IS", "SMART.IS", "SMRTG.IS", "SMRVA.IS", "SNGYO.IS",
-    "SNICA.IS", "SNPAM.IS", "SODSN.IS", "SOHOE.IS", "SOKE.IS", "SOKM.IS", "SONME.IS", "SRVGY.IS", "SSAAT.IS", "SUMAS.IS",
-    "SUNTK.IS", "SURGY.IS", "SUWEN.IS", "SVGYO.IS", "TABGD.IS", "TARKM.IS", "TATEN.IS", "TATGD.IS", "TAVHL.IS", "TBORG.IS",
-    "TCELL.IS", "TCKRC.IS", "TDGYO.IS", "TEHOL.IS", "TEKTU.IS", "TERA.IS", "TEZOL.IS", "TGSAS.IS", "THYAO.IS", "TKFEN.IS",
-    "TKNKA.IS", "TKNSA.IS", "TLMAN.IS", "TMPOL.IS", "TMSN.IS", "TNZTP.IS", "TOASO.IS", "TRALT.IS", "TRCAS.IS", "TRENJ.IS",
-    "TRGYO.IS", "TRHOL.IS", "TRILC.IS", "TRMET.IS", "TSGYO.IS", "TSKB.IS", "TSPOR.IS", "TTKOM.IS", "TTRAK.IS", "TUCLK.IS",
-    "TUKAS.IS", "TUPRS.IS", "TUREX.IS", "TURGG.IS", "TURSG.IS", "UCAYM.IS", "UFUK.IS", "ULAS.IS", "ULKER.IS", "ULUFA.IS",
-    "ULUSE.IS", "ULUUN.IS", "UNLU.IS", "USAK.IS", "USHOL.IS", "VAKBN.IS", "VAKFA.IS", "VAKFN.IS", "VAKKO.IS", "VANGD.IS",
-    "VBTYZ.IS", "VERUS.IS", "VESBE.IS", "VESTL.IS", "VEYAS.IS", "VKFYO.IS", "VKGYO.IS", "VKING.IS", "VRGYO.IS", "VSNMD.IS",
-    "YAPRK.IS", "YATAS.IS", "YAYLA.IS", "YBTAS.IS", "YEOTK.IS", "YESIL.IS", "YGGYO.IS", "YIGIT.IS", "YKBNK.IS", "YKSLN.IS",
-    "YONGA.IS", "YUNSA.IS", "YYAPI.IS", "YYLGD.IS", "ZEDUR.IS", "ZERGY.IS", "ZGYO.IS", "ZOREN.IS", "ZRGYO.IS"
+    "AAVST.IS", "ACSEL.IS", "ADEL.IS", "ADESE.IS", "ADGYO.IS", "AEFES.IS", "AFYON.IS", "AGESA.IS", "AGHOL.IS", "AGROT.IS",
+    "AKBNK.IS", "AKENR.IS", "AKFGY.IS", "AKFYE.IS", "AKGRT.IS", "AKMGY.IS", "AKSA.IS", "AKSEN.IS", "AKSGY.IS", "ALARK.IS",
+    "ALBRK.IS", "ALCAR.IS", "ALCTL.IS", "ALFAS.IS", "ALKA.IS", "ALKIM.IS", "ALKLC.IS", "ALMAT.IS", "ANELE.IS", "ANGEN.IS",
+    "ANHYT.IS", "ANSGR.IS", "ARASE.IS", "ARCLK.IS", "ARDYZ.IS", "ARENA.IS", "ARSAN.IS", "ARTMS.IS", "ARZUM.IS", "ASELS.IS",
+    "ASTOR.IS", "ASUZU.IS", "ATAKP.IS", "ATATP.IS", "ATEKS.IS", "ATLAS.IS", "AVGYO.IS", "AVOD.IS", "AVPGY.IS", "AYCES.IS",
+    "AYDEM.IS", "AYEN.IS", "AYES.IS", "AYGAZ.IS", "AZTEK.IS", "BAGFS.IS", "BAKAB.IS", "BALAT.IS", "BANVT.IS", "BARMA.IS",
+    "BASCM.IS", "BASGZ.IS", "BAYRK.IS", "BEGYO.IS", "BERA.IS", "BEYAZ.IS", "BIENY.IS", "BIGCH.IS", "BIMAS.IS", "BINHO.IS",
+    "BIOEN.IS", "BIZIM.IS", "BJKAS.IS", "BLCYT.IS", "BMSCH.IS", "BMSTL.IS", "BNTAS.IS", "BOBET.IS", "BORLS.IS", "BOSSA.IS",
+    "BRISA.IS", "BRKO.IS", "BRKSN.IS", "BRLSM.IS", "BRMEN.IS", "BRYAT.IS", "BSOKE.IS", "BTCIM.IS", "BUCIM.IS", "BURCE.IS",
+    "BURVA.IS", "BVSAN.IS", "BYDNR.IS", "CANTE.IS", "CASFY.IS", "CCOLA.IS", "CELHA.IS", "CEMAS.IS", "CEMTS.IS", "CEOEM.IS",
+    "CGCAM.IS", "CIMSA.IS", "CLEBI.IS", "CMBTN.IS", "CMENT.IS", "CONSE.IS", "COSMO.IS", "CRDFA.IS", "CRFSA.IS", "CUSAN.IS",
+    "CVKMD.IS", "CWENE.IS", "DAGI.IS", "DAPGM.IS", "DARDL.IS", "DENGE.IS", "DERHL.IS", "DERIM.IS", "DESA.IS", "DESPC.IS",
+    "DEVA.IS", "DIRIT.IS", "DITAS.IS", "DMRGD.IS", "DMSAS.IS", "DNISI.IS", "DOAS.IS", "DOBUR.IS", "DOCO.IS", "DOGUB.IS",
+    "DOHOL.IS", "DSTAN.IS", "DUNYA.IS", "DURDO.IS", "DYOBY.IS", "DZGYO.IS", "EBEBK.IS", "ECILC.IS", "ECZYT.IS", "EDIP.IS",
+    "EGEEN.IS", "EGEPO.IS", "EGGUB.IS", "EGPRO.IS", "EGSER.IS", "EKGYO.IS", "EKOS.IS", "EKSUN.IS", "ELITE.IS", "EMKEL.IS",
+    "ENERY.IS", "ENKAI.IS", "ENJSA.IS", "EPLAS.IS", "ERBOS.IS", "EREGL.IS", "ERSU.IS", "ESCAR.IS", "ESCOM.IS", "ESEN.IS",
+    "ETILR.IS", "EUHOL.IS", "EUKYO.IS", "EUPWR.IS", "EUREN.IS", "EUYO.IS", "EYGYO.IS", "FADE.IS", "FENER.IS", "FLAP.IS",
+    "FMIZP.IS", "FONET.IS", "FORMT.IS", "FRIGO.IS", "FROTO.IS", "GARAN.IS", "GARFA.IS", "GEDIK.IS", "GEDZA.IS", "GENIL.IS",
+    "GENTS.IS", "GEREL.IS", "GESAN.IS", "GLBMD.IS", "GLCVY.IS", "GLRYH.IS", "GLYHO.IS", "GMTAS.IS", "GOKNR.IS", "GOLTS.IS",
+    "GOODY.IS", "GOZDE.IS", "GRNYO.IS", "GRSEL.IS", "GTRGY.IS", "GUBRF.IS", "GWIND.IS", "GZNMI.IS", "HALKB.IS", "HATEK.IS",
+    "HATSN.IS", "HEDEF.IS", "HEKTS.IS", "HKTM.IS", "HLGYO.IS", "HTTBT.IS", "HUBVC.IS", "HURGZ.IS", "ICBCT.IS", "IDEAS.IS",
+    "IDGYO.IS", "IENTS.IS", "IHEVA.IS", "IHGZT.IS", "IHLAS.IS", "IHLGM.IS", "IMASM.IS", "INDES.IS", "INFO.IS", "INGRM.IS",
+    "INTEM.IS", "INVEO.IS", "INVES.IS", "IPEKE.IS", "ISATR.IS", "ISBIR.IS", "ISBTR.IS", "ISCEN.IS", "ISCTR.IS", "ISFIN.IS",
+    "ISGSY.IS", "ISGYO.IS", "ISKPL.IS", "ISKUR.IS", "ISMEN.IS", "ISSEN.IS", "IZENR.IS", "IZFAS.IS", "IZINV.IS", "JANTS.IS",
+    "KAPLM.IS", "KAREL.IS", "KARSN.IS", "KARTN.IS", "KARYE.IS", "KATMR.IS", "KAYSE.IS", "KBORU.IS", "KCAER.IS", "KCHOL.IS",
+    "KENT.IS", "KERVT.IS", "KFEIN.IS", "KGYO.IS", "KIMMR.IS", "KLGYO.IS", "KLKIM.IS", "KLRHO.IS", "KLMSN.IS", "KLSER.IS",
+    "KLSYN.IS", "KMPUR.IS", "KNFRT.IS", "KONTR.IS", "KONYA.IS", "KOPOL.IS", "KORDS.IS", "KOTON.IS", "KOZAA.IS", "KOZAL.IS",
+    "KRDMD.IS", "KRGYO.IS", "KRONT.IS", "KRPLS.IS", "KRSTL.IS", "KRTEK.IS", "KZBGY.IS", "KZYGZ.IS", "LIDER.IS", "LIDFA.IS",
+    "LKMNH.IS", "LMKDC.IS", "LOGO.IS", "LUKSK.IS", "MAALT.IS", "MAKIM.IS", "MAKTK.IS", "MANAS.IS", "MARTI.IS",
+    "MAVI.IS", "MEDTR.IS", "MEGAP.IS", "MEKAG.IS", "MEPET.IS", "MERCN.IS", "MERKO.IS", "METUR.IS", "MGROS.IS", "MIATK.IS",
+    "MMCAS.IS", "MNDRS.IS", "MNDTR.IS", "MOBTL.IS", "MPARK.IS", "MRGYO.IS", "MTRKS.IS", "MTRYO.IS", "MZHLD.IS", "NATEN.IS",
+    "NETAS.IS", "NIBAS.IS", "NTHOL.IS", "NUGYO.IS", "NUHCM.IS", "OBAMS.IS", "OBASE.IS", "ODAS.IS", "OFSYM.IS", "ONCSM.IS",
+    "ORCAY.IS", "OYYAT.IS", "OZAKD.IS", "OZGYO.IS", "OZKGY.IS", "OZLTM.IS", "OZRDN.IS", "PAKRD.IS", "PAMEL.IS", "PAPIL.IS",
+    "PARSN.IS", "PASEU.IS", "PCILT.IS", "PEKGY.IS", "PENGD.IS", "PENTA.IS", "PETKM.IS", "PETUN.IS", "PGSUS.IS", "PINSU.IS",
+    "PKART.IS", "PKENT.IS", "PNSUT.IS", "POLHO.IS", "POLTK.IS", "PRDGS.IS", "PRKME.IS", "PRKAB.IS", "PSGYO.IS", "QNBFB.IS",
+    "QNBFL.IS", "QUAGR.IS", "RALYH.IS", "REEDR.IS", "RNPOL.IS", "RODRG.IS", "ROYAL.IS", "RTALB.IS", "RUBNS.IS", "RYGYO.IS",
+    "RYSAS.IS", "SAFKR.IS", "SAHOL.IS", "SASA.IS", "SAYAS.IS", "SDTTR.IS", "SEGFO.IS", "SEGYO.IS", "SEKFK.IS", "SEKUR.IS",
+    "SELEC.IS", "SELVA.IS", "SEYKM.IS", "SILVR.IS", "SISE.IS", "SKBNK.IS", "SKTAS.IS", "SMART.IS", "SMRTG.IS", "SNGYO.IS",
+    "SNICA.IS", "SNPAM.IS", "SODSN.IS", "SOKM.IS", "SONME.IS", "SRVGY.IS", "SUMAS.IS", "SUNTK.IS", "SUWEN.IS", "TABGD.IS",
+    "TARKM.IS", "TATEN.IS", "TATGD.IS", "TAVHL.IS", "TBORG.IS", "TCELL.IS", "TCKRC.IS", "TDGYO.IS", "TEKTU.IS", "TETMT.IS",
+    "TEZOL.IS", "TGSAS.IS", "THYAO.IS", "TKFEN.IS", "TKNSA.IS", "TMPOL.IS", "TMSN.IS", "TOASO.IS", "TRCAS.IS", "TRGYO.IS",
+    "TRMET.IS", "TSKB.IS", "TSPOR.IS", "TTKOM.IS", "TTRAK.IS", "TUCLK.IS", "TUPRS.IS", "TURSG.IS", "UFUK.IS", "ULAS.IS",
+    "ULUFA.IS", "ULKER.IS", "ULUUN.IS", "VAKBN.IS", "VAKFN.IS", "VAKGY.IS", "VBTYZ.IS", "VERTU.IS", "VERUS.IS", "VESBE.IS",
+    "VESTL.IS", "VKFYO.IS", "VKGYO.IS", "VKING.IS", "YAPRK.IS", "YATAS.IS", "YAYLA.IS", "YBTAS.IS", "YEOTK.IS", "YESIL.IS",
+    "YGGYO.IS", "YIGIT.IS", "YKBNK.IS", "YKSL.IS", "YUNSA.IS", "YYAPI.IS", "ZEDUR.IS", "ZOREN.IS", "ZRGYO.IS",
 ]
 
 
@@ -421,11 +404,25 @@ def run_scanner():
           high_1h = df_1h["High"]
           low_1h = df_1h["Low"]
           volume_1h = df_1h["Volume"]
+          open_1h = df_1h["Open"]
           
+          # Heikin-Ashi (1h) Hesaplamaları (Ümit Uslucan Gönderisi Entegrasyonu)
+          ha_close_1h = (open_1h + high_1h + low_1h + close_1h) / 4
+          ha_open_1h = pd.Series(index=close_1h.index, dtype=float)
+          if len(ha_open_1h) > 0:
+              ha_open_1h.iloc[0] = (open_1h.iloc[0] + close_1h.iloc[0]) / 2
+              for i in range(1, len(ha_open_1h)):
+                  ha_open_1h.iloc[i] = (ha_open_1h.iloc[i-1] + ha_close_1h.iloc[i-1]) / 2
+          
+          is_ha_green_1h = ha_close_1h.iloc[-1] > ha_open_1h.iloc[-1]
+          # Kutu tabanı referans çizgisi (Son kırmızı HA mumunun dip seviyesi veya yakın düşükler)
+          ha_box_line = low_1h.iloc[-5:].min()
+
           if not close_1h.isna().iloc[-1] and not volume_1h.isna().iloc[-1]:
             close_curr_1h = close_1h.iloc[-1]
             guncel_fiyat = close_curr_1h
 
+            # RSI (14)
             delta_1h = close_1h.diff()
             gain_1h = (delta_1h.where(delta_1h > 0, 0)).rolling(14).mean()
             loss_1h = (-delta_1h.where(delta_1h < 0, 0)).rolling(14).mean()
@@ -433,9 +430,11 @@ def run_scanner():
             rsi_curr_1h = (100 - (100 / (1 + rs_1h))).iloc[-1]
             son_rsi = rsi_curr_1h
 
+            # MFI (14)
             mfi_1h = calculate_mfi(high_1h, low_1h, close_1h, volume_1h, 14)
             son_mfi = mfi_1h.iloc[-1]
 
+            # +DI / -DI (14) Hesaplamaları
             up_move_1h = high_1h.diff()
             down_move_1h = -low_1h.diff()
             plus_dm_1h = up_move_1h.where((up_move_1h > down_move_1h) & (up_move_1h > 0), 0)
@@ -446,6 +445,7 @@ def run_scanner():
             plus_di_prev_1h = plus_di_series_1h.iloc[-2] if len(plus_di_series_1h) > 1 else plus_di_curr_1h
             son_plus_di = plus_di_curr_1h
 
+            # RVOL (1h)
             rvol_curr_1h = (volume_1h / volume_1h.rolling(20).mean()).iloc[-1]
             son_rvol = rvol_curr_1h
 
@@ -456,18 +456,20 @@ def run_scanner():
             hma20_1h = calculate_hma(close_1h, 20)
             hma20_1h_val = hma20_1h.iloc[-1] if not hma20_1h.empty else 0.0
 
+            # Strateji: 1 Saat Yakala
             if (close_curr_1h > hma20_1h_val) and (rsi_curr_1h > 50) and (plus_di_curr_1h > 25) and wave_breakout_1h:
               if kayit_guncelle("1h_dalga_gorsel"):
                 tetiklenen_str.append("1 Saat Yakala")
                 toplam_puan += 25.0
 
+            # Strateji: DELİRDİ 1 Saat
             if (close_curr_1h > hma20_1h_val) and (rvol_curr_1h >= 2.0) and wave_breakout_1h:
               if kayit_guncelle("deli_gitan_1h"):
                 tetiklenen_str.append("DELİRDİ 1 Saat")
                 toplam_puan += 35.0
 
         # ==========================================
-        # 2. 15 DAKİKALIK VERİ ANALİZİ
+        # 2. 15 DAKİKALIK VERİ ANALİZİ (YAKALA 15 DK [HA Entegreli] + DELİRDİ 15 DK + TEHLİKELİ HİBRİT + KARTAL DALGASI)
         # ==========================================
         df_15m = extract_ticker_df(df_15m_all, clean_ticker, chunk)
         if not df_15m.empty and len(df_15m) >= 40:
@@ -508,18 +510,28 @@ def run_scanner():
             rvol_15m = volume_15m / volume_15m.rolling(20).mean()
             rvol_curr_15 = rvol_15m.iloc[-1] if not pd.isna(rvol_15m.iloc[-1]) else 1.0
 
+            # ------------------------------------------
+            # YENİ STRATEJİ 1: YAKALA 15 DK (Heikin-Ashi Kutu Kırılımı + Trend Teyidiyle Güncellendi)
+            # ------------------------------------------
             wave_triggered_15m, _ = check_wave_margins(df_15m, lookback=3, threshold_multiplier=0.80)
             mfi_12_spike = (mfi_15m.iloc[-12:] >= 70.0).any()
             mfi_current_above_50 = mfi_curr_15 >= 50.0
             
+            # Gönderideki 1h HA yeşil olma ve 15m fiyatın HA kutu taban çizgisinin üzerinde/kırılımda olması şartı
+            ha_breakout_check = close_15m.iloc[-1] >= locals().get('ha_box_line', close_15m.iloc[-1])
+            ha_trend_ok = locals().get('is_ha_green_1h', True)
+
             hma_check = (hma20_1h_val <= close_curr_1h) or ((hma20_1h.iloc[-2] < close_1h.iloc[-2]) and (hma20_1h.iloc[-1] >= close_1h.iloc[-1])) if not hma20_1h.empty else False
             di_check = (plus_di_curr_1h >= 25.0) or ((plus_di_prev_1h < 25.0) and (plus_di_curr_1h >= 25.0))
 
-            if hma_check and di_check and wave_triggered_15m and mfi_12_spike and mfi_current_above_50:
+            if ha_trend_ok and ha_breakout_check and hma_check and di_check and wave_triggered_15m and mfi_12_spike and mfi_current_above_50:
               if kayit_guncelle("yakala_15dk"):
                 tetiklenen_str.append("YAKALA 15 DK")
                 toplam_puan += 30.0
 
+            # ------------------------------------------
+            # YENİ STRATEJİ 2: DELİRDİ 15 DK
+            # ------------------------------------------
             wave_breakout_15m, _ = check_wave_margins(df_15m, lookback=3, threshold_multiplier=0.80)
             deli_hma_check = close_15m.iloc[-1] > hma20_15m_val
             deli_rvol_check = rvol_curr_15 >= 1.2
@@ -531,6 +543,7 @@ def run_scanner():
                 tetiklenen_str.append("DELİRDİ 15 DK")
                 toplam_puan += 35.0
 
+            # Ichimoku Tenkan-sen (9) ve Kijun-sen (26) Hesaplamaları (15m)
             tenkan_9 = (high_15m.rolling(9).max() + low_15m.rolling(9).min()) / 2
             kijun_26 = (high_15m.rolling(26).max() + low_15m.rolling(26).min()) / 2
 
@@ -538,12 +551,14 @@ def run_scanner():
             ichimoku_ustunde = tenkan_9.iloc[-1] >= kijun_26.iloc[-1]
             ichimoku_trigger = ichimoku_kesisim or ichimoku_ustunde
 
+            # Strateji: TEHLİKELİ HİBRİT
             konum_yuzde_1h_curr = check_wave_margins(df_1h, lookback=1)[1] if not df_15m.empty else get_wave_position(df_15m)
             if (0.0 <= konum_yuzde_1h_curr <= 15.0) and (mfi_curr_15 > 50.0) and (plus_di_curr_15 > 20.0) and (cmf_curr_15 > 0.0) and ichimoku_trigger:
               if kayit_guncelle("dip_hibrit"):
                 tetiklenen_str.append("TEHLİKELİ HİBRİT")
                 toplam_puan += 30.0
 
+            # Strateji: KARTAL DALGASI
             if not df_1h.empty:
                 if scan_kartal_dalgasi(df_15m, df_1h):
                     if kayit_guncelle("kartal_dalgasi"):
@@ -551,7 +566,7 @@ def run_scanner():
                         toplam_puan += 35.0
 
         # ==========================================
-        # 3. YENİ SÜPER 15 CROSS MODÜLÜ
+        # 3. SÜPER 15 CROSS MODÜLÜ (Hull 9 & Span A Kesişimi/Üstü + Daralan Bulut + +DI >= 20 + ROC + MFI)
         # ==========================================
         if not df_15m.empty and len(df_15m) >= 40:
           close_s15 = df_15m["Close"]
@@ -563,6 +578,7 @@ def run_scanner():
             if guncel_fiyat == 0.0:
               guncel_fiyat = close_s15.iloc[-1]
 
+            # Ichimoku Span A ve Span B Hesaplamaları (9, 26, 52 standart)
             nine_high = high_15m.rolling(window=9).max()
             nine_low = low_15m.rolling(window=9).min()
             tenkan_s15 = (nine_high + nine_low) / 2
@@ -577,9 +593,11 @@ def run_scanner():
             fifty_two_low = low_15m.rolling(window=52).min()
             span_b = (fifty_two_high + fifty_two_low) / 2
 
+            # Bulut Genişliği ve Daralan Bulut Kontrolü
             cloud_width = (span_a - span_b).abs()
             is_cloud_narrowing = cloud_width.iloc[-1] < cloud_width.iloc[-2]
 
+            # Hull 9 (HMA 9) Hesaplama
             hma9_s15 = calculate_hma(close_s15, 9)
             hma9_val = hma9_s15.iloc[-1] if not hma9_s15.empty else close_s15.iloc[-1]
             hma9_prev = hma9_s15.iloc[-2] if len(hma9_s15) > 1 else hma9_val
@@ -589,6 +607,7 @@ def run_scanner():
 
             hma_span_cross = (hma9_prev <= span_a_prev and hma9_val > span_a_val) or (hma9_val >= span_a_val)
 
+            # +DI >= 20 Kontrolü
             up_move_s15 = high_s15.diff()
             down_move_s15 = -low_s15.diff()
             plus_dm_s15 = up_move_s15.where((up_move_s15 > down_move_s15) & (up_move_s15 > 0), 0)
@@ -597,6 +616,7 @@ def run_scanner():
             plus_di_curr_s15 = plus_di_s15.iloc[-1] if not plus_di_s15.empty else 0.0
             di_check_s15 = plus_di_curr_s15 >= 20.0
 
+            # ROC ve MFI Filtreleri
             roc_s15 = close_s15.pct_change(periods=2) * 100
             roc_curr_s15 = roc_s15.iloc[-1]
             son_roc = max(son_roc, roc_curr_s15)
