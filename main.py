@@ -551,7 +551,7 @@ def run_scanner():
                         toplam_puan += 35.0
 
         # ==========================================
-        # 3. SÜPER 15 CROSS MODÜLÜ (22 Periyot Bollinger Sıkışması + Üst Bant Cross + ROC Erken İvme)
+        # 3. YENİ SÜPER 15 CROSS MODÜLÜ (Hull 9 & Span A Kesişimi/Üstü + Daralan Bulut + +DI >= 20 + ROC + MFI)
         # ==========================================
         if not df_15m.empty and len(df_15m) >= 40:
           close_s15 = df_15m["Close"]
@@ -563,28 +563,58 @@ def run_scanner():
             if guncel_fiyat == 0.0:
               guncel_fiyat = close_s15.iloc[-1]
 
-            bb_middle_s15 = close_s15.rolling(22).mean()
-            bb_std_s15 = close_s15.rolling(22).std()
-            bb_upper_s15 = bb_middle_s15 + (2 * bb_std_s15)
-            bb_lower_s15 = bb_middle_s15 - (2 * bb_std_s15)
+            # Ichimoku Span A ve Span B Hesaplamaları (9, 26, 52 standart)
+            nine_high = high_15m.rolling(window=9).max()
+            nine_low = low_15m.rolling(window=9).min()
+            tenkan_s15 = (nine_high + nine_low) / 2
 
-            bb_width_s15 = bb_upper_s15 - bb_lower_s15
-            is_squeezed_s15 = bb_width_s15.iloc[-2] <= bb_width_s15.rolling(22).min().iloc[-2] * 1.15
+            twenty_six_high = high_15m.rolling(window=26).max()
+            twenty_six_low = low_15m.rolling(window=26).min()
+            kijun_s15 = (twenty_six_high + twenty_six_low) / 2
 
+            span_a = (tenkan_s15 + kijun_s15) / 2
+            
+            fifty_two_high = high_15m.rolling(window=52).max()
+            fifty_two_low = low_15m.rolling(window=52).min()
+            span_b = (fifty_two_high + fifty_two_low) / 2
+
+            # Bulut Genişliği ve Daralan Bulut Kontrolü (Son barda bulut genişliği önceki barlardan küçük olmalı)
+            cloud_width = (span_a - span_b).abs()
+            is_cloud_narrowing = cloud_width.iloc[-1] < cloud_width.iloc[-2]
+
+            # Hull 9 (HMA 9) Hesaplama
+            hma9_s15 = calculate_hma(close_s15, 9)
+            hma9_val = hma9_s15.iloc[-1] if not hma9_s15.empty else close_s15.iloc[-1]
+            hma9_prev = hma9_s15.iloc[-2] if len(hma9_s15) > 1 else hma9_val
+
+            span_a_val = span_a.iloc[-1] if not span_a.empty else close_s15.iloc[-1]
+            span_a_prev = span_a.iloc[-2] if len(span_a) > 1 else span_a_val
+
+            # Hull 9, Span A'yı yukarı kesti VEYA Span A'nın üzerinde seyrediyor
+            hma_span_cross = (hma9_prev <= span_a_prev and hma9_val > span_a_val) or (hma9_val >= span_a_val)
+
+            # +DI >= 20 Kontrolü
+            up_move_s15 = high_s15.diff()
+            down_move_s15 = -low_s15.diff()
+            plus_dm_s15 = up_move_s15.where((up_move_s15 > down_move_s15) & (up_move_s15 > 0), 0)
+            tr_s15 = pd.concat([high_s15 - low_s15, (high_s15 - close_s15.shift()).abs(), (low_s15 - close_s15.shift()).abs()], axis=1).max(axis=1)
+            plus_di_s15 = 100 * (plus_dm_s15.rolling(14).sum() / (tr_s15.rolling(14).sum() + 1e-10))
+            plus_di_curr_s15 = plus_di_s15.iloc[-1] if not plus_di_s15.empty else 0.0
+            di_check_s15 = plus_di_curr_s15 >= 20.0
+
+            # ROC (Rate of Change) ve MFI Filtreleri
             roc_s15 = close_s15.pct_change(periods=2) * 100
             roc_curr_s15 = roc_s15.iloc[-1]
             son_roc = max(son_roc, roc_curr_s15)
             is_sudden_burst = roc_curr_s15 >= 1.5
 
-            is_bb_breakout = close_s15.iloc[-1] >= bb_upper_s15.iloc[-1]
-
             mfi_s15 = calculate_mfi(high_s15, low_s15, close_s15, volume_s15, 14)
             mfi_curr_s15 = mfi_s15.iloc[-1]
             son_mfi = max(son_mfi, mfi_curr_s15)
 
-            if is_squeezed_s15 and is_bb_breakout and is_sudden_burst and (mfi_curr_s15 > 50.0):
+            if hma_span_cross and is_cloud_narrowing and di_check_s15 and is_sudden_burst and (mfi_curr_s15 > 50.0):
               if kayit_guncelle("super_15_bb_cross"):
-                tetiklenen_str.append("SÜPER 15 CROSS (ROC)")
+                tetiklenen_str.append("SÜPER 15 CROSS (HMA9)")
                 toplam_puan += 40.0
 
         if tetiklenen_str:
@@ -655,7 +685,7 @@ def run_scanner():
           elif "DELİRDİ" in strat_upper and "1 SAAT" in strat_upper:
             mesaj_satirlari.append(f"• 💥💥💥 {strat} (RVOL:{item['rvol']:.2f} | MFI:{item['mfi']:.1f} | +DI:{item['plus_di']:.1f} | Konum:%{item['konum']:.1f})")
           elif "SÜPER 15 CROSS" in strat_upper:
-            mesaj_satirlari.append(f"• 🎯🎯 {strat} (ROC:%{item['roc']:.1f} | MFI:{item['mfi']:.1f} | Konum:%{item['konum']:.1f})")
+            mesaj_satirlari.append(f"• 🎯🎯 {strat} (ROC:%{item['roc']:.1f} | MFI:{item['mfi']:.1f} | +DI:{item['plus_di']:.1f})")
           elif "1 SAAT YAKALA" in strat_upper:
             mesaj_satirlari.append(f"• ⚫⚫⚫ {strat} (RSI:{item['rsi']:.1f} | MFI:{item['mfi']:.1f} | +DI:{item['plus_di']:.1f})")
           else:
