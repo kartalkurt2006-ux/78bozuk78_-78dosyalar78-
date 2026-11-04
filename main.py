@@ -387,9 +387,15 @@ def run_scanner():
             return simdi_epoch - son_zaman > COOLDOWN_SECONDS
 
         # ==========================================
-        # 1. 1 SAATLİK VERİ ANALİZİ (Aktif)
+        # 1. 1 SAATLİK VERİ ANALİZİ (1 Saat Yakala & Delirdi 1 Saat)
         # ==========================================
         df_1h = extract_ticker_df(df_1h_all, clean_ticker, chunk)
+        plus_di_curr_1h = 0.0
+        plus_di_prev_1h = 0.0
+        hma20_1h_val = 0.0
+        close_curr_1h = 0.0
+        hma20_1h = pd.Series()
+        
         if not df_1h.empty and len(df_1h) >= 40:
           if isinstance(df_1h.columns, pd.MultiIndex):
             df_1h.columns = df_1h.columns.get_level_values(0)
@@ -403,24 +409,28 @@ def run_scanner():
             close_curr_1h = close_1h.iloc[-1]
             guncel_fiyat = close_curr_1h
 
-            # RSI (14)
+            # RSI (14) - 1 Saat Yakala için
             delta_1h = close_1h.diff()
             gain_1h = (delta_1h.where(delta_1h > 0, 0)).rolling(14).mean()
             loss_1h = (-delta_1h.where(delta_1h < 0, 0)).rolling(14).mean()
             rs_1h = gain_1h / (loss_1h + 1e-10)
-            rsi_curr_1h = (100 - (100 / (1 + rs_1h))).iloc[-1]
+            rsi_series_1h = 100 - (100 / (1 + rs_1h))
+            rsi_curr_1h = rsi_series_1h.iloc[-1]
             son_rsi = rsi_curr_1h
 
-            # MFI (14)
+            # MFI (14) - 1 Saat
             mfi_1h = calculate_mfi(high_1h, low_1h, close_1h, volume_1h, 14)
             son_mfi = mfi_1h.iloc[-1]
 
-            # +DI / -DI (14) Hesaplamaları
+            # +DI / -DI (14) Hesaplamaları (1h)
             up_move_1h = high_1h.diff()
             down_move_1h = -low_1h.diff()
             plus_dm_1h = up_move_1h.where((up_move_1h > down_move_1h) & (up_move_1h > 0), 0)
             tr_1h = pd.concat([high_1h - low_1h, (high_1h - close_1h.shift()).abs(), (low_1h - close_1h.shift()).abs()], axis=1).max(axis=1)
-            plus_di_curr_1h = (100 * (plus_dm_1h.rolling(14).sum() / (tr_1h.rolling(14).sum() + 1e-10))).iloc[-1]
+            
+            plus_di_series_1h = 100 * (plus_dm_1h.rolling(14).sum() / (tr_1h.rolling(14).sum() + 1e-10))
+            plus_di_curr_1h = plus_di_series_1h.iloc[-1]
+            plus_di_prev_1h = plus_di_series_1h.iloc[-2] if len(plus_di_series_1h) > 1 else plus_di_curr_1h
             son_plus_di = plus_di_curr_1h
 
             # RVOL (1h)
@@ -432,21 +442,22 @@ def run_scanner():
             son_konum = wave_res_1h[1]
 
             hma20_1h = calculate_hma(close_1h, 20)
+            hma20_1h_val = hma20_1h.iloc[-1]
 
-            # Strateji: 1 Saat Yakala
-            if (close_curr_1h > hma20_1h.iloc[-1]) and (rsi_curr_1h > 50) and (plus_di_curr_1h > 25) and wave_breakout_1h:
+            # Strateji: 1 Saat Yakala (Orijinal)
+            if (close_curr_1h > hma20_1h_val) and (rsi_curr_1h > 50) and (plus_di_curr_1h > 25) and wave_breakout_1h:
               if kayit_guncelle("1h_dalga_gorsel"):
                 tetiklenen_str.append("1 Saat Yakala")
                 toplam_puan += 25.0
 
-            # Strateji: DELİRDİ 1 Saat
-            if (close_curr_1h > hma20_1h.iloc[-1]) and (rvol_curr_1h >= 2.0) and wave_breakout_1h:
+            # Strateji: DELİRDİ 1 Saat (Orijinal)
+            if (close_curr_1h > hma20_1h_val) and (rvol_curr_1h >= 2.0) and wave_breakout_1h:
               if kayit_guncelle("deli_gitan_1h"):
                 tetiklenen_str.append("DELİRDİ 1 Saat")
                 toplam_puan += 35.0
 
         # ==========================================
-        # 2. 15 DAKİKALIK VERİ ANALİZİ (TEHLİKELİ HİBRİT + ICHIMOKU TENKAN/KIJUN)
+        # 2. 15 DAKİKALIK VERİ ANALİZİ (YAKALA 15 DK + DELİRDİ 15 DK + TEHLİKELİ HİBRİT + KARTAL DALGASI)
         # ==========================================
         df_15m = extract_ticker_df(df_15m_all, clean_ticker, chunk)
         if not df_15m.empty and len(df_15m) >= 40:
@@ -470,7 +481,9 @@ def run_scanner():
             down_move_15m = -low_15m.diff()
             plus_dm_15m = up_move_15m.where((up_move_15m > down_move_15m) & (up_move_15m > 0), 0)
             tr_15m = pd.concat([high_15m - low_15m, (high_15m - close_15m.shift()).abs(), (low_15m - close_15m.shift()).abs()], axis=1).max(axis=1)
-            plus_di_curr_15 = (100 * (plus_dm_15m.rolling(14).sum() / (tr_15m.rolling(14).sum() + 1e-10))).iloc[-1]
+            
+            plus_di_series_15m = 100 * (plus_dm_15m.rolling(14).sum() / (tr_15m.rolling(14).sum() + 1e-10))
+            plus_di_curr_15 = plus_di_series_15m.iloc[-1]
             son_plus_di = max(son_plus_di, plus_di_curr_15)
 
             cmf_15m = calculate_cmf(high_15m, low_15m, close_15m, volume_15m, 20)
@@ -478,6 +491,49 @@ def run_scanner():
             son_cmf = max(son_cmf, cmf_curr_15)
 
             son_konum = max(son_konum, get_wave_position(df_15m))
+
+            # 15m HMA 20 Hesaplama (Delirdi 15 dk için)
+            hma20_15m = calculate_hma(close_15m, 20)
+            hma20_15m_val = hma20_15m.iloc[-1] if not hma20_15m.empty else close_15m.iloc[-1]
+
+            # 15m RVOL Hesaplama
+            rvol_15m = volume_15m / volume_15m.rolling(20).mean()
+            rvol_curr_15 = rvol_15m.iloc[-1] if not pd.isna(rvol_15m.iloc[-1]) else 1.0
+
+            # ==========================================
+            # STRATEJİ: YAKALA 15 DK
+            # ==========================================
+            wave_triggered_15m, _ = check_wave_margins(df_15m, lookback=3, threshold_multiplier=0.80)
+            mfi_12_spike = (mfi_15m.iloc[-12:] >= 70.0).any()
+            mfi_current_above_50 = mfi_curr_15 >= 50.0
+            
+            hma_check = (hma20_1h_val <= close_curr_1h) or ((hma20_1h.iloc[-2] < close_1h.iloc[-2]) and (hma20_1h.iloc[-1] >= close_1h.iloc[-1])) if not hma20_1h.empty else False
+            di_check = (plus_di_curr_1h >= 25.0) or ((plus_di_prev_1h < 25.0) and (plus_di_curr_1h >= 25.0))
+
+            if hma_check and di_check and wave_triggered_15m and mfi_12_spike and mfi_current_above_50:
+              if kayit_guncelle("yakala_15dk"):
+                tetiklenen_str.append("YAKALA 15 DK")
+                toplam_puan += 30.0
+
+            # ==========================================
+            # YENİ STRATEJİ: DELİRDİ 15 DK
+            # Koşullar:
+            # - 15 dakikalık grafikte Close > HMA(20)
+            # - RVOL >= 1.2
+            # - 15 dakikalık dalga üst marj kırılımı (wave_breakout_15m)
+            # - +DI son 12 barda 25 üzerinde olacak (any() >= 25.0)
+            # - MFI son barda 60 üzerinde olacak (mfi_curr_15 >= 60.0)
+            # ==========================================
+            wave_breakout_15m, _ = check_wave_margins(df_15m, lookback=3, threshold_multiplier=0.80)
+            deli_hma_check = close_15m.iloc[-1] > hma20_15m_val
+            deli_rvol_check = rvol_curr_15 >= 1.2
+            deli_di_check = (plus_di_series_15m.iloc[-12:] >= 25.0).any()
+            deli_mfi_check = mfi_curr_15 >= 60.0
+
+            if deli_hma_check and deli_rvol_check and wave_breakout_15m and deli_di_check and deli_mfi_check:
+              if kayit_guncelle("delirdi_15dk"):
+                tetiklenen_str.append("DELİRDİ 15 DK")
+                toplam_puan += 35.0
 
             # Ichimoku Tenkan-sen (9) ve Kijun-sen (26) Hesaplamaları (15m)
             tenkan_9 = (high_15m.rolling(9).max() + low_15m.rolling(9).min()) / 2
@@ -581,21 +637,17 @@ def run_scanner():
       mesaj_satirlari = ["----------------------------------------"]
 
       for item in alt_grup:
-        strats_upper = [s.upper() for s in item['stratejiler']]
-        has_both_1h = ("1 SAAT YAKALA" in strats_upper) and ("DELİRDİ 1 SAAT" in strats_upper)
-
-        if has_both_1h:
-          prefix = "👑🚨 DİKKAT: 1S ÇİFTE ALARM 🚨👑"
-        elif len(item['stratejiler']) >= 3:
-          prefix = "🚀🚀🚀 Hisse:"
-        else:
-          prefix = "📌 Hisse:"
-        
-        mesaj_satirlari.append(f"{prefix} 🟦 {item['temiz_isim']} 🟦 | Fiyat: ₺{item['fiyat']:.2f}")
+        mesaj_satirlari.append(f"📌 Hisse: 🟦 {item['temiz_isim']} 🟦 | Fiyat: ₺{item['fiyat']:.2f}")
         
         for strat in item['stratejiler']:
           strat_upper = strat.upper()
-          if "TEHLİKELİ HİBRİT" in strat_upper:
+          if "DELİRDİ 15 DK" in strat_upper:
+            mesaj_satirlari.append(f"• 🚀🔥 {strat} (RVOL:{item['rvol']:.2f} | MFI:{item['mfi']:.1f} | +DI:{item['plus_di']:.1f})")
+          elif "YAKALA 15 DK" in strat_upper:
+            mesaj_satirlari.append(f"• 🎯⚡ {strat} (MFI:{item['mfi']:.1f} | +DI:{item['plus_di']:.1f} | Konum:%{item['konum']:.1f})")
+          elif "1 SAAT YAKALA" in strat_upper:
+            mesaj_satirlari.append(f"• ⚫⚫⚫ {strat} (RSI:{item['rsi']:.1f} | MFI:{item['mfi']:.1f} | +DI:{item['plus_di']:.1f})")
+          elif "TEHLİKELİ HİBRİT" in strat_upper:
             mesaj_satirlari.append(f"• 🟢🟢🟢 {strat} (MFI:{item['mfi']:.1f} | +DI:{item['plus_di']:.1f} | CMF:{item['cmf']:.2f} | Konum:%{item['konum']:.1f})")
           elif "KARTAL DALGASI" in strat_upper:
             mesaj_satirlari.append(f"• 🦅📊 {strat} (MFI:{item['mfi']:.1f} | +DI:{item['plus_di']:.1f} | Konum:%{item['konum']:.1f})")
@@ -603,12 +655,8 @@ def run_scanner():
             mesaj_satirlari.append(f"• 💥💥💥 {strat} (RVOL:{item['rvol']:.2f} | MFI:{item['mfi']:.1f} | +DI:{item['plus_di']:.1f} | Konum:%{item['konum']:.1f})")
           elif "SÜPER 15 CROSS" in strat_upper:
             mesaj_satirlari.append(f"• 🎯🎯 {strat} (ROC:%{item['roc']:.1f} | MFI:{item['mfi']:.1f} | Konum:%{item['konum']:.1f})")
-          elif "DELİRDİ" in strat_upper:
-            mesaj_satirlari.append(f"• 🔥🔥 {strat} (RVOL:{item['rvol']:.2f} | MFI:{item['mfi']:.1f} | +DI:{item['plus_di']:.1f} | Konum:%{item['konum']:.1f})")
-          elif "1 SAAT YAKALA" in strat_upper:
-            mesaj_satirlari.append(f"• ⚫⚫⚫ {strat} (RSI:{item['rsi']:.1f} | MFI:{item['mfi']:.1f} | +DI:{item['plus_di']:.1f})")
           else:
-            mesaj_satirlari.append(f"• 🟣 {strat} (RSI:{item['rsi']:.1f} | MFI:{item['mfi']:.1f} | +DI:{item['plus_di']:.1f})")
+            mesaj_satirlari.append(f"• 🟣 {strat} (MFI:{item['mfi']:.1f} | +DI:{item['plus_di']:.1f})")
             
         mesaj_satirlari.append("----------------------------------------")
 
