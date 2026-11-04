@@ -406,7 +406,7 @@ def run_scanner():
           volume_1h = df_1h["Volume"]
           open_1h = df_1h["Open"]
           
-          # Heikin-Ashi (1h) Hesaplamaları (Ümit Uslucan Gönderisi Entegrasyonu)
+          # Heikin-Ashi (1h) Hesaplamaları
           ha_close_1h = (open_1h + high_1h + low_1h + close_1h) / 4
           ha_open_1h = pd.Series(index=close_1h.index, dtype=float)
           if len(ha_open_1h) > 0:
@@ -415,7 +415,6 @@ def run_scanner():
                   ha_open_1h.iloc[i] = (ha_open_1h.iloc[i-1] + ha_close_1h.iloc[i-1]) / 2
           
           is_ha_green_1h = ha_close_1h.iloc[-1] > ha_open_1h.iloc[-1]
-          # Kutu tabanı referans çizgisi (Son kırmızı HA mumunun dip seviyesi veya yakın düşükler)
           ha_box_line = low_1h.iloc[-5:].min()
 
           if not close_1h.isna().iloc[-1] and not volume_1h.isna().iloc[-1]:
@@ -469,7 +468,7 @@ def run_scanner():
                 toplam_puan += 35.0
 
         # ==========================================
-        # 2. 15 DAKİKALIK VERİ ANALİZİ (YAKALA 15 DK [HA Entegreli] + DELİRDİ 15 DK + TEHLİKELİ HİBRİT + KARTAL DALGASI)
+        # 2. 15 DAKİKALIK VERİ ANALİZİ (YAKALA 15 DK + DELİRDİ 15 DK [HA Entegreli] + TEHLİKELİ HİBRİT + KARTAL DALGASI)
         # ==========================================
         df_15m = extract_ticker_df(df_15m_all, clean_ticker, chunk)
         if not df_15m.empty and len(df_15m) >= 40:
@@ -510,17 +509,17 @@ def run_scanner():
             rvol_15m = volume_15m / volume_15m.rolling(20).mean()
             rvol_curr_15 = rvol_15m.iloc[-1] if not pd.isna(rvol_15m.iloc[-1]) else 1.0
 
+            # Ortak HA Filtre Değişkenleri
+            ha_breakout_check = close_15m.iloc[-1] >= locals().get('ha_box_line', close_15m.iloc[-1])
+            ha_trend_ok = locals().get('is_ha_green_1h', True)
+
             # ------------------------------------------
-            # YENİ STRATEJİ 1: YAKALA 15 DK (Heikin-Ashi Kutu Kırılımı + Trend Teyidiyle Güncellendi)
+            # YENİ STRATEJİ 1: YAKALA 15 DK (HA Entegreli)
             # ------------------------------------------
             wave_triggered_15m, _ = check_wave_margins(df_15m, lookback=3, threshold_multiplier=0.80)
             mfi_12_spike = (mfi_15m.iloc[-12:] >= 70.0).any()
             mfi_current_above_50 = mfi_curr_15 >= 50.0
             
-            # Gönderideki 1h HA yeşil olma ve 15m fiyatın HA kutu taban çizgisinin üzerinde/kırılımda olması şartı
-            ha_breakout_check = close_15m.iloc[-1] >= locals().get('ha_box_line', close_15m.iloc[-1])
-            ha_trend_ok = locals().get('is_ha_green_1h', True)
-
             hma_check = (hma20_1h_val <= close_curr_1h) or ((hma20_1h.iloc[-2] < close_1h.iloc[-2]) and (hma20_1h.iloc[-1] >= close_1h.iloc[-1])) if not hma20_1h.empty else False
             di_check = (plus_di_curr_1h >= 25.0) or ((plus_di_prev_1h < 25.0) and (plus_di_curr_1h >= 25.0))
 
@@ -530,7 +529,7 @@ def run_scanner():
                 toplam_puan += 30.0
 
             # ------------------------------------------
-            # YENİ STRATEJİ 2: DELİRDİ 15 DK
+            # YENİ STRATEJİ 2: DELİRDİ 15 DK (HA Entegreli Güncellendi)
             # ------------------------------------------
             wave_breakout_15m, _ = check_wave_margins(df_15m, lookback=3, threshold_multiplier=0.80)
             deli_hma_check = close_15m.iloc[-1] > hma20_15m_val
@@ -538,7 +537,7 @@ def run_scanner():
             deli_di_check = (plus_di_series_15m.iloc[-12:] >= 25.0).any()
             deli_mfi_check = mfi_curr_15 >= 60.0
 
-            if deli_hma_check and deli_rvol_check and wave_breakout_15m and deli_di_check and deli_mfi_check:
+            if ha_trend_ok and ha_breakout_check and deli_hma_check and deli_rvol_check and wave_breakout_15m and deli_di_check and deli_mfi_check:
               if kayit_guncelle("delirdi_15dk"):
                 tetiklenen_str.append("DELİRDİ 15 DK")
                 toplam_puan += 35.0
