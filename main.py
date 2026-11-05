@@ -100,16 +100,6 @@ def calculate_mfi(high, low, close, volume, period=14):
     return pd.Series(50.0, index=close.index)
 
 
-def calculate_cmf(high, low, close, volume, period=20):
-  try:
-    mf_multiplier = ((close - low) - (high - close)) / (high - low + 1e-10)
-    mf_volume = mf_multiplier * volume
-    cmf = mf_volume.rolling(period).sum() / (volume.rolling(period).sum() + 1e-10)
-    return cmf
-  except:
-    return pd.Series(0.0, index=close.index)
-
-
 def get_wave_position(df):
   try:
     close = df["Close"].values
@@ -544,7 +534,9 @@ def run_scanner():
                 tetiklenen_str.append("TEHLİKELİ HİBRİT")
                 toplam_puan += 30.0
 
-            # Strateji: KARTAL DALGASI
+            # ------------------------------------------
+            # 🦅 KARTAL DALGASI ENTEGRASYONU
+            # ------------------------------------------
             if not df_1h.empty:
                 if scan_kartal_dalgasi(df_15m, df_1h):
                     if kayit_guncelle("kartal_dalgasi"):
