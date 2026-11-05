@@ -100,6 +100,16 @@ def calculate_mfi(high, low, close, volume, period=14):
     return pd.Series(50.0, index=close.index)
 
 
+def calculate_cmf(high, low, close, volume, period=20):
+  try:
+    mf_multiplier = ((close - low) - (high - close)) / (high - low + 1e-10)
+    mf_volume = mf_multiplier * volume
+    cmf = mf_volume.rolling(period).sum() / (volume.rolling(period).sum() + 1e-10)
+    return cmf
+  except:
+    return pd.Series(0.0, index=close.index)
+
+
 def get_wave_position(df):
   try:
     close = df["Close"].values
@@ -350,6 +360,7 @@ def run_scanner():
       son_mfi = 50.0
       son_plus_di = 0.0
       son_konum = 50.0
+      son_cmf = 0.0
       son_roc = 0.0
       
       plus_di_curr_1h = 0.0
@@ -457,7 +468,7 @@ def run_scanner():
                 toplam_puan += 35.0
 
         # ==========================================
-        # 2. 15 DAKİKALIK VERİ ANALİZİ (YAKALA 15 DK + DELİRDİ 15 DK + TEHLİKELİ HİBRİT [CMF Yok, HA & HMA Destekli] + KARTAL DALGASI)
+        # 2. 15 DAKİKALIK VERİ ANALİZİ (DELİRDİ 15 DK + TEHLİKELİ HİBRİT + KARTAL DALGASI)
         # ==========================================
         df_15m = extract_ticker_df(df_15m_all, clean_ticker, chunk)
         if not df_15m.empty and len(df_15m) >= 40:
@@ -499,21 +510,6 @@ def run_scanner():
             ha_trend_ok = locals().get('is_ha_green_1h', True)
 
             # ------------------------------------------
-            # YENİ STRATEJİ 1: YAKALA 15 DK (HA Entegreli)
-            # ------------------------------------------
-            wave_triggered_15m, _ = check_wave_margins(df_15m, lookback=3, threshold_multiplier=0.80)
-            mfi_12_spike = (mfi_15m.iloc[-12:] >= 70.0).any()
-            mfi_current_above_50 = mfi_curr_15 >= 50.0
-            
-            hma_check = (hma20_1h_val <= close_curr_1h) or ((hma20_1h.iloc[-2] < close_1h.iloc[-2]) and (hma20_1h.iloc[-1] >= close_1h.iloc[-1])) if not hma20_1h.empty else False
-            di_check = (plus_di_curr_1h >= 25.0) or ((plus_di_prev_1h < 25.0) and (plus_di_curr_1h >= 25.0))
-
-            if ha_trend_ok and ha_breakout_check and hma_check and di_check and wave_triggered_15m and mfi_12_spike and mfi_current_above_50:
-              if kayit_guncelle("yakala_15dk"):
-                tetiklenen_str.append("YAKALA 15 DK")
-                toplam_puan += 30.0
-
-            # ------------------------------------------
             # YENİ STRATEJİ 2: DELİRDİ 15 DK (HA Entegreli)
             # ------------------------------------------
             wave_breakout_15m, _ = check_wave_margins(df_15m, lookback=3, threshold_multiplier=0.80)
@@ -540,7 +536,7 @@ def run_scanner():
             # ------------------------------------------
             konum_yuzde_1h_curr = check_wave_margins(df_1h, lookback=1)[1] if not df_15m.empty else get_wave_position(df_15m)
             
-            # HMA 20 Trend Desteği Şartı (CMF yerine tamamen bu geçerli)
+            # HMA 20 Trend Desteği Şartı
             hma_trend_support = (hma20_1h_val <= close_curr_1h) or ((close_1h.iloc[-2] >= hma20_1h_val) and (close_1h.iloc[-1] < hma20_1h_val)) if not hma20_1h.empty else True
 
             if (0.0 <= konum_yuzde_1h_curr <= 15.0) and ha_trend_ok and ha_breakout_check and (mfi_curr_15 > 50.0) and (plus_di_curr_15 > 20.0) and hma_trend_support and ichimoku_trigger:
@@ -643,6 +639,7 @@ def run_scanner():
               "mfi": son_mfi,
               "plus_di": son_plus_di,
               "konum": son_konum,
+              "cmf": son_cmf,
               "roc": son_roc
           })
           hafiza_kaydet(tum_hafiza)
@@ -679,10 +676,8 @@ def run_scanner():
           strat_upper = strat.upper()
           if "DELİRDİ 15 DK" in strat_upper:
             mesaj_satirlari.append(f"• 🚀🔥 {strat} (RVOL:{item['rvol']:.2f} | MFI:{item['mfi']:.1f} | +DI:{item['plus_di']:.1f})")
-          elif "YAKALA 15 DK" in strat_upper:
-            mesaj_satirlari.append(f"• 🎯⚡ {strat} (MFI:{item['mfi']:.1f} | +DI:{item['plus_di']:.1f} | Konum:%{item['konum']:.1f})")
           elif "TEHLİKELİ HİBRİT" in strat_upper:
-            mesaj_satirlari.append(f"• 🟢🟢🟢 {strat} (MFI:{item['mfi']:.1f} | +DI:{item['plus_di']:.1f} | Konum:%{item['konum']:.1f})")
+            mesaj_satirlari.append(f"• 🟢🟢🟢 {strat} (MFI:{item['mfi']:.1f} | +DI:{item['plus_di']:.1f} | CMF:{item['cmf']:.2f} | Konum:%{item['konum']:.1f})")
           elif "KARTAL DALGASI" in strat_upper:
             mesaj_satirlari.append(f"• 🦅📊 {strat} (MFI:{item['mfi']:.1f} | +DI:{item['plus_di']:.1f} | Konum:%{item['konum']:.1f})")
           elif "DELİRDİ" in strat_upper and "1 SAAT" in strat_upper:
