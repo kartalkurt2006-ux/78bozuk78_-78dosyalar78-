@@ -287,34 +287,6 @@ def scan_kartal_dalgasi(df_15m, df_1h):
         return False
 
 
-def scan_kartal_ozel(df_15m, df_1s):
-    try:
-        tetik_15m = scan_kartal_15dk(df_15m, df_1s)
-        if not tetik_15m or df_1s.empty or len(df_1s) < 35:
-            return False
-            
-        wave_sequence = [4, 8, 5, 8, 9]
-        total_cycle = sum(wave_sequence)
-        high_1s = df_1s['High'].values
-        low_1s = df_1s['Low'].values
-        volume_1s = df_1s['Volume'].values
-        
-        if len(high_1s) < total_cycle:
-            return False
-            
-        recent_high_1s = np.max(high_1s[-total_cycle:])
-        recent_low_1s = np.min(low_1s[-total_cycle:])
-        margin_range_1s = recent_high_1s - recent_low_1s
-        
-        rvol_1s = volume_1s / pd.Series(volume_1s).rolling(window=20).mean().values
-        rvol_curr_1s = rvol_1s[-1] if not np.isnan(rvol_1s[-1]) and rvol_1s[-1] > 0 else 1e-5
-        
-        efficiency_1s = margin_range_1s / rvol_curr_1s
-        return tetik_15m and (efficiency_1s > 0.35)
-    except Exception:
-        return False
-
-
 def hafiza_yukle():
   hafiza = {"kayitlar": {}}
   if os.path.exists(MERKEZI_HAFIZA_DOSYASI):
@@ -716,11 +688,6 @@ def run_scanner():
                 toplam_puan += 30.0
             # =========================================================================
 
-            if not df_1h.empty and scan_kartal_ozel(df_15m, df_1h):
-              if kayit_guncelle("kartal_ozel"):
-                tetiklenen_str.append("KARTAL ÖZEL")
-                toplam_puan += 45.0
-
         if tetiklenen_str:
           if toplam_puan == 0:
             toplam_puan = 25.0
@@ -734,15 +701,12 @@ def run_scanner():
               pass
 
           strats_upper_chk = [s.upper() for s in tetiklenen_str]
-          has_kartal_dalgasi_chk = "KARTAL DALGASI" in strats_upper_chk
           has_both_1h_chk = ("1 SAAT YAKALA" in strats_upper_chk) and ("DELİRDİ 1 SAAT" in strats_upper_chk)
           has_cekirge_hibrit_chk = ("ÇEKİRGE" in strats_upper_chk) and ("TEHLİKELİ HİBRİT" in strats_upper_chk)
           has_kartal15_chk = "KARTAL 15DK" in strats_upper_chk
           strat_count_chk = len(tetiklenen_str)
 
-          if has_kartal_dalgasi_chk:
-              ozel_oncelik = 5
-          elif has_both_1h_chk:
+          if has_both_1h_chk:
               ozel_oncelik = 4
           elif has_cekirge_hibrit_chk:
               ozel_oncelik = 3
@@ -787,14 +751,11 @@ def run_scanner():
 
       for item in alt_grup:
         strats_upper = [s.upper() for s in item['stratejiler']]
-        has_kartal_dalgasi = "KARTAL DALGASI" in strats_upper
         has_both_1h = ("1 SAAT YAKALA" in strats_upper) and ("DELİRDİ 1 SAAT" in strats_upper)
         has_cekirge_hibrit = ("ÇEKİRGE" in strats_upper) and ("TEHLİKELİ HİBRİT" in strats_upper)
         strat_count = len(item['stratejiler'])
 
-        if has_kartal_dalgasi:
-          prefix = "🦅🌊 **KARTAL DALGASI YAKALANDI!** 🌊🦅\n🚀 Hisse:"
-        elif has_both_1h:
+        if has_both_1h:
           prefix = "👑🚨 DİKKAT: 1S ÇİFTE ALARM 👑🚨"
         elif has_cekirge_hibrit:
           prefix = "💎🔥 ALTIN KESİŞİM: ÇEKİRGE + HİBRİT 🔥💎"
@@ -813,8 +774,6 @@ def run_scanner():
             mesaj_satirlari.append(f"• 🎯🎯 {strat} (ROC:%{item['roc']:.1f} | MFI:{item['mfi_15m']:.1f})")
           elif "KARTAL 15DK" in strat_upper:
             mesaj_satirlari.append(f"• 🦅⚡ {strat} (MFI:{item['mfi_15m']:.1f} | +DI:{item['plus_di_15m']:.1f})")
-          elif "KARTAL ÖZEL" in strat_upper:
-            mesaj_satirlari.append(f"• 🦅🎯 {strat} (MFI:{item['mfi_15m']:.1f} | +DI:{item['plus_di_15m']:.1f})")
           elif "KARTAL DALGASI" in strat_upper:
             mesaj_satirlari.append(f"• 🦅📊 {strat} (MFI:{item['mfi_15m']:.1f} | +DI:{item['plus_di_15m']:.1f})")
           elif "ÇEKİRGE" in strat_upper:
