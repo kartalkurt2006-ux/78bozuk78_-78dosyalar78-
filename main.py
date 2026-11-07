@@ -175,7 +175,7 @@ def check_wave_margins(df, lookback=3, threshold_multiplier=0.80):
 
 
 # =========================================================================
-# 🦅 KARTAL 15dk MOTORU
+# 🦅 KARTAL 15dk MOTORu
 # =========================================================================
 def scan_kartal_15dk(df_15m, df_1h):
     try:
@@ -641,33 +641,79 @@ def run_scanner():
             # =========================================================================
 
             # =========================================================================
-            # 🎯 SÜPER 15 CROSS (ROC) MODÜLÜ
+            # 🎯 SÜPER 15 CROSS (ROC) MODÜLÜ (1 SAATLİK HİBRİT + +DI 25+ + ROC 0.2)
             # =========================================================================
-            bb_middle_s15 = close_15m.rolling(22).mean()
-            bb_std_s15 = close_15m.rolling(22).std()
-            bb_upper_s15 = bb_middle_s15 + (2 * bb_std_s15)
-            bb_lower_s15 = bb_middle_s15 - (2 * bb_std_s15)
+            is_1h_hybrid_ok = False
+            if not df_1h.empty and len(df_1h) >= 35:
+              close_1h_s = df_1h["Close"]
+              high_1h_s = df_1h["High"]
+              low_1h_s = df_1h["Low"]
+              volume_1h_s = df_1h["Volume"]
 
-            bb_width_s15 = bb_upper_s15 - bb_lower_s15
-            if isinstance(bb_width_s15, pd.Series) and len(bb_width_s15) >= 22:
-              min_roll = bb_width_s15.rolling(22).min()
-              min_val = min_roll.iloc[-2] if isinstance(min_roll, pd.Series) and len(min_roll) >= 2 else bb_width_s15.iloc[-2]
-              is_squeezed_s15 = bb_width_s15.iloc[-2] <= min_val * 1.15
-            else:
-              is_squeezed_s15 = False
+              # A) Bollinger 22 Orta Bant (1h)
+              bb_middle_1h = close_1h_s.rolling(22).mean()
+              bb_1h_crossover = (close_1h_s.iloc[-2] <= bb_middle_1h.iloc[-2]) and (close_1h_s.iloc[-1] > bb_middle_1h.iloc[-1])
+              bb_1h_above = close_1h_s.iloc[-1] >= bb_middle_1h.iloc[-1]
+              is_bb_1h_trigger = bb_1h_crossover or bb_1h_above
 
-            roc_s15 = close_15m.pct_change(periods=2) * 100
-            roc_curr_s15 = roc_s15.iloc[-1] if isinstance(roc_s15, pd.Series) and not roc_s15.empty and not np.isnan(roc_s15.iloc[-1]) else 0.0
-            son_roc = roc_curr_s15
-            is_sudden_burst = roc_curr_s15 >= 1.5
+              # B) Ichimoku Span A (1h)
+              tenkan_1h_1h = (high_1h_s.rolling(9).max() + low_1h_s.rolling(9).min()) / 2
+              kijun_1h_1h = (high_1h_s.rolling(26).max() + low_1h_s.rolling(26).min()) / 2
+              span_a_1h_1h = (tenkan_1h_1h + kijun_1h_1h) / 2
+              
+              span_a_1h_crossover = (close_1h_s.iloc[-2] <= span_a_1h_1h.iloc[-2]) and (close_1h_s.iloc[-1] > span_a_1h_1h.iloc[-1])
+              span_a_1h_above = close_1h_s.iloc[-1] >= span_a_1h_1h.iloc[-1]
+              is_span_a_1h_trigger = span_a_1h_crossover or span_a_1h_above
 
-            is_bb_breakout = close_15m.iloc[-1] >= bb_upper_s15.iloc[-1]
-            mfi_curr_s15 = mfi_15m.iloc[-1] if isinstance(mfi_15m, pd.Series) else 50.0
+              # C) MFI (1h - Son 12 barda 50 ve üzeri)
+              mfi_ser_1h_s15 = calculate_mfi(high_1h_s, low_1h_s, close_1h_s, volume_1h_s, 14)
+              mfi_1h_trigger = (mfi_ser_1h_s15.iloc[-12:] >= 50.0).any()
 
-            if is_squeezed_s15 and is_bb_breakout and is_sudden_burst and (mfi_curr_s15 > 50.0):
-              if kayit_guncelle("super_15_bb_cross"):
-                tetiklenen_str.append("SÜPER 15 CROSS (ROC)")
-                toplam_puan += 40.0
+              # D) +DI (1h - 25 ve üzeri trend gücü)
+              up_move_1h_s15 = high_1h_s.diff()
+              down_move_1h_s15 = -low_1h_s.diff()
+              plus_dm_1h_s15 = up_move_1h_s15.where((up_move_1h_s15 > down_move_1h_s15) & (up_move_1h_s15 > 0), 0)
+              tr_1h_s15 = pd.concat([high_1h_s - low_1h_s, (high_1h_s - close_1h_s.shift()).abs(), (low_1h_s - close_1h_s.shift()).abs()], axis=1).max(axis=1)
+              plus_di_ser_1h_s15 = 100 * (plus_dm_1h_s15.rolling(14).sum() / (tr_1h_s15.rolling(14).sum() + 1e-10))
+              is_plus_di_1h_trigger = plus_di_ser_1h_s15.iloc[-1] > 25.0
+
+              is_1h_hybrid_ok = is_bb_1h_trigger and is_span_a_1h_trigger and mfi_1h_trigger and is_plus_di_1h_trigger
+
+            if is_1h_hybrid_ok:
+              bb_middle_s15 = close_15m.rolling(22).mean()
+              bb_std_s15 = close_15m.rolling(22).std()
+              bb_upper_s15 = bb_middle_s15 + (2 * bb_std_s15)
+              bb_lower_s15 = bb_middle_s15 - (2 * bb_std_s15)
+
+              bb_width_s15 = bb_upper_s15 - bb_lower_s15
+              if isinstance(bb_width_s15, pd.Series) and len(bb_width_s15) >= 22:
+                min_roll = bb_width_s15.rolling(22).min()
+                min_val = min_roll.iloc[-2] if isinstance(min_roll, pd.Series) and len(min_roll) >= 2 else bb_width_s15.iloc[-2]
+                is_squeezed_s15 = bb_width_s15.iloc[-2] <= min_val * 1.15
+              else:
+                is_squeezed_s15 = False
+
+              roc_s15 = close_15m.pct_change(periods=2) * 100
+              roc_curr_s15 = roc_s15.iloc[-1] if isinstance(roc_s15, pd.Series) and not roc_s15.empty and not np.isnan(roc_s15.iloc[-1]) else 0.0
+              son_roc = roc_curr_s15
+              is_sudden_burst = roc_curr_s15 >= 0.2
+
+              hma9_15m = calculate_hma(close_15m, 9)
+              senkou_span_a_15m = senkou_span_a
+
+              if not hma9_15m.empty and not senkou_span_a_15m.empty and len(hma9_15m) >= 2 and len(senkou_span_a_15m) >= 2:
+                hma9_span_a_crossover = (hma9_15m.iloc[-2] <= senkou_span_a_15m.iloc[-2]) and (hma9_15m.iloc[-1] > senkou_span_a_15m.iloc[-1])
+                hma9_span_a_above = hma9_15m.iloc[-1] >= senkou_span_a_15m.iloc[-1]
+                is_hma9_span_a_trigger = hma9_span_a_crossover or hma9_span_a_above
+              else:
+                is_hma9_span_a_trigger = False
+
+              mfi_curr_s15 = mfi_15m.iloc[-1] if isinstance(mfi_15m, pd.Series) else 50.0
+
+              if is_squeezed_s15 and is_hma9_span_a_trigger and is_sudden_burst and (mfi_curr_s15 > 50.0):
+                if kayit_guncelle("super_15_bb_cross"):
+                  tetiklenen_str.append("SÜPER 15 CROSS (ROC)")
+                  toplam_puan += 40.0
             # =========================================================================
 
             # =========================================================================
