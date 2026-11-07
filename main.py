@@ -175,7 +175,7 @@ def check_wave_margins(df, lookback=3, threshold_multiplier=0.80):
 
 
 # =========================================================================
-# 🦅 KARTAL 15dk MOTORu
+# 🦅 KARTAL 15dk MOTORU
 # =========================================================================
 def scan_kartal_15dk(df_15m, df_1h):
     try:
@@ -641,7 +641,7 @@ def run_scanner():
             # =========================================================================
 
             # =========================================================================
-            # 🎯 SÜPER 15 CROSS (ROC) MODÜLÜ (1 SAATLİK HİBRİT + +DI 25+ + ROC 0.2)
+            # 🎯 SÜPER 15 CROSS (ROC) MODÜLÜ (SIKIŞMA DEVRE DIŞI BIRAKILDI)
             # =========================================================================
             is_1h_hybrid_ok = False
             if not df_1h.empty and len(df_1h) >= 35:
@@ -680,18 +680,8 @@ def run_scanner():
               is_1h_hybrid_ok = is_bb_1h_trigger and is_span_a_1h_trigger and mfi_1h_trigger and is_plus_di_1h_trigger
 
             if is_1h_hybrid_ok:
-              bb_middle_s15 = close_15m.rolling(22).mean()
-              bb_std_s15 = close_15m.rolling(22).std()
-              bb_upper_s15 = bb_middle_s15 + (2 * bb_std_s15)
-              bb_lower_s15 = bb_middle_s15 - (2 * bb_std_s15)
-
-              bb_width_s15 = bb_upper_s15 - bb_lower_s15
-              if isinstance(bb_width_s15, pd.Series) and len(bb_width_s15) >= 22:
-                min_roll = bb_width_s15.rolling(22).min()
-                min_val = min_roll.iloc[-2] if isinstance(min_roll, pd.Series) and len(min_roll) >= 2 else bb_width_s15.iloc[-2]
-                is_squeezed_s15 = bb_width_s15.iloc[-2] <= min_val * 1.15
-              else:
-                is_squeezed_s15 = False
+              # Sıkışma kontrolü test amacıyla geçici olarak devre dışı (True kabul ediliyor)
+              is_squeezed_s15 = True
 
               roc_s15 = close_15m.pct_change(periods=2) * 100
               roc_curr_s15 = roc_s15.iloc[-1] if isinstance(roc_s15, pd.Series) and not roc_s15.empty and not np.isnan(roc_s15.iloc[-1]) else 0.0
