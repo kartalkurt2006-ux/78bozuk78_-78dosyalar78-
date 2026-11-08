@@ -641,7 +641,7 @@ def run_scanner():
             # =========================================================================
 
             # =========================================================================
-            # 🎯 SÜPER 15 CROSS (ROC) MODÜLÜ (SIKIŞMA DEVRE DIŞI BIRAKILDI)
+            # 🎯 SÜPER 15 CROSS (ROC) MODÜLÜ (GÜNCELLENMİŞ 15M DI+ & SIKIŞMA SERBEST)
             # =========================================================================
             is_1h_hybrid_ok = False
             if not df_1h.empty and len(df_1h) >= 35:
@@ -656,20 +656,11 @@ def run_scanner():
               bb_1h_above = close_1h_s.iloc[-1] >= bb_middle_1h.iloc[-1]
               is_bb_1h_trigger = bb_1h_crossover or bb_1h_above
 
-              # B) Ichimoku Span A (1h)
-              tenkan_1h_1h = (high_1h_s.rolling(9).max() + low_1h_s.rolling(9).min()) / 2
-              kijun_1h_1h = (high_1h_s.rolling(26).max() + low_1h_s.rolling(26).min()) / 2
-              span_a_1h_1h = (tenkan_1h_1h + kijun_1h_1h) / 2
-              
-              span_a_1h_crossover = (close_1h_s.iloc[-2] <= span_a_1h_1h.iloc[-2]) and (close_1h_s.iloc[-1] > span_a_1h_1h.iloc[-1])
-              span_a_1h_above = close_1h_s.iloc[-1] >= span_a_1h_1h.iloc[-1]
-              is_span_a_1h_trigger = span_a_1h_crossover or span_a_1h_above
-
-              # C) MFI (1h - Son 12 barda 50 ve üzeri)
+              # B) MFI (1h - Son 12 barda 50 ve üzeri)
               mfi_ser_1h_s15 = calculate_mfi(high_1h_s, low_1h_s, close_1h_s, volume_1h_s, 14)
               mfi_1h_trigger = (mfi_ser_1h_s15.iloc[-12:] >= 50.0).any()
 
-              # D) +DI (1h - 25 ve üzeri trend gücü)
+              # C) +DI (1h - 25 ve üzeri trend gücü)
               up_move_1h_s15 = high_1h_s.diff()
               down_move_1h_s15 = -low_1h_s.diff()
               plus_dm_1h_s15 = up_move_1h_s15.where((up_move_1h_s15 > down_move_1h_s15) & (up_move_1h_s15 > 0), 0)
@@ -677,10 +668,10 @@ def run_scanner():
               plus_di_ser_1h_s15 = 100 * (plus_dm_1h_s15.rolling(14).sum() / (tr_1h_s15.rolling(14).sum() + 1e-10))
               is_plus_di_1h_trigger = plus_di_ser_1h_s15.iloc[-1] > 25.0
 
-              is_1h_hybrid_ok = is_bb_1h_trigger and is_span_a_1h_trigger and mfi_1h_trigger and is_plus_di_1h_trigger
+              is_1h_hybrid_ok = is_bb_1h_trigger and mfi_1h_trigger and is_plus_di_1h_trigger
 
             if is_1h_hybrid_ok:
-              # Sıkışma kontrolü test amacıyla geçici olarak devre dışı (True kabul ediliyor)
+              # Sıkışma kontrolü test ve akış kolaylığı için devre dışı (True kabul ediliyor)
               is_squeezed_s15 = True
 
               roc_s15 = close_15m.pct_change(periods=2) * 100
@@ -699,8 +690,35 @@ def run_scanner():
                 is_hma9_span_a_trigger = False
 
               mfi_curr_s15 = mfi_15m.iloc[-1] if isinstance(mfi_15m, pd.Series) else 50.0
+              is_mfi_15m_ok = mfi_curr_s15 > 50.0
 
-              if is_squeezed_s15 and is_hma9_span_a_trigger and is_sudden_burst and (mfi_curr_s15 > 50.0):
+              # 15m DI+ & DI- Şartları
+              up_move_15m_s15 = high_15m.diff()
+              down_move_15m_s15 = -low_15m.diff()
+              plus_dm_15m_s15 = up_move_15m_s15.where((up_move_15m_s15 > down_move_15m_s15) & (up_move_15m_s15 > 0), 0)
+              minus_dm_15m_s15 = down_move_15m_s15.where((down_move_15m_s15 > up_move_15m_s15) & (down_move_15m_s15 > 0), 0)
+              tr_15m_s15 = pd.concat([high_15m - low_15m, (high_15m - close_15m.shift()).abs(), (low_15m - close_15m.shift()).abs()], axis=1).max(axis=1)
+              
+              tr_sum_15m_s15 = tr_15m_s15.rolling(14).sum() + 1e-10
+              plus_di_ser_15m_s15 = 100 * (plus_dm_15m_s15.rolling(14).sum() / tr_sum_15m_s15)
+              minus_di_ser_15m_s15 = 100 * (minus_dm_15m_s15.rolling(14).sum() / tr_sum_15m_s15)
+              
+              plus_di_15m_val = plus_di_ser_15m_s15.iloc[-1]
+              minus_di_15m_val = minus_di_ser_15m_s15.iloc[-1]
+              
+              is_plus_di_gt_24 = plus_di_15m_val > 24.0
+              
+              di_cross = (plus_di_ser_15m_s15.iloc[-2] <= minus_di_ser_15m_s15.iloc[-2]) and (plus_di_ser_15m_s15.iloc[-1] > minus_di_ser_15m_s15.iloc[-1])
+              di_above = plus_di_15m_val > minus_di_15m_val
+              is_di_cross_or_above = di_cross or di_above
+
+              if (is_squeezed_s15 and 
+                  is_hma9_span_a_trigger and 
+                  is_sudden_burst and 
+                  is_mfi_15m_ok and 
+                  is_plus_di_gt_24 and 
+                  is_di_cross_or_above):
+                
                 if kayit_guncelle("super_15_bb_cross"):
                   tetiklenen_str.append("SÜPER 15 CROSS (ROC)")
                   toplam_puan += 40.0
