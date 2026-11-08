@@ -641,7 +641,7 @@ def run_scanner():
             # =========================================================================
 
             # =========================================================================
-            # 🎯 SÜPER 15 CROSS (ROC) MODÜLÜ (1 SAAT YAKALA ZEMİNİ + 15M YENİ KURALLAR)
+            # 🎯 SÜPER 15 CROSS (1 SAAT YAKALA ZEMİNİ + 15M FİYAT ODAKLI TETİKLEYİCİLER)
             # =========================================================================
             is_1h_super_cross_ok = False
             if not df_1h.empty and len(df_1h) >= 35:
@@ -674,22 +674,22 @@ def run_scanner():
               is_1h_super_cross_ok = is_hma20_1h_ok and is_rsi_1h_ok and is_plus_di_1h_ok and is_wave_1h_ok
 
             if is_1h_super_cross_ok:
-              # 15 Dakikalık Mikro Tetikleyiciler
+              # 15 Dakikalık Fiyat Odaklı Mikro Tetikleyiciler
+              
+              # 1) Fiyat & Hull 9 İlişkisi (Fiyat Hull 9'u yukarı kesmiş VEYA üstünde)
               hma9_15m = calculate_hma(close_15m, 9)
-              senkou_span_a_15m = senkou_span_a  
-
-              if not hma9_15m.empty and not senkou_span_a_15m.empty and len(hma9_15m) >= 2 and len(senkou_span_a_15m) >= 2:
-                hma9_span_a_crossover = (hma9_15m.iloc[-2] <= senkou_span_a_15m.iloc[-2]) and (hma9_15m.iloc[-1] > senkou_span_a_15m.iloc[-1])
-                hma9_span_a_above = hma9_15m.iloc[-1] >= senkou_span_a_15m.iloc[-1]
-                is_hma9_span_a_trigger = hma9_span_a_crossover or hma9_span_a_above
+              if not hma9_15m.empty and len(hma9_15m) >= 2:
+                price_hma9_crossover = (close_15m.iloc[-2] <= hma9_15m.iloc[-2]) and (close_15m.iloc[-1] > hma9_15m.iloc[-1])
+                price_hma9_above = close_15m.iloc[-1] >= hma9_15m.iloc[-1]
+                is_price_hma9_trigger = price_hma9_crossover or price_hma9_above
               else:
-                is_hma9_span_a_trigger = False
+                is_price_hma9_trigger = False
 
-              # MFI > 50 Şartı
+              # 2) MFI > 50 Şartı
               mfi_curr_s15 = mfi_15m.iloc[-1] if isinstance(mfi_15m, pd.Series) else 50.0
               is_mfi_15m_ok = mfi_curr_s15 > 50.0
 
-              # Bollinger 22 Orta Bant Kriteri (Orta bandın üstünde veya yukarı kesmiş)
+              # 3) Bollinger 22 Orta Bant Kriteri (Fiyat orta bandın üstünde veya yukarı kesmiş)
               sma20_15m_sc = close_15m.rolling(22).mean()
               if not sma20_15m_sc.empty and len(sma20_15m_sc) >= 2:
                 bb_mid_crossover = (close_15m.iloc[-2] <= sma20_15m_sc.iloc[-2]) and (close_15m.iloc[-1] > sma20_15m_sc.iloc[-1])
@@ -698,7 +698,7 @@ def run_scanner():
               else:
                 is_bb_mid_trigger = False
 
-              # DI+ > 24 ve DI+ / DI- İlişkisi
+              # 4) DI+ > 24 ve DI+ / DI- İlişkisi
               up_move_15m_s15 = high_15m.diff()
               down_move_15m_s15 = -low_15m.diff()
               plus_dm_15m_s15 = up_move_15m_s15.where((up_move_15m_s15 > down_move_15m_s15) & (up_move_15m_s15 > 0), 0)
@@ -718,8 +718,8 @@ def run_scanner():
               di_above = plus_di_15m_val > minus_di_15m_val
               is_di_cross_or_above = di_cross or di_above
 
-              # Tüm Süper Cross Şartlarının Sağlanması
-              if (is_hma9_span_a_trigger and 
+              # Tüm Fiyat Odaklı Süper Cross Şartlarının Sağlanması
+              if (is_price_hma9_trigger and 
                   is_mfi_15m_ok and 
                   is_bb_mid_trigger and 
                   is_plus_di_gt_24 and 
