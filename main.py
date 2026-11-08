@@ -641,46 +641,42 @@ def run_scanner():
             # =========================================================================
 
             # =========================================================================
-            # 🎯 SÜPER 15 CROSS (ROC) MODÜLÜ (GÜNCELLENMİŞ 15M DI+ & SIKIŞMA SERBEST)
+            # 🎯 SÜPER 15 CROSS (ROC) MODÜLÜ (1 SAAT YAKALA ZEMİNİ + 15M YENİ KURALLAR)
             # =========================================================================
-            is_1h_hybrid_ok = False
+            is_1h_super_cross_ok = False
             if not df_1h.empty and len(df_1h) >= 35:
               close_1h_s = df_1h["Close"]
               high_1h_s = df_1h["High"]
               low_1h_s = df_1h["Low"]
-              volume_1h_s = df_1h["Volume"]
 
-              # A) Bollinger 22 Orta Bant (1h)
-              bb_middle_1h = close_1h_s.rolling(22).mean()
-              bb_1h_crossover = (close_1h_s.iloc[-2] <= bb_middle_1h.iloc[-2]) and (close_1h_s.iloc[-1] > bb_middle_1h.iloc[-1])
-              bb_1h_above = close_1h_s.iloc[-1] >= bb_middle_1h.iloc[-1]
-              is_bb_1h_trigger = bb_1h_crossover or bb_1h_above
+              # 1 Saatlik Taraf: Tıpkı "1 Saat Yakala" ile Birebir Aynı Şartlar
+              hma20_1h_s = calculate_hma(close_1h_s, 20)
+              hma20_1h_val = hma20_1h_s.iloc[-1] if not hma20_1h_s.empty else 0.0
+              is_hma20_1h_ok = (hma20_1h_val > 0) and (close_1h_s.iloc[-1] > hma20_1h_val)
 
-              # B) MFI (1h - Son 12 barda 50 ve üzeri)
-              mfi_ser_1h_s15 = calculate_mfi(high_1h_s, low_1h_s, close_1h_s, volume_1h_s, 14)
-              mfi_1h_trigger = (mfi_ser_1h_s15.iloc[-12:] >= 50.0).any()
+              delta_1h = close_1h_s.diff()
+              gain_1h = (delta_1h.where(delta_1h > 0, 0)).rolling(14).mean()
+              loss_1h = (-delta_1h.where(delta_1h < 0, 0)).rolling(14).mean()
+              rs_1h = gain_1h / (loss_1h + 1e-10)
+              rsi_1h_val = (100 - (100 / (1 + rs_1h))).iloc[-1]
+              is_rsi_1h_ok = rsi_1h_val > 50
 
-              # C) +DI (1h - 25 ve üzeri trend gücü)
-              up_move_1h_s15 = high_1h_s.diff()
-              down_move_1h_s15 = -low_1h_s.diff()
-              plus_dm_1h_s15 = up_move_1h_s15.where((up_move_1h_s15 > down_move_1h_s15) & (up_move_1h_s15 > 0), 0)
-              tr_1h_s15 = pd.concat([high_1h_s - low_1h_s, (high_1h_s - close_1h_s.shift()).abs(), (low_1h_s - close_1h_s.shift()).abs()], axis=1).max(axis=1)
-              plus_di_ser_1h_s15 = 100 * (plus_dm_1h_s15.rolling(14).sum() / (tr_1h_s15.rolling(14).sum() + 1e-10))
-              is_plus_di_1h_trigger = plus_di_ser_1h_s15.iloc[-1] > 25.0
+              up_move_1h_sc = high_1h_s.diff()
+              down_move_1h_sc = -low_1h_s.diff()
+              plus_dm_1h_sc = up_move_1h_sc.where((up_move_1h_sc > down_move_1h_sc) & (up_move_1h_sc > 0), 0)
+              tr_1h_sc = pd.concat([high_1h_s - low_1h_s, (high_1h_s - close_1h_s.shift()).abs(), (low_1h_s - close_1h_s.shift()).abs()], axis=1).max(axis=1)
+              plus_di_ser_1h_sc = 100 * (plus_dm_1h_sc.rolling(14).sum() / (tr_1h_sc.rolling(14).sum() + 1e-10))
+              is_plus_di_1h_ok = plus_di_ser_1h_sc.iloc[-1] > 25.0
 
-              is_1h_hybrid_ok = is_bb_1h_trigger and mfi_1h_trigger and is_plus_di_1h_trigger
+              wave_res_1h_sc = check_wave_margins(df_1h, lookback=3, threshold_multiplier=0.80)
+              is_wave_1h_ok = wave_res_1h_sc[0]
 
-            if is_1h_hybrid_ok:
-              # Sıkışma kontrolü test ve akış kolaylığı için devre dışı (True kabul ediliyor)
-              is_squeezed_s15 = True
+              is_1h_super_cross_ok = is_hma20_1h_ok and is_rsi_1h_ok and is_plus_di_1h_ok and is_wave_1h_ok
 
-              roc_s15 = close_15m.pct_change(periods=2) * 100
-              roc_curr_s15 = roc_s15.iloc[-1] if isinstance(roc_s15, pd.Series) and not roc_s15.empty and not np.isnan(roc_s15.iloc[-1]) else 0.0
-              son_roc = roc_curr_s15
-              is_sudden_burst = roc_curr_s15 >= 0.2
-
+            if is_1h_super_cross_ok:
+              # 15 Dakikalık Mikro Tetikleyiciler
               hma9_15m = calculate_hma(close_15m, 9)
-              senkou_span_a_15m = senkou_span_a
+              senkou_span_a_15m = senkou_span_a  
 
               if not hma9_15m.empty and not senkou_span_a_15m.empty and len(hma9_15m) >= 2 and len(senkou_span_a_15m) >= 2:
                 hma9_span_a_crossover = (hma9_15m.iloc[-2] <= senkou_span_a_15m.iloc[-2]) and (hma9_15m.iloc[-1] > senkou_span_a_15m.iloc[-1])
@@ -689,10 +685,20 @@ def run_scanner():
               else:
                 is_hma9_span_a_trigger = False
 
+              # MFI > 50 Şartı
               mfi_curr_s15 = mfi_15m.iloc[-1] if isinstance(mfi_15m, pd.Series) else 50.0
               is_mfi_15m_ok = mfi_curr_s15 > 50.0
 
-              # 15m DI+ & DI- Şartları
+              # Bollinger 22 Orta Bant Kriteri (Orta bandın üstünde veya yukarı kesmiş)
+              sma20_15m_sc = close_15m.rolling(22).mean()
+              if not sma20_15m_sc.empty and len(sma20_15m_sc) >= 2:
+                bb_mid_crossover = (close_15m.iloc[-2] <= sma20_15m_sc.iloc[-2]) and (close_15m.iloc[-1] > sma20_15m_sc.iloc[-1])
+                bb_mid_above = close_15m.iloc[-1] >= sma20_15m_sc.iloc[-1]
+                is_bb_mid_trigger = bb_mid_crossover or bb_mid_above
+              else:
+                is_bb_mid_trigger = False
+
+              # DI+ > 24 ve DI+ / DI- İlişkisi
               up_move_15m_s15 = high_15m.diff()
               down_move_15m_s15 = -low_15m.diff()
               plus_dm_15m_s15 = up_move_15m_s15.where((up_move_15m_s15 > down_move_15m_s15) & (up_move_15m_s15 > 0), 0)
@@ -712,10 +718,10 @@ def run_scanner():
               di_above = plus_di_15m_val > minus_di_15m_val
               is_di_cross_or_above = di_cross or di_above
 
-              if (is_squeezed_s15 and 
-                  is_hma9_span_a_trigger and 
-                  is_sudden_burst and 
+              # Tüm Süper Cross Şartlarının Sağlanması
+              if (is_hma9_span_a_trigger and 
                   is_mfi_15m_ok and 
+                  is_bb_mid_trigger and 
                   is_plus_di_gt_24 and 
                   is_di_cross_or_above):
                 
@@ -825,7 +831,7 @@ def run_scanner():
         for strat in item['stratejiler']:
           strat_upper = strat.upper()
           if "SÜPER 15 CROSS" in strat_upper:
-            mesaj_satirlari.append(f"• 🎯🎯 {strat} (ROC:%{item['roc']:.1f} | MFI:{item['mfi_15m']:.1f})")
+            mesaj_satirlari.append(f"• 🎯🎯 {strat} (MFI:{item['mfi_15m']:.1f} | +DI:{item['plus_di_15m']:.1f})")
           elif "KARTAL 15DK" in strat_upper:
             mesaj_satirlari.append(f"• 🦅⚡ {strat} (MFI:{item['mfi_15m']:.1f} | +DI:{item['plus_di_15m']:.1f})")
           elif "KARTAL DALGASI" in strat_upper:
