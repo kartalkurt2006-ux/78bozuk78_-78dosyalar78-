@@ -711,7 +711,6 @@ def run_scanner():
               tr_15m_f = pd.concat([high_15m_s - low_15m_s, (high_15m_s - close_15m_s.shift()).abs(), (low_15m_s - close_15m_s.shift()).abs()], axis=1).max(axis=1)
               p_di_ser_15m = 100 * (p_dm_15m.rolling(14).sum() / (tr_15m_f.rolling(14).sum() + 1e-10))
               
-              # İstediğin yeni +DI kuralı: Son 12 barda 40+ geçmişi VE son barda 25+ olması
               is_plus_di_12bar_ok = (p_di_ser_15m.iloc[-12:] >= 40.0).any()
               is_plus_di_last_ok = p_di_ser_15m.iloc[-1] > 25.0
               is_plus_di_15m_base_ok = is_plus_di_12bar_ok and is_plus_di_last_ok
@@ -746,7 +745,6 @@ def run_scanner():
                 else:
                   is_hma9_span_a_trigger = False
 
-                # İstediğin yeni MFI kuralı: Son 12 barda 70+ geçmişi VE son barda 50+ olması
                 mfi_12bar_check = (mfi_ser_15m.iloc[-12:] >= 70.0).any()
                 mfi_last_check = mfi_15m > 50.0
                 is_mfi_15m_ok = mfi_12bar_check and mfi_last_check
@@ -783,21 +781,35 @@ def run_scanner():
             # =========================================================================
 
             # =========================================================================
-            # 🟢 TEHLİKELİ HİBRİT KONTROLÜ
+            # 🟢 TEHLİKELİ HİBRİT KONTROLÜ (GÜNCELLENMİŞ VERSİYON)
             # =========================================================================
-            konum_yuzde_1h_curr = check_wave_margins(df_1h, lookback=1)[1] if not df_1h.empty else get_wave_position(df_15m)
-            is_mfi_ok = mfi_15m > 50.0
-            is_di_ok = plus_di_15m > 20.0 if 'plus_di_15m' in locals() else True
-            is_cmf_ok = son_cmf > 0.0
-            
-            ichimoku_kesisim = (tenkan_9.iloc[-2] <= kijun_26.iloc[-2]) and (tenkan_9.iloc[-1] > kijun_26.iloc[-1])
-            ichimoku_ustunde = tenkan_9.iloc[-1] >= kijun_26.iloc[-1]
-            ichimoku_trigger = ichimoku_kesisim or ichimoku_ustunde
+            try:
+                konum_yuzde_1h_curr = check_wave_margins(df_1h, lookback=1)[1] if not df_1h.empty else get_wave_position(df_15m)
+                is_mfi_ok = mfi_15m > 50.0
+                is_di_ok = plus_di_15m > 20.0 if 'plus_di_15m' in locals() else True
+                is_cmf_ok = son_cmf > 0.0
 
-            if (0.0 <= konum_yuzde_1h_curr <= 15.0) and is_mfi_ok and is_di_ok and is_cmf_ok and ichimoku_trigger:
-              if kayit_guncelle("dip_hibrit"):
-                tetiklenen_str.append("TEHLİKELİ HİBRİT")
-                toplam_puan += 30.0
+                span_b_15m = (high_15m.rolling(52).max() + low_15m.rolling(52).min()) / 2
+
+                # Daralan Bulut Kontrolü
+                bulut_kalinligi = (senkou_span_a - span_b_15m).abs()
+                daralan_bulut = bulut_kalinligi.iloc[-1] < bulut_kalinligi.rolling(20).mean().iloc[-1]
+
+                # Hull 9 ve Span A Kesişim / Üzerinde Olma Kontrolü
+                hma9_15m = calculate_hma(close_15m, 9)
+                if not hma9_15m.empty and len(hma9_15m) >= 2 and len(senkou_span_a) >= 2:
+                    hma9_span_a_kesisim = (hma9_15m.iloc[-2] <= senkou_span_a.iloc[-2]) and (hma9_15m.iloc[-1] > senkou_span_a.iloc[-1])
+                    hma9_span_a_ustunde = (hma9_15m.iloc[-1] >= senkou_span_a.iloc[-1])
+                    hull_span_trigger = hma9_span_a_kesisim or hma9_span_a_ustunde
+                else:
+                    hull_span_trigger = False
+
+                if (0.0 <= konum_yuzde_1h_curr <= 15.0) and is_mfi_ok and is_di_ok and is_cmf_ok and daralan_bulut and hull_span_trigger:
+                  if kayit_guncelle("dip_hibrit"):
+                    tetiklenen_str.append("TEHLİKELİ HİBRİT")
+                    toplam_puan += 30.0
+            except Exception:
+                pass
             # =========================================================================
 
         if tetiklenen_str:
