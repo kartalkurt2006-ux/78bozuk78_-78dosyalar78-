@@ -615,7 +615,6 @@ def run_scanner():
                 tetiklenen_str.append("DELİRDİ 1 Saat")
                 toplam_puan += 35.0
 
-            # 🤪 MANYAK 1 Saat Stratejisi (RVOL >= 1.2)
             if hma20_1h_curr and (close_curr_1h > hma20_1h_curr) and (rvol_1h >= 1.2) and wave_breakout_1h:
               if kayit_guncelle("manyak_1h"):
                 tetiklenen_str.append("MANYAK 1 Saat")
@@ -689,7 +688,7 @@ def run_scanner():
             # =========================================================================
 
             # =========================================================================
-            # 🎯 SÜPER 15 CROSS (Tamamen 15m & Verimlilik > 0.35)
+            # 🎯 SÜPER 15 CROSS (Güncellenmiş MFI ve +DI Koşullarıyla)
             # =========================================================================
             if not df_15m.empty and len(df_15m) >= 35:
               close_15m_s = df_15m["Close"]
@@ -711,7 +710,11 @@ def run_scanner():
               p_dm_15m = up_m_15m.where((up_m_15m > down_m_15m) & (up_m_15m > 0), 0)
               tr_15m_f = pd.concat([high_15m_s - low_15m_s, (high_15m_s - close_15m_s.shift()).abs(), (low_15m_s - close_15m_s.shift()).abs()], axis=1).max(axis=1)
               p_di_ser_15m = 100 * (p_dm_15m.rolling(14).sum() / (tr_15m_f.rolling(14).sum() + 1e-10))
-              is_plus_di_15m_base_ok = p_di_ser_15m.iloc[-1] > 25.0
+              
+              # İstediğin yeni +DI kuralı: Son 12 barda 40+ geçmişi VE son barda 25+ olması
+              is_plus_di_12bar_ok = (p_di_ser_15m.iloc[-12:] >= 40.0).any()
+              is_plus_di_last_ok = p_di_ser_15m.iloc[-1] > 25.0
+              is_plus_di_15m_base_ok = is_plus_di_12bar_ok and is_plus_di_last_ok
 
               wave_sequence = [4, 8, 5, 8, 9]
               total_cycle_15m = sum(wave_sequence)
@@ -743,7 +746,10 @@ def run_scanner():
                 else:
                   is_hma9_span_a_trigger = False
 
-                is_mfi_15m_ok = mfi_15m > 50.0
+                # İstediğin yeni MFI kuralı: Son 12 barda 70+ geçmişi VE son barda 50+ olması
+                mfi_12bar_check = (mfi_ser_15m.iloc[-12:] >= 70.0).any()
+                mfi_last_check = mfi_15m > 50.0
+                is_mfi_15m_ok = mfi_12bar_check and mfi_last_check
 
                 sma20_15m_sc = close_15m_s.rolling(22).mean()
                 if not sma20_15m_sc.empty and len(sma20_15m_sc) >= 2:
