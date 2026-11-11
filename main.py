@@ -615,6 +615,12 @@ def run_scanner():
                 tetiklenen_str.append("DELİRDİ 1 Saat")
                 toplam_puan += 35.0
 
+            # 🤪 MANYAK 1 Saat Stratejisi (RVOL >= 1.2)
+            if hma20_1h_curr and (close_curr_1h > hma20_1h_curr) and (rvol_1h >= 1.2) and wave_breakout_1h:
+              if kayit_guncelle("manyak_1h"):
+                tetiklenen_str.append("MANYAK 1 Saat")
+                toplam_puan += 30.0
+
         df_15m = extract_ticker_df(df_15m_all, clean_ticker, chunk)
         if not df_15m.empty and len(df_15m) >= 40:
           if isinstance(df_15m.columns, pd.MultiIndex):
@@ -707,7 +713,6 @@ def run_scanner():
               p_di_ser_15m = 100 * (p_dm_15m.rolling(14).sum() / (tr_15m_f.rolling(14).sum() + 1e-10))
               is_plus_di_15m_base_ok = p_di_ser_15m.iloc[-1] > 25.0
 
-              # Dalga marjı (0.80) kaldırıldı, yerine verimlilik > 0.35 eklendi
               wave_sequence = [4, 8, 5, 8, 9]
               total_cycle_15m = sum(wave_sequence)
               if len(close_15m_s) >= total_cycle_15m:
@@ -870,14 +875,15 @@ def run_scanner():
           elif "KARTAL 15DK" in strat_upper:
             mesaj_satirlari.append(f"• 🦅⚡ {strat} (MFI:{item['mfi_15m']:.1f} | +DI:{item['plus_di_15m']:.1f})")
           elif "KARTAL DALGASI" in strat_upper:
-            mesaj_scalartal = f"• 🦅📊 {strat} (MFI:{item['mfi_15m']:.1f} | +DI:{item['plus_di_15m']:.1f})"
-            mesaj_satirlari.append(mesaj_scalartal)
+            mesaj_satirlari.append(f"• 🦅📊 {strat} (MFI:{item['mfi_15m']:.1f} | +DI:{item['plus_di_15m']:.1f})")
           elif "ÇEKİRGE" in strat_upper:
             mesaj_satirlari.append(f"• 🌿🚀🐕 {strat} (MFI:{item['mfi_15m']:.1f} | RVOL:{item['rvol_15m']:.1f} | +DI:{item['plus_di_15m']:.1f})")
           elif "TEHLİKELİ HİBRİT" in strat_upper:
             mesaj_satirlari.append(f"• 🟢🟢🟢 {strat} (MFI:{item['mfi_15m']:.1f} | CMF:{item['cmf']:.2f} | Konum:%{item['konum_1h']:.1f})")
           elif "DELİRDİ" in strat_upper and "1 SAAT" in strat_upper:
             mesaj_satirlari.append(f"• 💥💥💥 {strat} (1s RVOL:{item['rvol_1h']:.2f} | 1s RSI:{item['rsi_1h']:.1f} | 1s Konum:%{item['konum_1h']:.1f})")
+          elif "MANYAK" in strat_upper and "1 SAAT" in strat_upper:
+            mesaj_satirlari.append(f"• 🤪🤪🤪 {strat} (1s RVOL:{item['rvol_1h']:.2f} | 1s RSI:{item['rsi_1h']:.1f} | 1s Konum:%{item['konum_1h']:.1f})")
           elif "1 SAAT YAKALA" in strat_upper:
             mesaj_satirlari.append(f"• ⚫⚫⚫ {strat} (1s RSI:{item['rsi_1h']:.1f} | 1s Konum:%{item['konum_1h']:.1f})")
           else:
