@@ -503,7 +503,8 @@ def run_scanner():
     print(f"Grup {chunk_idx}/{len(stock_chunks)} verileri indiriliyor ({len(chunk)} hisse)...")
     df_1h_all = download_with_retry(chunk, "1h", "2mo")
     df_15m_all = download_with_retry(chunk, "15m", "10d")
-    return chunk_idx, chunk, df_1h_all, df_15m_all
+    df_5m_all = download_with_retry(chunk, "5m", "5d")
+    return chunk_idx, chunk, df_1h_all, df_15m_all, df_5m_all
 
   chunk_results = []
   with concurrent.futures.ThreadPoolExecutor(max_workers=4) as executor:
@@ -516,7 +517,7 @@ def run_scanner():
 
   chunk_results.sort(key=lambda x: x[0])
 
-  for chunk_idx, chunk, df_1h_all, df_15m_all in chunk_results:
+  for chunk_idx, chunk, df_1h_all, df_15m_all, df_5m_all in chunk_results:
     for clean_ticker in chunk:
       temiz_isim = clean_ticker.replace(".IS", "")
       tetiklenen_str = []
@@ -688,78 +689,7 @@ def run_scanner():
             # =========================================================================
 
             # =========================================================================
-            # 🎯 SÜPER 15 CROSS (Güncellenmiş İstek Üzerine)
-            # =========================================================================
-            if not df_15m.empty and len(df_15m) >= 35 and not df_1h.empty:
-              # Saatlik yapısı: Hull 20 fiyatın altında olacak (close_1h > hma20_1h)
-              close_1h_s = df_1h["Close"]
-              hma20_1h_s = calculate_hma(close_1h_s, 20)
-              is_hourly_hma20_ok = (not hma20_1h_s.empty) and (close_1h_s.iloc[-1] > hma20_1h_s.iloc[-1])
-
-              if is_hourly_hma20_ok:
-                close_15m_s = df_15m["Close"]
-                high_15m_s = df_15m["High"]
-                low_15m_s = df_15m["Low"]
-                volume_15m_s = df_15m["Volume"]
-
-                # 15 dk'lıkta MFI > 60 ve +DI > 25
-                mfi_ser_15m_s = calculate_mfi(high_15m_s, low_15m_s, close_15m_s, volume_15m_s, 14)
-                mfi_val_15m = mfi_ser_15m_s.iloc[-1]
-                is_mfi_60_ok = mfi_val_15m > 60.0
-
-                up_m_15m = high_15m_s.diff()
-                down_m_15m = -low_15m_s.diff()
-                p_dm_15m = up_m_15m.where((up_m_15m > down_m_15m) & (up_m_15m > 0), 0)
-                tr_15m_f = pd.concat([high_15m_s - low_15m_s, (high_15m_s - close_15m_s.shift()).abs(), (low_15m_s - close_15m_s.shift()).abs()], axis=1).max(axis=1)
-                p_di_ser_15m = 100 * (p_dm_15m.rolling(14).sum() / (tr_15m_f.rolling(14).sum() + 1e-10))
-                plus_di_val_15m = p_di_ser_15m.iloc[-1]
-                is_plus_di_25_ok = plus_di_val_15m > 25.0
-
-                if is_mfi_60_ok and is_plus_di_25_ok:
-                  # Daralan bulut ve Hull 9 - Span A kesişimi / üstünde olma
-                  tenkan_9 = (high_15m_s.rolling(9).max() + low_15m_s.rolling(9).min()) / 2
-                  kijun_26 = (high_15m_s.rolling(26).max() + low_15m_s.rolling(26).min()) / 2
-                  senkou_span_a_15m = (tenkan_9 + kijun_26) / 2
-                  span_b_15m = (high_15m_s.rolling(52).max() + low_15m_s.rolling(52).min()) / 2
-
-                  bulut_kalinligi = (senkou_span_a_15m - span_b_15m).abs()
-                  daralan_bulut = bulut_kalinligi.iloc[-1] < bulut_kalinligi.rolling(20).mean().iloc[-1]
-
-                  hma9_15m = calculate_hma(close_15m_s, 9)
-                  if not hma9_15m.empty and len(hma9_15m) >= 2 and len(senkou_span_a_15m) >= 2:
-                    hma9_span_a_kesisim = (hma9_15m.iloc[-2] <= senkou_span_a_15m.iloc[-2]) and (hma9_15m.iloc[-1] > senkou_span_a_15m.iloc[-1])
-                    hma9_span_a_ustunde = (hma9_15m.iloc[-1] >= senkou_span_a_15m.iloc[-1])
-                    hull_span_trigger = hma9_span_a_kesisim or hma9_span_a_ustunde
-                  else:
-                    hull_span_trigger = False
-
-                  daralan_bulut_sarti = daralan_bulut and hull_span_trigger
-
-                  # VEYA daralan bolinger orta bant üstünde veya kesecek
-                  sma20_15m_sc = close_15m_s.rolling(20).mean()
-                  std20_15m = close_15m_s.rolling(20).std()
-                  upper_bb = sma20_15m_sc + (std20_15m * 2)
-                  lower_bb = sma20_15m_sc - (std20_15m * 2)
-                  band_width = (upper_bb - lower_bb) / (sma20_15m_sc + 1e-10)
-                  daralan_bb = band_width.iloc[-1] < band_width.rolling(20).mean().iloc[-1]
-
-                  if not sma20_15m_sc.empty and len(sma20_15m_sc) >= 2:
-                    bb_mid_crossover = (close_15m_s.iloc[-2] <= sma20_15m_sc.iloc[-2]) and (close_15m_s.iloc[-1] > sma20_15m_sc.iloc[-1])
-                    bb_mid_above = close_15m_s.iloc[-1] >= sma20_15m_sc.iloc[-1]
-                    bb_mid_trigger = bb_mid_crossover or bb_mid_above
-                  else:
-                    bb_mid_trigger = False
-
-                  daralan_bolinger_sarti = daralan_bb and bb_mid_trigger
-
-                  if daralan_bulut_sarti or daralan_bolinger_sarti:
-                    if kayit_guncelle("super_15_bb_cross"):
-                      tetiklenen_str.append("SÜPER 15 CROSS (ROC)")
-                      toplam_puan += 40.0
-            # =========================================================================
-
-            # =========================================================================
-            # 🟢 TEHLİKELİ HİBRİT KONTROLÜ (GÜNCELLENMİŞ VERSİYON)
+            # 🟢 TEHLİKELİ HİBRİT KONTROLÜ
             # =========================================================================
             try:
                 konum_yuzde_1h_curr = check_wave_margins(df_1h, lookback=1)[1] if not df_1h.empty else get_wave_position(df_15m)
@@ -768,12 +698,9 @@ def run_scanner():
                 is_cmf_ok = son_cmf > 0.0
 
                 span_b_15m = (high_15m.rolling(52).max() + low_15m.rolling(52).min()) / 2
-
-                # Daralan Bulut Kontrolü
                 bulut_kalinligi = (senkou_span_a - span_b_15m).abs()
                 daralan_bulut = bulut_kalinligi.iloc[-1] < bulut_kalinligi.rolling(20).mean().iloc[-1]
 
-                # Hull 9 ve Span A Kesişim / Üzerinde Olma Kontrolü
                 hma9_15m = calculate_hma(close_15m, 9)
                 if not hma9_15m.empty and len(hma9_15m) >= 2 and len(senkou_span_a) >= 2:
                     hma9_span_a_kesisim = (hma9_15m.iloc[-2] <= senkou_span_a.iloc[-2]) and (hma9_15m.iloc[-1] > senkou_span_a.iloc[-1])
@@ -789,6 +716,93 @@ def run_scanner():
             except Exception:
                 pass
             # =========================================================================
+
+        # =========================================================================
+        # 🎯 SÜPER 5 CROSS (5 Dakikalık Veri Üzerinde)
+        # =========================================================================
+        df_5m = extract_ticker_df(df_5m_all, clean_ticker, chunk)
+        if not df_5m.empty and len(df_5m) >= 35 and not df_1h.empty:
+          if isinstance(df_5m.columns, pd.MultiIndex):
+            df_5m.columns = df_5m.columns.get_level_values(0)
+
+          # Saatlik yapısı: Hull 20 fiyatın altında olacak (close_1h > hma20_1h)
+          close_1h_s = df_1h["Close"]
+          hma20_1h_s = calculate_hma(close_1h_s, 20)
+          is_hourly_hma20_ok = (not hma20_1h_s.empty) and (close_1h_s.iloc[-1] > hma20_1h_s.iloc[-1])
+
+          if is_hourly_hma20_ok:
+            close_5m_s = df_5m["Close"]
+            high_5m_s = df_5m["High"]
+            low_5m_s = df_5m["Low"]
+            volume_5m_s = df_5m["Volume"]
+
+            if not close_5m_s.isna().iloc[-1] and not volume_5m_s.isna().iloc[-1]:
+              if guncel_fiyat == 0.0:
+                guncel_fiyat = close_5m_s.iloc[-1]
+
+              # 5 dk'lıkta MFI > 60 ve +DI > 25
+              mfi_ser_5m_s = calculate_mfi(high_5m_s, low_5m_s, close_5m_s, volume_5m_s, 14)
+              mfi_val_5m = mfi_ser_5m_s.iloc[-1]
+              is_mfi_60_ok = mfi_val_5m > 60.0
+
+              up_m_5m = high_5m_s.diff()
+              down_m_5m = -low_5m_s.diff()
+              p_dm_5m = up_m_5m.where((up_m_5m > down_m_5m) & (up_m_5m > 0), 0)
+              tr_5m_f = pd.concat([high_5m_s - low_5m_s, (high_5m_s - close_5m_s.shift()).abs(), (low_5m_s - close_5m_s.shift()).abs()], axis=1).max(axis=1)
+              p_di_ser_5m = 100 * (p_dm_5m.rolling(14).sum() / (tr_5m_f.rolling(14).sum() + 1e-10))
+              plus_di_val_5m = p_di_ser_5m.iloc[-1]
+              is_plus_di_25_ok = plus_di_val_5m > 25.0
+
+              if is_mfi_60_ok and is_plus_di_25_ok:
+                # Daralan bulut ve Hull 9 - Span A kesişimi / üstünde olma (Son 3 bar kontrolü ile)
+                tenkan_9_5m = (high_5m_s.rolling(9).max() + low_5m_s.rolling(9).min()) / 2
+                kijun_26_5m = (high_5m_s.rolling(26).max() + low_5m_s.rolling(26).min()) / 2
+                senkou_span_a_5m = (tenkan_9_5m + kijun_26_5m) / 2
+                span_b_5m = (high_5m_s.rolling(52).max() + low_5m_s.rolling(52).min()) / 2
+
+                bulut_kalinligi_5m = (senkou_span_a_5m - span_b_5m).abs()
+                daralan_bulut_5m = bulut_kalinligi_5m.iloc[-1] < bulut_kalinligi_5m.rolling(20).mean().iloc[-1]
+
+                hma9_5m = calculate_hma(close_5m_s, 9)
+                hull_span_trigger_5m = False
+                if not hma9_5m.empty and len(hma9_5m) >= 3 and len(senkou_span_a_5m) >= 3:
+                  for offset in [-2, -1, 0]:
+                    idx = len(hma9_5m) + offset
+                    if idx >= 1 and idx < len(hma9_5m):
+                      crossover = (hma9_5m.iloc[idx - 1] <= senkou_span_a_5m.iloc[idx - 1]) and (hma9_5m.iloc[idx] > senkou_span_a_5m.iloc[idx])
+                      above = (hma9_5m.iloc[idx] >= senkou_span_a_5m.iloc[idx])
+                      if crossover or above:
+                        hull_span_trigger_5m = True
+                        break
+
+                daralan_bulut_sarti_5m = daralan_bulut_5m and hull_span_trigger_5m
+
+                # VEYA daralan bolinger orta bant üstünde veya kesecek (Son 3 bar kontrolü ile)
+                sma20_5m_sc = close_5m_s.rolling(20).mean()
+                std20_5m = close_5m_s.rolling(20).std()
+                upper_bb_5m = sma20_5m_sc + (std20_5m * 2)
+                lower_bb_5m = sma20_5m_sc - (std20_5m * 2)
+                band_width_5m = (upper_bb_5m - lower_bb_5m) / (sma20_5m_sc + 1e-10)
+                daralan_bb_5m = band_width_5m.iloc[-1] < band_width_5m.rolling(20).mean().iloc[-1]
+
+                bb_mid_trigger_5m = False
+                if not sma20_5m_sc.empty and len(sma20_5m_sc) >= 3:
+                  for offset in [-2, -1, 0]:
+                    idx = len(sma20_5m_sc) + offset
+                    if idx >= 1 and idx < len(sma20_5m_sc):
+                      crossover = (close_5m_s.iloc[idx - 1] <= sma20_5m_sc.iloc[idx - 1]) and (close_5m_s.iloc[idx] > sma20_5m_sc.iloc[idx])
+                      above = (close_5m_s.iloc[idx] >= sma20_5m_sc.iloc[idx])
+                      if crossover or above:
+                        bb_mid_trigger_5m = True
+                        break
+
+                daralan_bolinger_sarti_5m = daralan_bb_5m and bb_mid_trigger_5m
+
+                if daralan_bulut_sarti_5m or daralan_bolinger_sarti_5m:
+                  if kayit_guncelle("super_5_bb_cross"):
+                    tetiklenen_str.append("SÜPER 5 CROSS (5m)")
+                    toplam_puan += 40.0
+        # =========================================================================
 
         if tetiklenen_str:
           if toplam_puan == 0:
@@ -866,7 +880,7 @@ def run_scanner():
         
         for strat in item['stratejiler']:
           strat_upper = strat.upper()
-          if "SÜPER 15 CROSS" in strat_upper:
+          if "SÜPER 5 CROSS" in strat_upper:
             mesaj_satirlari.append(f"• 🎯🎯 {strat} (MFI:{item['mfi_15m']:.1f} | +DI:{item['plus_di_15m']:.1f})")
           elif "KARTAL 15DK" in strat_upper:
             mesaj_satirlari.append(f"• 🦅⚡ {strat} (MFI:{item['mfi_15m']:.1f} | +DI:{item['plus_di_15m']:.1f})")
