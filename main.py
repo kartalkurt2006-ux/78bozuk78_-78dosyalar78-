@@ -718,10 +718,10 @@ def run_scanner():
             # =========================================================================
 
         # =========================================================================
-        # 🎯 SÜPER 5 CROSS (5 Dakikalık Veri Üzerinde)
+        # 🎯 SÜPER 5 CROSS (5 Dakikalık Veri Üzerinde - Marj Kırılımlı Güncel Sürüm)
         # =========================================================================
         df_5m = extract_ticker_df(df_5m_all, clean_ticker, chunk)
-        if not df_5m.empty and len(df_5m) >= 35 and not df_1h.empty:
+        if not df_5m.empty and len(df_5m) >= 40 and not df_1h.empty:
           if isinstance(df_5m.columns, pd.MultiIndex):
             df_5m.columns = df_5m.columns.get_level_values(0)
 
@@ -753,8 +753,31 @@ def run_scanner():
               plus_di_val_5m = p_di_ser_5m.iloc[-1]
               is_plus_di_25_ok = plus_di_val_5m > 25.0
 
-              if is_mfi_60_ok and is_plus_di_25_ok:
-                # Daralan bulut ve Hull 9 - Span A kesişimi / üstünde olma (Son 3 bar kontrolü ile)
+              # 👑 YENİ EKLENEN KURAL: 36 Barlık Üst Marj Üstünde Ardışık 3 Bar Kapanışı
+              def check_5m_ust_marj_3_bar(df_sub, lookback_bars=36, threshold_multiplier=0.80):
+                  try:
+                      if len(df_sub) < lookback_bars + 3:
+                          return False
+                      h_arr = df_sub["High"].values
+                      l_arr = df_sub["Low"].values
+                      c_arr = df_sub["Close"].values
+                      
+                      r_high = np.max(h_arr[-lookback_bars:])
+                      r_low = np.min(l_arr[-lookback_bars:])
+                      m_range = r_high - r_low
+                      if m_range == 0:
+                          return False
+                      
+                      upper_thresh = r_low + (m_range * threshold_multiplier)
+                      son_3_c = c_arr[-3:]
+                      return all(c > upper_thresh for c in son_3_c)
+                  except:
+                      return False
+
+              is_36bar_marj_breakout = check_5m_ust_marj_3_bar(df_5m, lookback_bars=36, threshold_multiplier=0.80)
+
+              if is_mfi_60_ok and is_plus_di_25_ok and is_36bar_marj_breakout:
+                # Daralan bulut ve Hull 9 - Span A kesişimi / üstünde olma
                 tenkan_9_5m = (high_5m_s.rolling(9).max() + low_5m_s.rolling(9).min()) / 2
                 kijun_26_5m = (high_5m_s.rolling(26).max() + low_5m_s.rolling(26).min()) / 2
                 senkou_span_a_5m = (tenkan_9_5m + kijun_26_5m) / 2
@@ -777,7 +800,7 @@ def run_scanner():
 
                 daralan_bulut_sarti_5m = daralan_bulut_5m and hull_span_trigger_5m
 
-                # VEYA daralan bolinger orta bant üstünde veya kesecek (Son 3 bar kontrolü ile)
+                # VEYA daralan bolinger orta bant üstünde veya kesecek
                 sma20_5m_sc = close_5m_s.rolling(20).mean()
                 std20_5m = close_5m_s.rolling(20).std()
                 upper_bb_5m = sma20_5m_sc + (std20_5m * 2)
@@ -800,8 +823,8 @@ def run_scanner():
 
                 if daralan_bulut_sarti_5m or daralan_bolinger_sarti_5m:
                   if kayit_guncelle("super_5_bb_cross"):
-                    tetiklenen_str.append("SÜPER 5 CROSS (5m)")
-                    toplam_puan += 40.0
+                    tetiklenen_str.append("SÜPER 5 CROSS (Marj Teyitli)")
+                    toplam_puan += 45.0
         # =========================================================================
 
         if tetiklenen_str:
