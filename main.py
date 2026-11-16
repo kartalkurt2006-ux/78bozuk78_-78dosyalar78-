@@ -175,7 +175,7 @@ def check_wave_margins(df, lookback=3, threshold_multiplier=0.80):
 
 
 # =========================================================================
-# 🌿 ÇEKİRGE STRATEJİSİ (Orijinal 15dk Modül)
+# 🌿 ÇEKİRGE STRATEJİSİ (Orijinal Modül)
 # =========================================================================
 def scan_cekirge(df_15m, df_1h):
     try:
@@ -270,7 +270,7 @@ def scan_cekirge(df_15m, df_1h):
 
 
 # =========================================================================
-# 🦅 KARTAL 15dk MOTORU
+# 🦅 KARTAL 15DK MOTORU (Orijinal Modül)
 # =========================================================================
 def scan_kartal_15dk(df_15m, df_1h):
     try:
@@ -337,7 +337,7 @@ def scan_kartal_15dk(df_15m, df_1h):
 
 
 # =========================================================================
-# 🦅 KARTAL DALGASI (15DK - SON 12 BAR MFI 70+ İŞTAHLI MODÜL)
+# 🦅 KARTAL DALGASI (15DK - Orijinal Modül)
 # =========================================================================
 def scan_kartal_dalgasi(df_15m, df_1h):
     try:
@@ -755,13 +755,14 @@ def run_scanner():
             # =========================================================================
 
         # =========================================================================
-        # 🎯 SÜPER 5 CROSS (5 Dakikalık Veri Üzerinde - Orijinal Modül)
+        # 🎯 SÜPER 5 CROSS (5 Dakikalık Veri Üzerinde - Orijinal Marj Kırılımlı Sürüm)
         # =========================================================================
         df_5m = extract_ticker_df(df_5m_all, clean_ticker, chunk)
         if not df_5m.empty and len(df_5m) >= 40 and not df_1h.empty:
           if isinstance(df_5m.columns, pd.MultiIndex):
             df_5m.columns = df_5m.columns.get_level_values(0)
 
+          # Saatlik yapısı: Hull 20 fiyatın altında olacak (close_1h > hma20_1h)
           close_1h_s = df_1h["Close"]
           hma20_1h_s = calculate_hma(close_1h_s, 20)
           is_hourly_hma20_ok = (not hma20_1h_s.empty) and (close_1h_s.iloc[-1] > hma20_1h_s.iloc[-1])
@@ -776,6 +777,7 @@ def run_scanner():
               if guncel_fiyat == 0.0:
                 guncel_fiyat = close_5m_s.iloc[-1]
 
+              # 5 dk'lıkta MFI > 60 ve +DI > 25
               mfi_ser_5m_s = calculate_mfi(high_5m_s, low_5m_s, close_5m_s, volume_5m_s, 14)
               mfi_val_5m = mfi_ser_5m_s.iloc[-1]
               is_mfi_60_ok = mfi_val_5m > 60.0
@@ -788,9 +790,31 @@ def run_scanner():
               plus_di_val_5m = p_di_ser_5m.iloc[-1]
               is_plus_di_25_ok = plus_di_val_5m > 25.0
 
-              wave_triggered_5m, _ = check_wave_margins(df_5m, lookback=3, threshold_multiplier=0.80)
+              # 👑 Orijinal Süper 5 Cross Kuralı: 36 Barlık Üst Marj Üstünde Ardışık 3 Bar Kapanışı
+              def check_5m_ust_marj_3_bar(df_sub, lookback_bars=36, threshold_multiplier=0.80):
+                  try:
+                      if len(df_sub) < lookback_bars + 3:
+                          return False
+                      h_arr = df_sub["High"].values
+                      l_arr = df_sub["Low"].values
+                      c_arr = df_sub["Close"].values
+                      
+                      r_high = np.max(h_arr[-lookback_bars:])
+                      r_low = np.min(l_arr[-lookback_bars:])
+                      m_range = r_high - r_low
+                      if m_range == 0:
+                          return False
+                      
+                      upper_thresh = r_low + (m_range * threshold_multiplier)
+                      son_3_c = c_arr[-3:]
+                      return all(c > upper_thresh for c in son_3_c)
+                  except:
+                      return False
 
-              if is_mfi_60_ok and is_plus_di_25_ok and wave_triggered_5m:
+              is_36bar_marj_breakout = check_5m_ust_marj_3_bar(df_5m, lookback_bars=36, threshold_multiplier=0.80)
+
+              if is_mfi_60_ok and is_plus_di_25_ok and is_36bar_marj_breakout:
+                # Daralan bulut ve Hull 9 - Span A kesişimi / üstünde olma
                 tenkan_9_5m = (high_5m_s.rolling(9).max() + low_5m_s.rolling(9).min()) / 2
                 kijun_26_5m = (high_5m_s.rolling(26).max() + low_5m_s.rolling(26).min()) / 2
                 senkou_span_a_5m = (tenkan_9_5m + kijun_26_5m) / 2
@@ -813,6 +837,7 @@ def run_scanner():
 
                 daralan_bulut_sarti_5m = daralan_bulut_5m and hull_span_trigger_5m
 
+                # VEYA daralan bolinger orta bant üstünde veya kesecek
                 sma20_5m_sc = close_5m_s.rolling(20).mean()
                 std20_5m = close_5m_s.rolling(20).std()
                 upper_bb_5m = sma20_5m_sc + (std20_5m * 2)
@@ -835,7 +860,7 @@ def run_scanner():
 
                 if daralan_bulut_sarti_5m or daralan_bolinger_sarti_5m:
                   if kayit_guncelle("super_5_bb_cross"):
-                    tetiklenen_str.append("SÜPER 5 CROSS")
+                    tetiklenen_str.append("SÜPER 5 CROSS (Marj Teyitli)")
                     toplam_puan += 45.0
         # =========================================================================
 
@@ -930,7 +955,7 @@ def run_scanner():
           elif "MANYAK" in strat_upper and "1 SAAT" in strat_upper:
             mesaj_satirlari.append(f"• 🤪🤪🤪 {strat} (1s RVOL:{item['rvol_1h']:.2f} | 1s RSI:{item['rsi_1h']:.1f} | 1s Konum:%{item['konum_1h']:.1f})")
           elif "1 SAAT YAKALA" in strat_upper:
-            mesaj_satirlari.append(f"• ⚫⚫⚫ {strat} (1s RSI:{item['rsi_1h']:.1f} | 1s Konum:%{item['konum_1h']:.1f})")
+            mesaj_satirlari.append(f"• ⚫⚫⚫ {strat} (1s RSI:{item['rsi_1h']:.1f} | 1s Konum:%{item['kon00m_1h']:.1f})")
           else:
             mesaj_satirlari.append(f"• 🟣 {strat}")
             
