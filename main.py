@@ -175,7 +175,7 @@ def check_wave_margins(df, lookback=3, threshold_multiplier=0.80):
 
 
 # =========================================================================
-# 🌿 ÇEKİRGE STRATEJİSİ (Orijinal Modül)
+# 🌿 ÇEKİRGE STRATEJİSİ (Orijinal 15dk Modül)
 # =========================================================================
 def scan_cekirge(df_15m, df_1h):
     try:
@@ -270,7 +270,7 @@ def scan_cekirge(df_15m, df_1h):
 
 
 # =========================================================================
-# 🦅 KARTAL 15DK MOTORU (Orijinal Modül)
+# 🦅 KARTAL 15dk MOTORU
 # =========================================================================
 def scan_kartal_15dk(df_15m, df_1h):
     try:
@@ -337,7 +337,7 @@ def scan_kartal_15dk(df_15m, df_1h):
 
 
 # =========================================================================
-# 🦅 KARTAL DALGASI (15DK - Orijinal Modül)
+# 🦅 KARTAL DALGASI (15DK - SON 12 BAR MFI 70+ İŞTAHLI MODÜL)
 # =========================================================================
 def scan_kartal_dalgasi(df_15m, df_1h):
     try:
@@ -616,46 +616,9 @@ def run_scanner():
                 tetiklenen_str.append("DELİRDİ 1 Saat")
                 toplam_puan += 35.0
 
-            # 👑 GÜNCELLENEN MANYAK 1 SAAT (36 Barlık Periyot + %80 Eşiği Yok + Verimlilik > 0.35 + Son 3 Bar Teyidi)
-            wave_sequence = [4, 8, 5, 8, 9]
-            total_cycle_1h = sum(wave_sequence)
-            
-            manyak_valid = False
-            if hma20_1h_curr and (close_curr_1h > hma20_1h_curr) and (rvol_1h >= 1.2) and len(close_1h) >= 39:
-                h_arr_1h = high_1h.values
-                l_arr_1h = low_1h.values
-                c_arr_1h = close_1h.values
-                vol_arr_1h = volume_1h.values
-                vol_sma_arr_1h = volume_1h.rolling(20).mean().values
-
-                son_3_bar_verimli = True
-                for offset in range(-2, 1):
-                    idx = len(c_arr_1h) + offset
-                    if idx < total_cycle_1h:
-                        son_3_bar_verimli = False
-                        break
-                    
-                    p_high = np.max(h_arr_1h[idx - total_cycle_1h : idx])
-                    p_low = np.min(l_arr_1h[idx - total_cycle_1h : idx])
-                    p_range = p_high - p_low
-                    
-                    p_rvol = vol_arr_1h[idx] / (vol_sma_arr_1h[idx] if not np.isnan(vol_sma_arr_1h[idx]) and vol_sma_arr_1h[idx] > 0 else 1e-5)
-                    
-                    if p_rvol <= 0:
-                        eff = 0.0
-                    else:
-                        eff = p_range / p_rvol
-                        
-                    if eff <= 0.35:
-                        son_3_bar_verimli = False
-                        break
-
-                if son_3_bar_verimli:
-                    manyak_valid = True
-
-            if manyak_valid:
+            if hma20_1h_curr and (close_curr_1h > hma20_1h_curr) and (rvol_1h >= 1.2) and wave_breakout_1h:
               if kayit_guncelle("manyak_1h"):
-                tetiklenen_str.append("MANYAK 1 Saat (Verimlilik Teyitli)")
+                tetiklenen_str.append("MANYAK 1 Saat")
                 toplam_puan += 30.0
 
         df_15m = extract_ticker_df(df_15m_all, clean_ticker, chunk)
@@ -706,7 +669,7 @@ def run_scanner():
             # =========================================================================
 
             # =========================================================================
-            # 🦅 KARTAL 15DK KONTROLÜ (Orijinal Modül)
+            # 🦅 KARTAL 15DK KONTROLÜ
             # =========================================================================
             if not df_1h.empty:
                 if scan_kartal_15dk(df_15m, df_1h):
@@ -716,7 +679,7 @@ def run_scanner():
             # =========================================================================
 
             # =========================================================================
-            # 🦅 KARTAL DALGASI KONTROLÜ (Orijinal Modül)
+            # 🦅 KARTAL DALGASI KONTROLÜ
             # =========================================================================
             if not df_1h.empty:
                 if scan_kartal_dalgasi(df_15m, df_1h):
@@ -726,7 +689,7 @@ def run_scanner():
             # =========================================================================
 
             # =========================================================================
-            # 🟢 TEHLİKELİ HİBRİT KONTROLÜ (Orijinal Modül)
+            # 🟢 TEHLİKELİ HİBRİT KONTROLÜ
             # =========================================================================
             try:
                 konum_yuzde_1h_curr = check_wave_margins(df_1h, lookback=1)[1] if not df_1h.empty else get_wave_position(df_15m)
@@ -755,7 +718,7 @@ def run_scanner():
             # =========================================================================
 
         # =========================================================================
-        # 🎯 SÜPER 5 CROSS (5 Dakikalık Veri Üzerinde - Orijinal Marj Kırılımlı Sürüm)
+        # 🎯 SÜPER 5 CROSS (5 Dakikalık Veri Üzerinde - Marj Kırılımlı Güncel Sürüm)
         # =========================================================================
         df_5m = extract_ticker_df(df_5m_all, clean_ticker, chunk)
         if not df_5m.empty and len(df_5m) >= 40 and not df_1h.empty:
@@ -790,7 +753,7 @@ def run_scanner():
               plus_di_val_5m = p_di_ser_5m.iloc[-1]
               is_plus_di_25_ok = plus_di_val_5m > 25.0
 
-              # 👑 Orijinal Süper 5 Cross Kuralı: 36 Barlık Üst Marj Üstünde Ardışık 3 Bar Kapanışı
+              # 👑 YENİ EKLENEN KURAL: 36 Barlık Üst Marj Üstünde Ardışık 3 Bar Kapanışı
               def check_5m_ust_marj_3_bar(df_sub, lookback_bars=36, threshold_multiplier=0.80):
                   try:
                       if len(df_sub) < lookback_bars + 3:
