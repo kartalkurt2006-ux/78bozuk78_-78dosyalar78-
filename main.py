@@ -955,7 +955,7 @@ def run_scanner():
           elif "MANYAK" in strat_upper and "1 SAAT" in strat_upper:
             mesaj_satirlari.append(f"• 🤪🤪🤪 {strat} (1s RVOL:{item['rvol_1h']:.2f} | 1s RSI:{item['rsi_1h']:.1f} | 1s Konum:%{item['konum_1h']:.1f})")
           elif "1 SAAT YAKALA" in strat_upper:
-            mesaj_satirlari.append(f"• ⚫⚫⚫ {strat} (1s RSI:{item['rsi_1h']:.1f} | 1s Konum:%{item['kon00m_1h']:.1f})")
+            mesaj_satirlari.append(f"• ⚫⚫⚫ {strat} (1s RSI:{item['rsi_1h']:.1f} | 1s Konum:%{item['konum_1h']:.1f})")
           else:
             mesaj_satirlari.append(f"• 🟣 {strat}")
             
