@@ -1,72 +1,6 @@
 {
     "kayitlar": {
         "1h_dalga_gorsel": {
-            "ALBRK.IS": {
-                "zaman": 1794208547.9233022,
-                "ilk_fiyat": 8.5,
-                "son_fiyat": 8.720000267028809,
-                "tekrar_sayisi": 18
-            },
-            "AYGAZ.IS": {
-                "zaman": 1794208547.9233022,
-                "ilk_fiyat": 275.75,
-                "son_fiyat": 283.0,
-                "tekrar_sayisi": 20
-            },
-            "EMKEL.IS": {
-                "zaman": 1794208547.9233022,
-                "ilk_fiyat": 5.190000057220459,
-                "son_fiyat": 6.599999904632568,
-                "tekrar_sayisi": 50
-            },
-            "FONET.IS": {
-                "zaman": 1794208547.9233022,
-                "ilk_fiyat": 4.010000228881836,
-                "son_fiyat": 4.389999866485596,
-                "tekrar_sayisi": 39
-            },
-            "KCHOL.IS": {
-                "zaman": 1794208547.9233022,
-                "ilk_fiyat": 208.8000030517578,
-                "son_fiyat": 212.6999969482422,
-                "tekrar_sayisi": 17
-            },
-            "KZBGY.IS": {
-                "zaman": 1794208547.9233022,
-                "ilk_fiyat": 1.2400000095367432,
-                "son_fiyat": 1.2599999904632568,
-                "tekrar_sayisi": 23
-            },
-            "MNDTR.IS": {
-                "zaman": 1794208547.9233022,
-                "ilk_fiyat": 3.690000057220459,
-                "son_fiyat": 3.680000066757202,
-                "tekrar_sayisi": 8
-            },
-            "OBAMS.IS": {
-                "zaman": 1794208547.9233022,
-                "ilk_fiyat": 3.740000009536743,
-                "son_fiyat": 3.7799999713897705,
-                "tekrar_sayisi": 28
-            },
-            "RUBNS.IS": {
-                "zaman": 1794208547.9233022,
-                "ilk_fiyat": 13.220000267028809,
-                "son_fiyat": 14.199999809265137,
-                "tekrar_sayisi": 40
-            },
-            "TCKRC.IS": {
-                "zaman": 1794208547.9233022,
-                "ilk_fiyat": 124.5999984741211,
-                "son_fiyat": 133.3000030517578,
-                "tekrar_sayisi": 38
-            },
-            "VBTYZ.IS": {
-                "zaman": 1794208547.9233022,
-                "ilk_fiyat": 21.68000030517578,
-                "son_fiyat": 21.799999237060547,
-                "tekrar_sayisi": 11
-            },
             "ARSAN.IS": {
                 "zaman": 1794209472.7129536,
                 "ilk_fiyat": 3.4100000858306885,
@@ -292,8 +226,8 @@
             "HTTBT.IS": {
                 "zaman": 1794296748.6702423,
                 "ilk_fiyat": 30.979999542236328,
-                "son_fiyat": 30.81999969482422,
-                "tekrar_sayisi": 7
+                "son_fiyat": 30.739999771118164,
+                "tekrar_sayisi": 8
             },
             "MOBTL.IS": {
                 "zaman": 1794296748.6702423,
@@ -376,8 +310,8 @@
             "PRDGS.IS": {
                 "zaman": 1794395748.1543984,
                 "ilk_fiyat": 3.5999999046325684,
-                "son_fiyat": 3.759999990463257,
-                "tekrar_sayisi": 22
+                "son_fiyat": 3.859999895095825,
+                "tekrar_sayisi": 23
             },
             "TKFEN.IS": {
                 "zaman": 1794397549.1559122,
@@ -388,8 +322,8 @@
             "EUKYO.IS": {
                 "zaman": 1794480344.9383173,
                 "ilk_fiyat": 7.260000228881836,
-                "son_fiyat": 8.819999694824219,
-                "tekrar_sayisi": 41
+                "son_fiyat": 8.720000267028809,
+                "tekrar_sayisi": 42
             },
             "LOGO.IS": {
                 "zaman": 1794480344.9383173,
@@ -514,8 +448,8 @@
             "DURDO.IS": {
                 "zaman": 1794564942.5981429,
                 "ilk_fiyat": 5.809999942779541,
-                "son_fiyat": 6.380000114440918,
-                "tekrar_sayisi": 39
+                "son_fiyat": 6.630000114440918,
+                "tekrar_sayisi": 40
             },
             "INVES.IS": {
                 "zaman": 1794567667.5312722,
@@ -646,8 +580,8 @@
             "ALKLC.IS": {
                 "zaman": 1794813345.2456033,
                 "ilk_fiyat": 31.15999984741211,
-                "son_fiyat": 37.68000030517578,
-                "tekrar_sayisi": 25
+                "son_fiyat": 39.959999084472656,
+                "tekrar_sayisi": 26
             },
             "AYES.IS": {
                 "zaman": 1794813345.2456033,
@@ -700,8 +634,8 @@
             "FLAP.IS": {
                 "zaman": 1794813345.2456033,
                 "ilk_fiyat": 11.140000343322754,
-                "son_fiyat": 11.350000381469727,
-                "tekrar_sayisi": 25
+                "son_fiyat": 11.479999542236328,
+                "tekrar_sayisi": 26
             },
             "GENIL.IS": {
                 "zaman": 1794813345.2456033,
@@ -718,8 +652,8 @@
             "IDGYO.IS": {
                 "zaman": 1794813345.2456033,
                 "ilk_fiyat": 2.430000066757202,
-                "son_fiyat": 2.950000047683716,
-                "tekrar_sayisi": 34
+                "son_fiyat": 3.240000009536743,
+                "tekrar_sayisi": 35
             },
             "KLRHO.IS": {
                 "zaman": 1794813345.2456033,
@@ -736,8 +670,8 @@
             "MANAS.IS": {
                 "zaman": 1794813345.2456033,
                 "ilk_fiyat": 3.9100000858306885,
-                "son_fiyat": 4.730000019073486,
-                "tekrar_sayisi": 32
+                "son_fiyat": 5.150000095367432,
+                "tekrar_sayisi": 33
             },
             "MMCAS.IS": {
                 "zaman": 1794813345.2456033,
@@ -838,8 +772,8 @@
             "IHLGM.IS": {
                 "zaman": 1794814447.9109783,
                 "ilk_fiyat": 1.059999942779541,
-                "son_fiyat": 1.3300000429153442,
-                "tekrar_sayisi": 31
+                "son_fiyat": 1.4500000476837158,
+                "tekrar_sayisi": 32
             },
             "INFO.IS": {
                 "zaman": 1794814447.9109783,
@@ -1006,14 +940,14 @@
             "UFUK.IS": {
                 "zaman": 1794816065.6044695,
                 "ilk_fiyat": 176.60000610351562,
-                "son_fiyat": 213.60000610351562,
-                "tekrar_sayisi": 30
+                "son_fiyat": 231.1999969482422,
+                "tekrar_sayisi": 31
             },
             "SEGYO.IS": {
                 "zaman": 1794816945.1135962,
                 "ilk_fiyat": 2.9600000381469727,
-                "son_fiyat": 3.240000009536743,
-                "tekrar_sayisi": 14
+                "son_fiyat": 3.390000104904175,
+                "tekrar_sayisi": 15
             },
             "CMBTN.IS": {
                 "zaman": 1794817857.5495286,
@@ -1072,8 +1006,8 @@
             "AVGYO.IS": {
                 "zaman": 1794818754.9583173,
                 "ilk_fiyat": 15.600000381469727,
-                "son_fiyat": 16.0,
-                "tekrar_sayisi": 50
+                "son_fiyat": 16.149999618530273,
+                "tekrar_sayisi": 51
             },
             "AZTEK.IS": {
                 "zaman": 1794818754.9583173,
@@ -1204,8 +1138,8 @@
             "KRPLS.IS": {
                 "zaman": 1794820544.330307,
                 "ilk_fiyat": 10.34000015258789,
-                "son_fiyat": 10.739999771118164,
-                "tekrar_sayisi": 21
+                "son_fiyat": 10.930000305175781,
+                "tekrar_sayisi": 22
             },
             "GUBRF.IS": {
                 "zaman": 1794822344.4637706,
@@ -1360,8 +1294,8 @@
             "BSOKE.IS": {
                 "zaman": 1794899742.777516,
                 "ilk_fiyat": 6.070000171661377,
-                "son_fiyat": 6.349999904632568,
-                "tekrar_sayisi": 17
+                "son_fiyat": 6.480000019073486,
+                "tekrar_sayisi": 18
             },
             "DARDL.IS": {
                 "zaman": 1794899742.777516,
@@ -1462,8 +1396,8 @@
             "THYAO.IS": {
                 "zaman": 1794900666.3681686,
                 "ilk_fiyat": 327.25,
-                "son_fiyat": 326.0,
-                "tekrar_sayisi": 13
+                "son_fiyat": 328.25,
+                "tekrar_sayisi": 14
             },
             "VERTU.IS": {
                 "zaman": 1794900666.3681686,
@@ -1486,8 +1420,8 @@
             "BAKAB.IS": {
                 "zaman": 1794901547.338625,
                 "ilk_fiyat": 27.5,
-                "son_fiyat": 29.18000030517578,
-                "tekrar_sayisi": 15
+                "son_fiyat": 30.760000228881836,
+                "tekrar_sayisi": 16
             },
             "BERA.IS": {
                 "zaman": 1794901547.338625,
@@ -1631,23 +1565,23 @@
                 "zaman": 1795005948.5995655,
                 "ilk_fiyat": 2.319999933242798,
                 "son_fiyat": 2.309999942779541,
-                "tekrar_sayisi": 21
+                "tekrar_sayisi": 22
             },
             "EYGYO.IS": {
                 "zaman": 1795012259.3430548,
                 "ilk_fiyat": 1.8200000524520874,
                 "son_fiyat": 1.8200000524520874,
                 "tekrar_sayisi": 1
+            },
+            "CMENT.IS": {
+                "zaman": 1795072549.1434777,
+                "ilk_fiyat": 222.0,
+                "son_fiyat": 222.0,
+                "tekrar_sayisi": 1
             }
         },
         "kusursuz_yakala": {},
         "dip_hibrit": {
-            "PETKM.IS": {
-                "zaman": 1794208547.9233022,
-                "ilk_fiyat": 16.440000534057617,
-                "son_fiyat": 16.450000762939453,
-                "tekrar_sayisi": 5
-            },
             "GOKNR.IS": {
                 "zaman": 1794313857.8716946,
                 "ilk_fiyat": 12.640000343322754,
@@ -1855,12 +1789,6 @@
         },
         "firtina_1": {},
         "deli_gitan_1h": {
-            "PEKGY.IS": {
-                "zaman": 1794208547.9233022,
-                "ilk_fiyat": 1.0,
-                "son_fiyat": 1.9900000095367432,
-                "tekrar_sayisi": 18
-            },
             "EKOS.IS": {
                 "zaman": 1794209472.7129536,
                 "ilk_fiyat": 2.8399999141693115,
@@ -1900,8 +1828,8 @@
             "UFUK.IS": {
                 "zaman": 1794209472.7129536,
                 "ilk_fiyat": 109.9000015258789,
-                "son_fiyat": 213.60000610351562,
-                "tekrar_sayisi": 18
+                "son_fiyat": 231.1999969482422,
+                "tekrar_sayisi": 19
             },
             "CMBTN.IS": {
                 "zaman": 1794210417.164696,
@@ -2230,8 +2158,8 @@
             "IDGYO.IS": {
                 "zaman": 1794384067.7802908,
                 "ilk_fiyat": 1.7599999904632568,
-                "son_fiyat": 2.950000047683716,
-                "tekrar_sayisi": 19
+                "son_fiyat": 3.240000009536743,
+                "tekrar_sayisi": 20
             },
             "KLRHO.IS": {
                 "zaman": 1794385860.7253218,
@@ -3986,90 +3914,6 @@
         },
         "kartal_1s": {},
         "cekirge_15m": {
-            "AGROT.IS": {
-                "zaman": 1794208547.9233022,
-                "ilk_fiyat": 1.2300000190734863,
-                "son_fiyat": 1.2300000190734863,
-                "tekrar_sayisi": 3
-            },
-            "AKSEN.IS": {
-                "zaman": 1794208547.9233022,
-                "ilk_fiyat": 69.19999694824219,
-                "son_fiyat": 72.3499984741211,
-                "tekrar_sayisi": 14
-            },
-            "ALKA.IS": {
-                "zaman": 1794208547.9233022,
-                "ilk_fiyat": 5.010000228881836,
-                "son_fiyat": 5.139999866485596,
-                "tekrar_sayisi": 5
-            },
-            "BAYRK.IS": {
-                "zaman": 1794208547.9233022,
-                "ilk_fiyat": 3.130000114440918,
-                "son_fiyat": 3.130000114440918,
-                "tekrar_sayisi": 1
-            },
-            "BRYAT.IS": {
-                "zaman": 1794208547.9233022,
-                "ilk_fiyat": 1328.0,
-                "son_fiyat": 1247.0,
-                "tekrar_sayisi": 7
-            },
-            "CWENE.IS": {
-                "zaman": 1794208547.9233022,
-                "ilk_fiyat": 18.5,
-                "son_fiyat": 17.649999618530273,
-                "tekrar_sayisi": 13
-            },
-            "EMKEL.IS": {
-                "zaman": 1794208547.9233022,
-                "ilk_fiyat": 5.190000057220459,
-                "son_fiyat": 6.599999904632568,
-                "tekrar_sayisi": 14
-            },
-            "EUREN.IS": {
-                "zaman": 1794208547.9233022,
-                "ilk_fiyat": 2.4800000190734863,
-                "son_fiyat": 2.559999942779541,
-                "tekrar_sayisi": 6
-            },
-            "FRIGO.IS": {
-                "zaman": 1794208547.9233022,
-                "ilk_fiyat": 2.240000009536743,
-                "son_fiyat": 2.2300000190734863,
-                "tekrar_sayisi": 6
-            },
-            "KOPOL.IS": {
-                "zaman": 1794208547.9233022,
-                "ilk_fiyat": 3.009999990463257,
-                "son_fiyat": 3.140000104904175,
-                "tekrar_sayisi": 11
-            },
-            "SELVA.IS": {
-                "zaman": 1794208547.9233022,
-                "ilk_fiyat": 1.0199999809265137,
-                "son_fiyat": 1.0399999618530273,
-                "tekrar_sayisi": 4
-            },
-            "TKNSA.IS": {
-                "zaman": 1794208547.9233022,
-                "ilk_fiyat": 11.699999809265137,
-                "son_fiyat": 12.180000305175781,
-                "tekrar_sayisi": 15
-            },
-            "VERTU.IS": {
-                "zaman": 1794208547.9233022,
-                "ilk_fiyat": 24.959999084472656,
-                "son_fiyat": 26.139999389648438,
-                "tekrar_sayisi": 23
-            },
-            "YIGIT.IS": {
-                "zaman": 1794208547.9233022,
-                "ilk_fiyat": 13.6899995803833,
-                "son_fiyat": 13.869999885559082,
-                "tekrar_sayisi": 9
-            },
             "ADGYO.IS": {
                 "zaman": 1794209472.7129536,
                 "ilk_fiyat": 49.79999923706055,
@@ -4199,8 +4043,8 @@
             "BSOKE.IS": {
                 "zaman": 1794210417.164696,
                 "ilk_fiyat": 5.550000190734863,
-                "son_fiyat": 6.340000152587891,
-                "tekrar_sayisi": 8
+                "son_fiyat": 6.480000019073486,
+                "tekrar_sayisi": 9
             },
             "CELHA.IS": {
                 "zaman": 1794210417.164696,
@@ -4529,8 +4373,8 @@
             "BAKAB.IS": {
                 "zaman": 1794225668.2274659,
                 "ilk_fiyat": 25.559999465942383,
-                "son_fiyat": 29.18000030517578,
-                "tekrar_sayisi": 20
+                "son_fiyat": 30.760000228881836,
+                "tekrar_sayisi": 21
             },
             "CEOEM.IS": {
                 "zaman": 1794225668.2274659,
@@ -5021,8 +4865,8 @@
             "DURDO.IS": {
                 "zaman": 1794563146.2240965,
                 "ilk_fiyat": 5.829999923706055,
-                "son_fiyat": 5.829999923706055,
-                "tekrar_sayisi": 3
+                "son_fiyat": 6.630000114440918,
+                "tekrar_sayisi": 4
             },
             "FENER.IS": {
                 "zaman": 1794566752.3298368,
@@ -5183,8 +5027,8 @@
             "FLAP.IS": {
                 "zaman": 1794816065.6044695,
                 "ilk_fiyat": 11.130000114440918,
-                "son_fiyat": 11.149999618530273,
-                "tekrar_sayisi": 2
+                "son_fiyat": 11.479999542236328,
+                "tekrar_sayisi": 3
             },
             "GWIND.IS": {
                 "zaman": 1794816065.6044695,
@@ -5201,8 +5045,8 @@
             "AVGYO.IS": {
                 "zaman": 1794817857.5495286,
                 "ilk_fiyat": 15.520000457763672,
-                "son_fiyat": 16.0,
-                "tekrar_sayisi": 39
+                "son_fiyat": 16.149999618530273,
+                "tekrar_sayisi": 40
             },
             "KLRHO.IS": {
                 "zaman": 1794817857.5495286,
@@ -5471,8 +5315,8 @@
             "ECZYT.IS": {
                 "zaman": 1794900666.3681686,
                 "ilk_fiyat": 159.1999969482422,
-                "son_fiyat": 155.39999389648438,
-                "tekrar_sayisi": 15
+                "son_fiyat": 156.0,
+                "tekrar_sayisi": 16
             },
             "PASEU.IS": {
                 "zaman": 1794900666.3681686,
@@ -5543,8 +5387,8 @@
             "IHLGM.IS": {
                 "zaman": 1794908748.866699,
                 "ilk_fiyat": 1.190000057220459,
-                "son_fiyat": 1.190000057220459,
-                "tekrar_sayisi": 1
+                "son_fiyat": 1.4500000476837158,
+                "tekrar_sayisi": 2
             },
             "EKOS.IS": {
                 "zaman": 1794909667.730453,
@@ -5668,66 +5512,6 @@
             }
         },
         "kartal_15dk": {
-            "ANELE.IS": {
-                "zaman": 1794208547.9233022,
-                "ilk_fiyat": 7.179999828338623,
-                "son_fiyat": 8.149999618530273,
-                "tekrar_sayisi": 2
-            },
-            "GEREL.IS": {
-                "zaman": 1794208547.9233022,
-                "ilk_fiyat": 22.559999465942383,
-                "son_fiyat": 22.559999465942383,
-                "tekrar_sayisi": 1
-            },
-            "GESAN.IS": {
-                "zaman": 1794208547.9233022,
-                "ilk_fiyat": 37.08000183105469,
-                "son_fiyat": 35.959999084472656,
-                "tekrar_sayisi": 2
-            },
-            "GUBRF.IS": {
-                "zaman": 1794208547.9233022,
-                "ilk_fiyat": 295.5,
-                "son_fiyat": 295.5,
-                "tekrar_sayisi": 1
-            },
-            "ISMEN.IS": {
-                "zaman": 1794208547.9233022,
-                "ilk_fiyat": 27.479999542236328,
-                "son_fiyat": 27.479999542236328,
-                "tekrar_sayisi": 1
-            },
-            "KCHOL.IS": {
-                "zaman": 1794208547.9233022,
-                "ilk_fiyat": 208.8000030517578,
-                "son_fiyat": 212.5,
-                "tekrar_sayisi": 16
-            },
-            "PAPIL.IS": {
-                "zaman": 1794208547.9233022,
-                "ilk_fiyat": 6.199999809265137,
-                "son_fiyat": 6.199999809265137,
-                "tekrar_sayisi": 1
-            },
-            "SAYAS.IS": {
-                "zaman": 1794208547.9233022,
-                "ilk_fiyat": 36.959999084472656,
-                "son_fiyat": 44.29999923706055,
-                "tekrar_sayisi": 3
-            },
-            "TARKM.IS": {
-                "zaman": 1794208547.9233022,
-                "ilk_fiyat": 338.75,
-                "son_fiyat": 355.25,
-                "tekrar_sayisi": 3
-            },
-            "UFUK.IS": {
-                "zaman": 1794208547.9233022,
-                "ilk_fiyat": 108.69999694824219,
-                "son_fiyat": 213.60000610351562,
-                "tekrar_sayisi": 2
-            },
             "ARENA.IS": {
                 "zaman": 1794209472.7129536,
                 "ilk_fiyat": 12.470000267028809,
@@ -6175,8 +5959,8 @@
             "HTTBT.IS": {
                 "zaman": 1794486660.2142074,
                 "ilk_fiyat": 30.780000686645508,
-                "son_fiyat": 30.780000686645508,
-                "tekrar_sayisi": 1
+                "son_fiyat": 30.739999771118164,
+                "tekrar_sayisi": 2
             },
             "TKFEN.IS": {
                 "zaman": 1794493863.0118902,
@@ -6591,6 +6375,12 @@
                 "ilk_fiyat": 10.739999771118164,
                 "son_fiyat": 10.699999809265137,
                 "tekrar_sayisi": 12
+            },
+            "UFUK.IS": {
+                "zaman": 1795072549.1434777,
+                "ilk_fiyat": 231.1999969482422,
+                "son_fiyat": 231.1999969482422,
+                "tekrar_sayisi": 1
             }
         },
         "kartal_ozel": {
@@ -6632,66 +6422,6 @@
             }
         },
         "kartal_dalgasi": {
-            "ANELE.IS": {
-                "zaman": 1794208547.9233022,
-                "ilk_fiyat": 7.179999828338623,
-                "son_fiyat": 13.899999618530273,
-                "tekrar_sayisi": 3
-            },
-            "ETILR.IS": {
-                "zaman": 1794208547.9233022,
-                "ilk_fiyat": 6.639999866485596,
-                "son_fiyat": 6.239999771118164,
-                "tekrar_sayisi": 2
-            },
-            "GESAN.IS": {
-                "zaman": 1794208547.9233022,
-                "ilk_fiyat": 37.08000183105469,
-                "son_fiyat": 35.959999084472656,
-                "tekrar_sayisi": 2
-            },
-            "GUBRF.IS": {
-                "zaman": 1794208547.9233022,
-                "ilk_fiyat": 295.5,
-                "son_fiyat": 295.5,
-                "tekrar_sayisi": 1
-            },
-            "HEDEF.IS": {
-                "zaman": 1794208547.9233022,
-                "ilk_fiyat": 7.690000057220459,
-                "son_fiyat": 8.390000343322754,
-                "tekrar_sayisi": 2
-            },
-            "ISMEN.IS": {
-                "zaman": 1794208547.9233022,
-                "ilk_fiyat": 27.479999542236328,
-                "son_fiyat": 27.479999542236328,
-                "tekrar_sayisi": 1
-            },
-            "PAMEL.IS": {
-                "zaman": 1794208547.9233022,
-                "ilk_fiyat": 40.400001525878906,
-                "son_fiyat": 41.900001525878906,
-                "tekrar_sayisi": 7
-            },
-            "SAYAS.IS": {
-                "zaman": 1794208547.9233022,
-                "ilk_fiyat": 36.959999084472656,
-                "son_fiyat": 44.29999923706055,
-                "tekrar_sayisi": 3
-            },
-            "TAVHL.IS": {
-                "zaman": 1794208547.9233022,
-                "ilk_fiyat": 294.5,
-                "son_fiyat": 305.5,
-                "tekrar_sayisi": 3
-            },
-            "TRCAS.IS": {
-                "zaman": 1794208547.9233022,
-                "ilk_fiyat": 39.220001220703125,
-                "son_fiyat": 44.439998626708984,
-                "tekrar_sayisi": 6
-            },
             "BMSTL.IS": {
                 "zaman": 1794209472.7129536,
                 "ilk_fiyat": 40.2400016784668,
@@ -7055,8 +6785,8 @@
             "HTTBT.IS": {
                 "zaman": 1794486660.2142074,
                 "ilk_fiyat": 30.780000686645508,
-                "son_fiyat": 30.780000686645508,
-                "tekrar_sayisi": 1
+                "son_fiyat": 30.739999771118164,
+                "tekrar_sayisi": 2
             },
             "EDIP.IS": {
                 "zaman": 1794487550.568341,
@@ -7553,8 +7283,8 @@
             "UFUK.IS": {
                 "zaman": 1794986146.2789388,
                 "ilk_fiyat": 213.60000610351562,
-                "son_fiyat": 213.60000610351562,
-                "tekrar_sayisi": 1
+                "son_fiyat": 231.1999969482422,
+                "tekrar_sayisi": 2
             },
             "ALKLC.IS": {
                 "zaman": 1794987062.0981421,
@@ -7585,6 +7315,12 @@
                 "ilk_fiyat": 10.739999771118164,
                 "son_fiyat": 10.699999809265137,
                 "tekrar_sayisi": 12
+            },
+            "TUPRS.IS": {
+                "zaman": 1795072549.1434777,
+                "ilk_fiyat": 344.0,
+                "son_fiyat": 344.0,
+                "tekrar_sayisi": 1
             }
         },
         "yakala_15dk": {},
@@ -7733,8 +7469,8 @@
             "MANAS.IS": {
                 "zaman": 1794467749.011579,
                 "ilk_fiyat": 3.140000104904175,
-                "son_fiyat": 4.730000019073486,
-                "tekrar_sayisi": 19
+                "son_fiyat": 5.150000095367432,
+                "tekrar_sayisi": 20
             },
             "PEKGY.IS": {
                 "zaman": 1794467749.011579,
@@ -7781,8 +7517,8 @@
             "IDGYO.IS": {
                 "zaman": 1794468672.9618447,
                 "ilk_fiyat": 1.9800000190734863,
-                "son_fiyat": 2.950000047683716,
-                "tekrar_sayisi": 21
+                "son_fiyat": 3.240000009536743,
+                "tekrar_sayisi": 22
             },
             "MEDTR.IS": {
                 "zaman": 1794468672.9618447,
@@ -7817,8 +7553,8 @@
             "UFUK.IS": {
                 "zaman": 1794468672.9618447,
                 "ilk_fiyat": 146.0,
-                "son_fiyat": 213.60000610351562,
-                "tekrar_sayisi": 12
+                "son_fiyat": 231.1999969482422,
+                "tekrar_sayisi": 13
             },
             "VAKBN.IS": {
                 "zaman": 1794468672.9618447,
@@ -8537,8 +8273,8 @@
             "IHLGM.IS": {
                 "zaman": 1794814447.9109783,
                 "ilk_fiyat": 1.059999942779541,
-                "son_fiyat": 1.3300000429153442,
-                "tekrar_sayisi": 12
+                "son_fiyat": 1.4500000476837158,
+                "tekrar_sayisi": 13
             },
             "IMASM.IS": {
                 "zaman": 1794814447.9109783,
@@ -9865,8 +9601,8 @@
             "DZGYO.IS": {
                 "zaman": 1794555947.7647176,
                 "ilk_fiyat": 7.099999904632568,
-                "son_fiyat": 7.110000133514404,
-                "tekrar_sayisi": 7
+                "son_fiyat": 6.980000019073486,
+                "tekrar_sayisi": 8
             },
             "ECZYT.IS": {
                 "zaman": 1794555947.7647176,
