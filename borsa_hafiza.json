@@ -1,12 +1,6 @@
 {
     "kayitlar": {
         "1h_dalga_gorsel": {
-            "BAYRK.IS": {
-                "zaman": 1794304867.7089334,
-                "ilk_fiyat": 3.1700000762939453,
-                "son_fiyat": 3.1700000762939453,
-                "tekrar_sayisi": 12
-            },
             "KAPLM.IS": {
                 "zaman": 1794305748.4268634,
                 "ilk_fiyat": 115.69999694824219,
@@ -1054,8 +1048,8 @@
             "BSOKE.IS": {
                 "zaman": 1794899742.777516,
                 "ilk_fiyat": 6.070000171661377,
-                "son_fiyat": 7.380000114440918,
-                "tekrar_sayisi": 51
+                "son_fiyat": 7.389999866485596,
+                "tekrar_sayisi": 52
             },
             "DARDL.IS": {
                 "zaman": 1794899742.777516,
@@ -1204,8 +1198,8 @@
             "IHEVA.IS": {
                 "zaman": 1794901547.338625,
                 "ilk_fiyat": 1.440000057220459,
-                "son_fiyat": 1.6699999570846558,
-                "tekrar_sayisi": 36
+                "son_fiyat": 1.6799999475479126,
+                "tekrar_sayisi": 37
             },
             "KAREL.IS": {
                 "zaman": 1794901547.338625,
@@ -3644,12 +3638,6 @@
         },
         "kartal_1s": {},
         "cekirge_15m": {
-            "VESTL.IS": {
-                "zaman": 1794304867.7089334,
-                "ilk_fiyat": 13.260000228881836,
-                "son_fiyat": 14.989999771118164,
-                "tekrar_sayisi": 8
-            },
             "CRFSA.IS": {
                 "zaman": 1794305748.4268634,
                 "ilk_fiyat": 155.60000610351562,
@@ -4409,8 +4397,8 @@
             "PGSUS.IS": {
                 "zaman": 1794841270.1270204,
                 "ilk_fiyat": 157.5,
-                "son_fiyat": 156.60000610351562,
-                "tekrar_sayisi": 20
+                "son_fiyat": 156.8000030517578,
+                "tekrar_sayisi": 21
             },
             "ULAS.IS": {
                 "zaman": 1794841270.1270204,
@@ -9013,7 +9001,7 @@
                 "zaman": 1794563146.2240965,
                 "ilk_fiyat": 1.3600000143051147,
                 "son_fiyat": 1.6799999475479126,
-                "tekrar_sayisi": 14
+                "tekrar_sayisi": 15
             },
             "NUGYO.IS": {
                 "zaman": 1794563146.2240965,
@@ -9925,7 +9913,7 @@
                 "zaman": 1794906945.5516524,
                 "ilk_fiyat": 33.7400016784668,
                 "son_fiyat": 45.58000183105469,
-                "tekrar_sayisi": 7
+                "tekrar_sayisi": 8
             },
             "ANELE.IS": {
                 "zaman": 1794907863.7357986,
