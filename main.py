@@ -693,27 +693,7 @@ def run_scanner():
                 tetiklenen_str.append("DELİRDİ 1 Saat")
                 toplam_puan += 35.0
 
-            hma9_1h = calculate_hma(close_1h, 9)
-            tenkan_9_1h = (high_1h.rolling(9).max() + low_1h.rolling(9).min()) / 2
-            kijun_26_1h = (high_1h.rolling(26).max() + low_1h.rolling(26).min()) / 2
-            span_a_1h = ((tenkan_9_1h + kijun_26_1h) / 2).shift(26)
-
-            wave_sequence_1h = [4, 8, 5, 8, 9]
-            total_cycle_1h = sum(wave_sequence_1h)
-            recent_high_1h = high_1h.iloc[-total_cycle_1h:].max()
-            recent_low_1h = low_1h.iloc[-total_cycle_1h:].min()
-            margin_range_1h = recent_high_1h - recent_low_1h
-            rvol_curr_1h = rvol_1h if not pd.isna(rvol_1h) and rvol_1h > 0 else 1e-5
-            efficiency_1h = margin_range_1h / rvol_curr_1h
-
-            hull_span_1h_ok = (
-                (not hma9_1h.empty)
-                and (not pd.isna(hma9_1h.iloc[-1]))
-                and (not pd.isna(span_a_1h.iloc[-1]))
-                and (hma9_1h.iloc[-1] > span_a_1h.iloc[-1])
-            )
-
-            if (plus_di_1h > 30.0) and (mfi_1h > 60.0) and hull_span_1h_ok and (efficiency_1h > 0.35):
+            if hma20_1h_curr and (close_curr_1h > hma20_1h_curr) and (rvol_1h >= 1.2) and wave_breakout_1h:
               if kayit_guncelle("manyak_1h"):
                 tetiklenen_str.append("MANYAK 1 Saat")
                 toplam_puan += 30.0
