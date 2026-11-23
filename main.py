@@ -616,11 +616,6 @@ def run_scanner():
                 tetiklenen_str.append("DELİRDİ 1 Saat")
                 toplam_puan += 35.0
 
-            if hma20_1h_curr and (close_curr_1h > hma20_1h_curr) and (rvol_1h >= 1.2) and wave_breakout_1h:
-              if kayit_guncelle("manyak_1h"):
-                tetiklenen_str.append("MANYAK 1 Saat")
-                toplam_puan += 30.0
-
         df_15m = extract_ticker_df(df_15m_all, clean_ticker, chunk)
         if not df_15m.empty and len(df_15m) >= 40:
           if isinstance(df_15m.columns, pd.MultiIndex):
@@ -650,6 +645,7 @@ def run_scanner():
             plus_di_ser_15m = 100 * (plus_dm_15m.rolling(14).sum() / (tr_15m.rolling(14).sum() + 1e-10))
             minus_di_ser_15m = 100 * (minus_dm_15m.rolling(14).sum() / (tr_15m.rolling(14).sum() + 1e-10))
             plus_di_15m = plus_di_ser_15m.iloc[-1]
+            minus_di_15m = minus_di_ser_15m.iloc[-1]
 
             cmf_15m = calculate_cmf(high_15m, low_15m, close_15m, volume_15m, 20)
             son_cmf = cmf_15m.iloc[-1]
@@ -657,6 +653,42 @@ def run_scanner():
             tenkan_9 = (high_15m.rolling(9).max() + low_15m.rolling(9).min()) / 2
             kijun_26 = (high_15m.rolling(26).max() + low_15m.rolling(26).min()) / 2
             senkou_span_a = (tenkan_9 + kijun_26) / 2
+
+            # =========================================================================
+            # 🤪 MANYAK 1 SAAT KONTROLÜ (Güncel 15dk Kırılım + 1s Teyitli Sürüm)
+            # =========================================================================
+            try:
+                wave_breakout_15m, _ = check_wave_margins(df_15m, lookback=3, threshold_multiplier=0.80)
+                bb_mid_15m = close_15m.rolling(20).mean()
+                close_curr_15m = close_15m.iloc[-1]
+
+                cond_15m_manyak = (
+                    wave_breakout_15m
+                    and (rvol_15m >= 1.2)
+                    and (mfi_15m > 60.0)
+                    and (plus_di_15m > 20.0)
+                    and (plus_di_15m > minus_di_15m)
+                    and (not pd.isna(bb_mid_15m.iloc[-1]))
+                    and (close_curr_15m > bb_mid_15m.iloc[-1])
+                )
+
+                cond_1h_manyak = (
+                    (not df_1h.empty)
+                    and bool(hma20_1h_curr)
+                    and (not pd.isna(close_curr_1h))
+                    and (not pd.isna(hma20_1h_curr))
+                    and (close_curr_1h > hma20_1h_curr)
+                    and (rsi_1h > 50.0)
+                    and (plus_di_1h > 24.0)
+                )
+
+                if cond_15m_manyak and cond_1h_manyak:
+                    if kayit_guncelle("manyak_1h"):
+                        tetiklenen_str.append("MANYAK 1 Saat")
+                        toplam_puan += 30.0
+            except Exception:
+                pass
+            # =========================================================================
 
             # =========================================================================
             # 🌿 ÇEKİRGE KONTROLÜ (Orijinal Modül)
