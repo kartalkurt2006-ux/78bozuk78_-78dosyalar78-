@@ -115,32 +115,6 @@ def calculate_cmf(high, low, close, volume, period=20):
     return pd.Series(0.0, index=close.index)
 
 
-def calculate_heikin_ashi(df):
-  try:
-    if df is None or df.empty or len(df) < 3:
-      return pd.DataFrame()
-    o = df["Open"].astype(float).values
-    h = df["High"].astype(float).values
-    l = df["Low"].astype(float).values
-    c = df["Close"].astype(float).values
-
-    ha_close = (o + h + l + c) / 4.0
-    ha_open = np.zeros_like(ha_close)
-    ha_open[0] = (o[0] + c[0]) / 2.0
-    for i in range(1, len(ha_close)):
-      ha_open[i] = (ha_open[i - 1] + ha_close[i - 1]) / 2.0
-
-    ha_high = np.maximum.reduce([h, ha_open, ha_close])
-    ha_low = np.minimum.reduce([l, ha_open, ha_close])
-
-    return pd.DataFrame(
-        {"ha_open": ha_open, "ha_high": ha_high, "ha_low": ha_low, "ha_close": ha_close},
-        index=df.index,
-    )
-  except Exception:
-    return pd.DataFrame()
-
-
 def get_wave_position(df):
   try:
     close = df["Close"].values
@@ -198,57 +172,6 @@ def check_wave_margins(df, lookback=3, threshold_multiplier=0.80):
     return triggered, current_pos
   except Exception:
     return False, 50.0
-
-
-# =========================================================================
-# 🕯️ ASHİ TARAMASI (60dk Yatay Kanal + Yükselen İğne & 5dk HA Dönüşü)
-# =========================================================================
-def scan_ashi_taramasi(df_1h, df_5m):
-  try:
-    if df_1h is None or df_5m is None or len(df_1h) < 26 or len(df_5m) < 10:
-      return False
-
-    # 1) 60dk (1s) Yatay kanal (sıkışma) + son mumun alt iğnesinin bir önceki iğnenin üstünde kalması
-    low_1h = df_1h["Low"].astype(float).values
-    high_1h = df_1h["High"].astype(float).values
-    close_1h = df_1h["Close"].astype(float).values
-
-    if np.isnan(low_1h[-1]) or np.isnan(low_1h[-2]) or np.isnan(close_1h[-1]):
-      return False
-
-    kanal_high = np.max(high_1h[-24:])
-    kanal_low = np.min(low_1h[-24:])
-    kanal_mid = (kanal_high + kanal_low) / 2.0
-    if kanal_mid <= 0:
-      return False
-
-    kanal_genislik_oran = (kanal_high - kanal_low) / kanal_mid
-    yatay_kanal_ok = kanal_genislik_oran <= 0.14
-    yukselen_igne_1h = low_1h[-1] > low_1h[-2]
-
-    if not (yatay_kanal_ok and yukselen_igne_1h):
-      return False
-
-    # 2) 5dk Heikin Ashi: Önceki 2-3 bar kırmızı HA, son bar yeşil HA'ya dönmüş ve alt fitil zayıflamış
-    ha_5m = calculate_heikin_ashi(df_5m)
-    if ha_5m.empty or len(ha_5m) < 5:
-      return False
-
-    ha_o = ha_5m["ha_open"].values
-    ha_h = ha_5m["ha_high"].values
-    ha_l = ha_5m["ha_low"].values
-    ha_c = ha_5m["ha_close"].values
-
-    onceki_3_kirmizi = (ha_c[-4] < ha_o[-4]) and (ha_c[-3] < ha_o[-3]) and (ha_c[-2] < ha_o[-2])
-    son_bar_yesil = ha_c[-1] > ha_o[-1]
-
-    govde_boyu = max(abs(ha_c[-1] - ha_o[-1]), 1e-9)
-    alt_fitil_boyu = max(min(ha_o[-1], ha_c[-1]) - ha_l[-1], 0.0)
-    alt_fitil_zayif = alt_fitil_boyu <= (govde_boyu * 0.5)
-
-    return bool(onceki_3_kirmizi and son_bar_yesil and alt_fitil_zayif)
-  except Exception:
-    return False
 
 
 # =========================================================================
@@ -802,10 +725,6 @@ def run_scanner():
           if not df_5m_work["Close"].isna().iloc[-1]:
             if guncel_fiyat == 0.0:
               guncel_fiyat = df_5m_work["Close"].iloc[-1]
-            if scan_ashi_taramasi(df_1h, df_5m_work):
-              if kayit_guncelle("ashi_taramasi"):
-                tetiklenen_str.append("ASHİ TARAMASI")
-                toplam_puan += 35.0
 
         # =========================================================================
         # 🎯 SÜPER 5 CROSS (5 Dakikalık Veri Üzerinde - Marj Kırılımlı Güncel Sürüm)
@@ -992,9 +911,7 @@ def run_scanner():
         
         for strat in item['stratejiler']:
           strat_upper = strat.upper()
-          if "ASHİ TARAMASI" in strat_upper:
-            mesaj_satirlari.append(f"• 🕯️ {strat} (1s Konum:%{item['konum_1h']:.1f})")
-          elif "SÜPER 5 CROSS" in strat_upper:
+          if "SÜPER 5 CROSS" in strat_upper:
             mesaj_satirlari.append(f"• 🎯🎯 {strat} (MFI:{item['mfi_15m']:.1f} | +DI:{item['plus_di_15m']:.1f})")
           elif "KARTAL 15DK" in strat_upper:
             mesaj_satirlari.append(f"• 🦅⚡ {strat} (MFI:{item['mfi_15m']:.1f} | +DI:{item['plus_di_15m']:.1f})")
