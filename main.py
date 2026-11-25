@@ -616,6 +616,26 @@ def run_scanner():
                 tetiklenen_str.append("DELİRDİ 1 Saat")
                 toplam_puan += 35.0
 
+            # =========================================================================
+            # 🦁 ASLAN 1 SAAT KONTROLÜ (Güncel Fiyat Üzerinden - +DI>=30, MFI>=60, HMA20)
+            # =========================================================================
+            try:
+              if (not hma20_1h.empty) and (len(hma20_1h) >= 2) and (not pd.isna(hma20_1h_curr)) and (not pd.isna(hma20_1h.iloc[-2])):
+                hma20_fiyatin_altinda = close_curr_1h >= hma20_1h_curr
+                hma20_yeni_kesis = (close_1h.iloc[-2] <= hma20_1h.iloc[-2]) and (close_curr_1h > hma20_1h_curr)
+                aslan_hma20_ok = hma20_fiyatin_altinda or hma20_yeni_kesis
+
+                aslan_di_ok = (not pd.isna(plus_di_1h)) and (plus_di_1h >= 30.0)
+                aslan_mfi_ok = (not pd.isna(mfi_1h)) and (mfi_1h >= 60.0)
+
+                if aslan_di_ok and aslan_mfi_ok and aslan_hma20_ok:
+                  if kayit_guncelle("aslan_1h"):
+                    tetiklenen_str.append("Aslan 1 saat")
+                    toplam_puan += 30.0
+            except Exception:
+              pass
+            # =========================================================================
+
         df_15m = extract_ticker_df(df_15m_all, clean_ticker, chunk)
         if not df_15m.empty and len(df_15m) >= 40:
           if isinstance(df_15m.columns, pd.MultiIndex):
@@ -900,6 +920,8 @@ def run_scanner():
               "ozel_oncelik": ozel_oncelik,
               "stratejiler": tetiklenen_str,
               "rsi_1h": rsi_1h,
+              "mfi_1h": mfi_1h,
+              "plus_di_1h": plus_di_1h,
               "rvol_1h": rvol_1h,
               "konum_1h": konum_1h,
               "mfi_15m": mfi_15m,
@@ -959,6 +981,8 @@ def run_scanner():
             mesaj_satirlari.append(f"• 🤪🤪🤪 {strat} (1s RVOL:{item['rvol_1h']:.2f} | 1s RSI:{item['rsi_1h']:.1f} | 1s Konum:%{item['konum_1h']:.1f})")
           elif "1 SAAT YAKALA" in strat_upper:
             mesaj_satirlari.append(f"• ⚫⚫⚫ {strat} (1s RSI:{item['rsi_1h']:.1f} | 1s Konum:%{item['konum_1h']:.1f})")
+          elif "ASLAN 1 SAAT" in strat_upper:
+            mesaj_satirlari.append(f"• 🦁🦁🦁 {strat} (1s MFI:{item['mfi_1h']:.1f} | 1s +DI:{item['plus_di_1h']:.1f})")
           else:
             mesaj_satirlari.append(f"• 🟣 {strat}")
             
